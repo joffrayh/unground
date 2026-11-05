@@ -8,7 +8,8 @@ import type { Db } from './types';
 
 // postgres() connects lazily, so a missing URL only fails when used; prepareDatabase() checks it at start.
 // onnotice: silence NOTICEs such as "schema already exists, skipping" from re-running migrations.
-const client = postgres(DATABASE_URL ?? '', { max: 10, onnotice: () => {} });
+// idle_timeout: close idle connections (seconds) so a serverless database (Neon) can scale to zero.
+const client = postgres(DATABASE_URL ?? '', { max: 10, idle_timeout: 60, onnotice: () => {} });
 
 export const db: Db = drizzle(client, { schema });
 

@@ -13,7 +13,7 @@ decision live in [concept.md](concept.md).
 | Validation | Zod 4 (`src/lib/domain/schemas.ts`)                                          |
 | Auth       | Email + password (argon2id), server-side sessions in Postgres                |
 | Tests      | Vitest, with DB tests on an in-process Postgres (PGlite); Playwright for e2e |
-| Deploy     | Docker Compose (app + Postgres)                                              |
+| Deploy     | Render (Docker, free) + Neon Postgres; or Docker Compose self-hosted         |
 
 Why this stack ([D19](concept.md#8-decision-log)):
 
@@ -54,6 +54,26 @@ Sign up at `/signup`. By default this needs the `INVITE_CODE` from `.env`.
 | `npm run db:generate` | Generate a migration after editing `schema.ts`               |
 
 ## Deploying
+
+### Render + Neon (D32)
+
+[`render.yaml`](render.yaml) defines the app. Every push to `main` deploys it, and the app applies
+pending migrations and refreshes the flavour vocabulary when it starts.
+
+1. **Neon:** create a project (Postgres 18, AWS Frankfurt). Under **Connect**, turn off connection
+   pooling and copy the string. Replace its query string (`?sslmode=require&channel_binding=require`)
+   with `?sslmode=verify-full`: postgres.js skips certificate checks under `require` and would send
+   `channel_binding` to the server as a setting, which fails.
+2. **Render:** New → Blueprint → this repo. Paste the string as `DATABASE_URL`. The invite code is
+   generated; it's under the service's **Environment**.
+3. **Keep-alive:** a free Render service sleeps after 15 idle minutes (about 1 minute to wake). Have a
+   cron service (e.g. cron-job.org) fetch `https://<service>.onrender.com/login` every 10 minutes.
+   `/login` doesn't touch the database, so Neon still scales to zero.
+4. Once everyone has signed up, set `REGISTRATION=closed`.
+
+Backup from any machine with a Postgres 18 client: `pg_dump "$DATABASE_URL" -Fc > unground.dump`.
+
+### Self-hosted (Docker Compose)
 
 On the server, create `.env` next to `compose.prod.yaml`:
 

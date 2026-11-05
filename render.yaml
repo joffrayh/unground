@@ -1,0 +1,19 @@
+# Render Blueprint (D32): the app on Render's free plan, the database on Neon. Every push to main deploys.
+services:
+  - type: web
+    name: unground
+    runtime: docker
+    plan: free
+    region: frankfurt
+    branch: main
+    healthCheckPath: /login
+    envVars:
+      # Neon's direct (unpooled) connection string, ending in ?sslmode=verify-full (see README).
+      - key: DATABASE_URL
+        sync: false
+      - key: REGISTRATION
+        value: invite
+      - key: INVITE_CODE
+        generateValue: true
+      # ORIGIN and ADDRESS_HEADER stay unset: the origin comes from the Host header (https), and the
+      # rate limiter keys on Render's proxy address because Render's X-Forwarded-For is client-spoofable.
