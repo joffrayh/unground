@@ -1,0 +1,16 @@
+# Local development database: `npm run db:start`.
+# For a full deployment (app + database) use compose.prod.yaml.
+services:
+  db:
+    image: postgres:18-alpine
+    restart: unless-stopped
+    ports:
+      - 5433:5432
+    environment:
+      POSTGRES_USER: coffee
+      POSTGRES_PASSWORD: coffee
+      POSTGRES_DB: coffee
+    volumes:
+      - pgdata:/var/lib/postgresql
+volumes:
+  pgdata:

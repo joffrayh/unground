@@ -1,0 +1,230 @@
+import { describe, expect, it } from 'vitest';
+import {
+	effectiveScale,
+	errorRowIndex,
+	isBlank,
+	parseGrams,
+	placeholderRowsFromEntries,
+	rowsFromEntries,
+	rowsFromValues,
+	summarizePours,
+	trimSpareRows,
+	withSpareRows,
+	type PourRow
+} from './pour-rows.ts';
+
+/** A typed row. */
+const r = (time: string, scale: string, bloom = false): PourRow => ({
+	time,
+	scale,
+	bloom,
+	defaultTime: '',
+	defaultScale: ''
+});
+/** A blank row showing placeholders. */
+const p = (defaultTime: string, defaultScale: string, bloom = false): PourRow => ({
+	time: '',
+	scale: '',
+	bloom,
+	defaultTime,
+	defaultScale
+});
+
+describe('rows ⇄ entries / values', () => {
+	it('formats stored entries as timer + scale readings, keeping blooms', () => {
+		expect(
+			rowsFromEntries([
+				{ startS: 0, cumulativeG: 50, bloom: true },
+				{ startS: 45, cumulativeG: 150.5, bloom: false }
+			])
+		).toEqual([r('0:00', '50', true), r('0:45', '150.5')]);
+	});
+
+	it('turns another brew’s entries into placeholders', () => {
+		expect(
+			placeholderRowsFromEntries([
+				{ startS: 0, cumulativeG: 50, bloom: true },
+				{ startS: 45, cumulativeG: 150, bloom: false }
+			])
+		).toEqual([p('0:00', '50', true), p('0:45', '150')]);
+	});
+
+	it('zips submitted arrays, padding the shorter one, and reads blooms by row id', () => {
+		expect(rowsFromValues({ times: ['0:00', '0:45'], scales: ['50'] })).toEqual([
+			r('0:00', '50'),
+			r('0:45', '')
+		]);
+		expect(
+			rowsFromValues({
+				times: ['0:00', '', ''],
+				scales: ['', '', '200'],
+				timeDefaults: ['', '0:40', '1:20'],
+				scaleDefaults: ['45', '150', ''],
+				rowIds: ['r0', 'r1', 'r7'],
+				bloom: ['r0'],
+				drop: ['r1']
+			})
+		).toEqual([
+			{ time: '0:00', scale: '', bloom: true, defaultTime: '', defaultScale: '45' },
+			{ time: '', scale: '200', bloom: false, defaultTime: '1:20', defaultScale: '' }
+		]);
+	});
+});
+
+describe('effective values and blank rows', () => {
+	it('uses the typed scale reading, else the placeholder', () => {
+		expect(effectiveScale(p('0:40', '150'))).toBe('150');
+		expect(effectiveScale({ ...p('0:40', '150'), scale: ' 160 ' })).toBe('160');
+	});
+
+	it('counts a placeholder row as filled, but not a time placeholder alone', () => {
+		expect(isBlank(p('0:40', '150'), 1)).toBe(false);
+		expect(isBlank(r('', ''), 1)).toBe(true);
+		expect(isBlank(r('', ''), 0)).toBe(true);
+		expect(isBlank(p('0:40', ''), 1)).toBe(true);
+		expect(isBlank(r('0:40', ''), 1)).toBe(false);
+	});
+});
+
+describe('withSpareRows / trimSpareRows', () => {
+	it('gives an empty editor pour 0 plus spares', () => {
+		expect(withSpareRows([], 1, 3)).toEqual([r('', ''), r('', ''), r('', '')]);
+	});
+
+	it('adds one blank row after the filled ones (placeholders count as filled)', () => {
+		expect(withSpareRows([r('0:00', '50'), r('0:45', '150')], 1)).toHaveLength(3);
+		expect(withSpareRows([p('0:00', '50'), p('0:45', '150')], 1)).toHaveLength(3);
+	});
+
+	it('does not add a spare when one already trails', () => {
+		const rows = [r('0:00', '50'), r('', '')];
+		expect(withSpareRows(rows, 1)).toEqual(rows);
+	});
+
+	it('never counts pour 0 as a spare', () => {
+		expect(withSpareRows([r('0:00', '')], 1)).toEqual([r('0:00', ''), r('', '')]);
+	});
+
+	it('trims trailing blank rows, keeping at least `min`', () => {
+		const rows = [p('0:00', '50'), p('0:45', '150'), r('', ''), r('', '')];
+		expect(trimSpareRows(rows)).toEqual(rows.slice(0, 2));
+		expect(trimSpareRows([r('', ''), r('', ''), r('', '')], 3)).toHaveLength(3);
+		expect(trimSpareRows([r('', ''), r('', '')])).toHaveLength(1);
+	});
+});
+
+describe('parseGrams', () => {
+	it.each([
+		['15', 15],
+		['15,5', 15.5],
+		[' 15.5 ', 15.5],
+		['', null],
+		['abc', null],
+		[16, 16]
+	])('%j → %j', (input, expected) => {
+		expect(parseGrams(input)).toBe(expected);
+	});
+});
+
+describe('summarizePours', () => {
+	it('computes per-pour amounts, total and ratio, naming pours from 0', () => {
+		const s = summarizePours(
+			[r('0:00', '50'), r('0:45', '150'), r('1:15', '250'), r('', '')],
+			'15'
+		);
+		expect(s.rows.map((x) => x.added)).toEqual([50, 100, 100, null]);
+		expect(s.rows.map((x) => x.label)).toEqual(['Pour 0', 'Pour 1', 'Pour 2', 'Pour 3']);
+		expect(s.totalG).toBe(250);
+		expect(s.ratio).toBe(16.7);
+		expect(s.count).toBe(3);
+		expect(s.rows.some((x) => x.problem)).toBe(false);
+	});
+
+	it('counts placeholders as what will be saved (D26)', () => {
+		const s = summarizePours(
+			[p('0:00', '45'), p('0:40', '150'), { ...p('1:20', '256'), scale: '260' }],
+			'16'
+		);
+		expect(s.rows.map((x) => x.added)).toEqual([45, 105, 110]);
+		expect(s.rows.map((x) => [x.startS, x.scaleG])).toEqual([
+			[0, 45],
+			[40, 150],
+			[80, 260]
+		]);
+		expect(s).toMatchObject({ count: 3, totalG: 260, ratio: 16.3 });
+	});
+
+	it('accepts a comma decimal dose and avoids float noise', () => {
+		const s = summarizePours([r('', '50.1'), r('0:40', '150.3')], '15,5');
+		expect(s.rows[1].added).toBe(100.2);
+		expect(s.ratio).toBe(9.7);
+	});
+
+	it('has no total or ratio before anything is typed', () => {
+		const s = summarizePours([r('', ''), r('', '')], '15');
+		expect(s).toMatchObject({ totalG: null, ratio: null, count: 0 });
+	});
+
+	it('flags a scale reading that does not go up and a time that does not move on', () => {
+		const s = summarizePours([r('0:00', '50'), r('0:45', '40'), r('0:30', '200')], '15');
+		expect(s.rows.map((x) => x.problem)).toEqual([false, true, true]);
+	});
+
+	it('flags an unreadable time but not a half-typed row', () => {
+		const s = summarizePours([r('0:00', '50'), r('1:5', '100'), r('2:00', '')], '15');
+		expect(s.rows.map((x) => x.problem)).toEqual([false, true, false]);
+	});
+
+	it('suggests a start time: the placeholder, else one previous interval on', () => {
+		const s = summarizePours([r('0:00', '50'), r('0:40', '150'), r('', ''), p('2:30', '')], '15');
+		expect(s.rows.map((x) => x.timePlaceholder)).toEqual(['0:00', '0:45', '1:20', '2:30']);
+	});
+
+	it('times a pour with a blank time at its placeholder, as the server saves it', () => {
+		// No previous brew: the times are extrapolated (0:45 apart at first, then the last interval).
+		const s = summarizePours([r('0:00', '50'), r('', '150'), r('', '250'), r('', '')], '15');
+		expect(s.rows.map((x) => x.startS)).toEqual([0, 45, 90, null]);
+		expect(s.rows.map((x) => x.timePlaceholder)).toEqual(['0:00', '0:45', '1:30', '2:15']);
+		expect(s.rows.map((x) => x.problem)).toEqual([false, false, false, false]);
+		expect(s.count).toBe(3);
+	});
+
+	it('runs the estimates through blank rows, so spare rows don’t all start at once', () => {
+		// What a first brew renders without JavaScript; these are the times it posts.
+		const s = summarizePours(withSpareRows([], 1, 3), '15');
+		expect(s.rows.map((x) => x.timePlaceholder)).toEqual(['0:00', '0:45', '1:30']);
+		// A time typed out of order is flagged, and doesn't drag the next estimate back.
+		const back = summarizePours(
+			[r('0:00', '50'), r('1:00', '150'), r('0:30', '200'), r('', '')],
+			'15'
+		);
+		expect(back.rows.map((x) => x.problem)).toEqual([false, false, true, false]);
+		expect(back.rows[3].timePlaceholder).toBe('2:00');
+	});
+});
+
+describe('errorRowIndex', () => {
+	const rows = [r('0:00', '50'), r('', ''), r('0:45', '150'), r('1:10', '120')];
+
+	it('maps "Pour n" (from 0) to the row the server kept, skipping blank rows', () => {
+		expect(errorRowIndex(rows, 'Pour 2: scale reading must be higher than pour 1 (150 g).')).toBe(
+			3
+		);
+		expect(errorRowIndex(rows, 'Pour 1 must start after pour 0.')).toBe(2);
+		expect(errorRowIndex(rows, 'Pour 0: enter the scale reading in grams')).toBe(0);
+		expect(errorRowIndex(rows, 'Pour 0 starts the brew, so it must start at 0:00.')).toBe(0);
+	});
+
+	it('counts placeholder rows the way the server does', () => {
+		expect(errorRowIndex([r('0:00', '50'), p('0:40', '150'), r('', '90')], 'Pour 2: x')).toBe(2);
+	});
+
+	it('maps the empty-editor message to pour 0', () => {
+		expect(errorRowIndex(rows, 'Add at least one pour.')).toBe(0);
+	});
+
+	it('returns null for messages about the whole list', () => {
+		expect(errorRowIndex(rows, 'Total water can’t exceed 5000 g')).toBeNull();
+		expect(errorRowIndex(rows, undefined)).toBeNull();
+	});
+});
