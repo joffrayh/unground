@@ -55,13 +55,22 @@ Sign up at `/signup`. By default this needs the `INVITE_CODE` from `.env`.
 
 ## Deploying
 
+On the server, create `.env` next to `compose.prod.yaml`:
+
 ```sh
-POSTGRES_PASSWORD=… ORIGIN=https://coffee.example.com INVITE_CODE=… \
-  docker compose -f compose.prod.yaml up -d --build
+DOMAIN=coffee.example.com     # DNS A record must point at the server; ports 80 and 443 open
+POSTGRES_PASSWORD=…
+INVITE_CODE=…
+REGISTRATION=invite           # set to closed once everyone has signed up
 ```
 
-The app applies pending migrations and refreshes the flavour vocabulary when it starts. Put it behind
-a TLS-terminating reverse proxy: session cookies are `Secure`.
+```sh
+docker compose -f compose.prod.yaml up -d --build    # also to update, after git pull
+```
+
+Caddy gets a TLS certificate for `DOMAIN` automatically and proxies to the app. The app applies pending
+migrations and refreshes the flavour vocabulary when it starts. Back up nightly with
+[`scripts/backup.sh`](scripts/backup.sh) from cron.
 
 ## Exporting data (Stage 2)
 
