@@ -530,6 +530,7 @@ details > summary.btn-toggle::after {
 details > summary.btn-toggle:hover,
 details[open] > summary.btn-toggle {
 	background: var(--accent-soft);
+	color: var(--text);
 }
 summary.btn-toggle.edit::before {
 	content: '';
