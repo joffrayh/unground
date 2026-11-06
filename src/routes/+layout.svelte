@@ -6,6 +6,13 @@
 
 	let { data, children }: LayoutProps = $props();
 
+	// Browser chrome colours. An enhanced save doesn't re-render <html>, so sync it here.
+	const BAR_LIGHT = '#8a4b24';
+	const BAR_DARK = '#171310';
+	$effect(() => {
+		document.documentElement.dataset.theme = data.theme;
+	});
+
 	const NAV = [
 		{ href: '/', label: 'Home', icon: '⌂' },
 		{ href: '/brews', label: 'Brews', icon: '☰' },
@@ -24,7 +31,12 @@
 
 <svelte:head>
 	<link rel="icon" href={favicon} />
-	<meta name="theme-color" content="#8a4b24" />
+	{#if data.theme === 'system'}
+		<meta name="theme-color" content={BAR_LIGHT} media="(prefers-color-scheme: light)" />
+		<meta name="theme-color" content={BAR_DARK} media="(prefers-color-scheme: dark)" />
+	{:else}
+		<meta name="theme-color" content={data.theme === 'dark' ? BAR_DARK : BAR_LIGHT} />
+	{/if}
 	<title>Unground</title>
 </svelte:head>
 

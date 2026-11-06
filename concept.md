@@ -263,6 +263,7 @@ The substance of each decision lives in the section noted under _Where_; this ta
 | D30 | Plan suggestions are **green**, inside the box they apply to. | Green reads as "go/next" and matches the pours the plan adds; inside the box the previous value (the placeholder) and the target sit together. | [§4.2](#42-brew) |
 | D31 | The app is named **Unground**; it shows no app-name header. UI copy is **low-verbosity** (see `CLAUDE.md`). | Screen space on a phone goes to the brew. | — |
 | D32 | **Hosting:** the app runs on Render's free plan (Docker, auto-deploy from `main`), the database on Neon's free plan. A pinger keeps the app awake; Docker Compose stays as the self-hosted fallback. | Free, nothing to maintain, built-in HTTPS and deploys. Render's own free Postgres expires after 30 days; Oracle's free VM needs server upkeep and its limits were cut in 2026. | README |
+| D33 | **Theme** is System, Light or Dark, set in Settings and stored in a cookie on the device, not on the account. System (no cookie) follows the device. | A phone and a laptop can differ; a cookie lets the server render the right theme first, without JavaScript and without a flash. | — |
 
 ## 9. Open questions / decisions to revisit
 

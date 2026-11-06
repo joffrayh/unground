@@ -2,7 +2,7 @@
  * The core journey, in a real browser (phone viewport) against a production build:
  * sign up → set up a grinder, a bean and a dripper from the brew form → log a brew → rate it on the
  * radar → plan what to change → brew again (placeholders + the plan's suggestions) → export. Plus the
- * same logging flow with JavaScript disabled.
+ * same logging flow with JavaScript disabled. The theme choice is covered both ways.
  */
 import { expect, test, type Page } from '@playwright/test';
 import { fillPours, isoDate, logIn, signUp, uniqueEmail } from './helpers';
@@ -12,6 +12,41 @@ function csvRows(text: string): Record<string, string>[] {
 	const [header, ...lines] = text.trim().split('\r\n');
 	const cols = header.split(',');
 	return lines.map((line) => Object.fromEntries(line.split(',').map((v, i) => [cols[i], v])));
+}
+
+/** Sign-ups are rate limited and the journeys use them all, so the theme tests reuse an account. */
+const THEME_EMAIL = uniqueEmail('theme');
+const LIGHT_BG = 'rgb(247, 243, 238)';
+const DARK_BG = 'rgb(23, 19, 16)';
+
+/** Picks each theme against the device's setting, checking the choice survives a reload. */
+async function checkThemeChoice(page: Page) {
+	const background = (colour: string) =>
+		expect(page.locator('body')).toHaveCSS('background-color', colour);
+	const choose = async (name: string) => {
+		const button = page.getByRole('button', { name, exact: true });
+		await button.click();
+		await expect(button).toHaveAttribute('aria-pressed', 'true');
+	};
+
+	await page.emulateMedia({ colorScheme: 'light' });
+	await logIn(page, THEME_EMAIL);
+	await page.goto('/settings');
+	await background(LIGHT_BG);
+
+	await choose('Dark');
+	await background(DARK_BG);
+	await expect(page.locator('meta[name="theme-color"]')).toHaveAttribute('content', '#171310');
+	await page.reload();
+	await background(DARK_BG);
+
+	await page.emulateMedia({ colorScheme: 'dark' });
+	await choose('Light');
+	await background(LIGHT_BG);
+
+	await choose('System');
+	await background(DARK_BG);
+	await expect(page.locator('meta[name="theme-color"]')).toHaveCount(2);
 }
 
 async function setUpGrinderAndBean(page: Page, { js = true } = {}) {
@@ -263,7 +298,7 @@ test('brew again survives a new-grinder detour, and never copies grind across gr
 test('a blank pour time saves the time it shows, and the brew page leads back to the list', async ({
 	page
 }) => {
-	await signUp(page, uniqueEmail('blanktime'));
+	await signUp(page, THEME_EMAIL);
 	await setUpGrinderAndBean(page);
 	await page.locator('[name="grindSetting"]').fill('24');
 	await page.locator('[name="doseG"]').fill('15');
@@ -286,8 +321,16 @@ test('a blank pour time saves the time it shows, and the brew page leads back to
 	await expect(page).toHaveURL('/brews');
 });
 
+test('choosing a theme', async ({ page }) => {
+	await checkThemeChoice(page);
+});
+
 test.describe('without JavaScript', () => {
 	test.use({ javaScriptEnabled: false });
+
+	test('choosing a theme', async ({ page }) => {
+		await checkThemeChoice(page);
+	});
 
 	test('a first brew saves with only scale readings, at the estimated times', async ({ page }) => {
 		await signUp(page, uniqueEmail('nojs-times'));

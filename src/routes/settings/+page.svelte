@@ -4,6 +4,7 @@
 	import FieldError from '#lib/components/FieldError.svelte';
 	import FormError from '#lib/components/FormError.svelte';
 	import { err, val } from '#lib/ui/forms.ts';
+	import { THEMES } from '#lib/ui/theme.ts';
 	import type { PageProps } from './$types';
 
 	let { data, form }: PageProps = $props();
@@ -85,6 +86,24 @@
 				</a>
 			</li>
 		</ul>
+	</section>
+
+	<section class="card" aria-labelledby="theme-heading">
+		<h2 id="theme-heading">Theme</h2>
+		<form method="POST" action="?/theme" class="themes" use:enhance={track('theme', false)}>
+			{#each Object.entries(THEMES) as [id, label] (id)}
+				<button
+					class="btn"
+					class:btn-primary={data.theme === id}
+					name="theme"
+					value={id}
+					aria-pressed={data.theme === id}
+					disabled={busy === 'theme'}
+				>
+					{label}
+				</button>
+			{/each}
+		</form>
 	</section>
 
 	<section class="card stack" aria-labelledby="export-heading">
@@ -228,6 +247,11 @@
 	.email {
 		margin: 0;
 		overflow-wrap: anywhere;
+	}
+	.themes {
+		display: grid;
+		grid-template-columns: repeat(3, 1fr);
+		gap: 0.5rem;
 	}
 	.notes {
 		margin: 0;

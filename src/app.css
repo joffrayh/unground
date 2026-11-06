@@ -1,49 +1,40 @@
 /* Design tokens -------------------------------------------------------------------------------- */
 :root {
 	color-scheme: light dark;
-	--bg: #f7f3ee;
-	--surface: #ffffff;
-	--surface-2: #f1ebe3;
-	--text: #2a211b;
-	--muted: #75685d;
-	--border: #e3d9cd;
-	--accent: #8a4b24;
-	--accent-text: #ffffff;
-	--accent-soft: #f4e3d6;
-	--danger: #b3261e;
-	--danger-soft: #fbe6e4;
-	--ok: #25683f;
-	--ok-soft: #e2f2e8;
+	/* light-dark(light, dark). `color-scheme` picks the side, so this block is the whole palette. */
+	--bg: light-dark(#f7f3ee, #171310);
+	--surface: light-dark(#ffffff, #221c18);
+	--surface-2: light-dark(#f1ebe3, #2c2520);
+	--text: light-dark(#2a211b, #f1e9e1);
+	--muted: light-dark(#75685d, #b2a497);
+	--border: light-dark(#e3d9cd, #3a312a);
+	--accent: light-dark(#8a4b24, #e09a62);
+	--accent-text: light-dark(#ffffff, #1b1310);
+	--accent-soft: light-dark(#f4e3d6, #3b2a1f);
+	--danger: light-dark(#b3261e, #ff8a80);
+	--danger-soft: light-dark(#fbe6e4, #3d1f1c);
+	--ok: light-dark(#25683f, #7fd1a0);
+	--ok-soft: light-dark(#e2f2e8, #173325);
 	/* Suggestions carried over from the previous brew's next-time plan (D25). */
 	--plan: var(--ok);
 	--plan-soft: var(--ok-soft);
-	--focus: #c26a2e;
+	--focus: light-dark(#c26a2e, #f0b07c);
 	--radius: 12px;
 	--radius-sm: 8px;
-	--shadow: 0 1px 2px rgb(42 33 27 / 6%), 0 2px 8px rgb(42 33 27 / 5%);
+	--shadow:
+		0 1px 2px light-dark(rgb(42 33 27 / 6%), transparent),
+		0 2px 8px light-dark(rgb(42 33 27 / 5%), transparent);
 	--font: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
 	--mono: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
 	--nav-h: 64px;
 }
 
-@media (prefers-color-scheme: dark) {
-	:root {
-		--bg: #171310;
-		--surface: #221c18;
-		--surface-2: #2c2520;
-		--text: #f1e9e1;
-		--muted: #b2a497;
-		--border: #3a312a;
-		--accent: #e09a62;
-		--accent-text: #1b1310;
-		--accent-soft: #3b2a1f;
-		--danger: #ff8a80;
-		--danger-soft: #3d1f1c;
-		--ok: #7fd1a0;
-		--ok-soft: #173325;
-		--focus: #f0b07c;
-		--shadow: none;
-	}
+/* The settings choice (D33); `data-theme="system"` keeps the device's. */
+:root[data-theme='light'] {
+	color-scheme: light;
+}
+:root[data-theme='dark'] {
+	color-scheme: dark;
 }
 
 /* Base ----------------------------------------------------------------------------------------- */

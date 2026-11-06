@@ -10,6 +10,7 @@ import {
 import { db } from '#lib/server/db/index.ts';
 import { domainFailure, formValues, requireUser } from '#lib/server/http.ts';
 import { changePassword, updateTimezone } from '#lib/server/services/users.ts';
+import { parseTheme, saveTheme } from '#lib/ui/theme.ts';
 import type { Actions, PageServerLoad } from './$types';
 
 const PASSWORD_MIN = 10;
@@ -38,6 +39,16 @@ function failureFor<A extends string>(action: A, failure: ReturnType<typeof doma
 }
 
 export const actions: Actions = {
+	theme: async (event) => {
+		requireUser(event);
+		const fd = await event.request.formData();
+		const theme = parseTheme(fd.get('theme'));
+		saveTheme(event.cookies, theme);
+		// The hook read the old cookie before this action ran; keep the no-JS re-render current.
+		event.locals.theme = theme;
+		return { action: 'theme' as const, success: true };
+	},
+
 	timezone: async (event) => {
 		const user = requireUser(event);
 		const fd = await event.request.formData();
