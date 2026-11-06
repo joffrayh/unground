@@ -1,6 +1,7 @@
 <script lang="ts">
 	import '../app.css';
-	import favicon from '#lib/assets/favicon.svg';
+	// Temporary logo (D35).
+	import favicon from '#lib/assets/unground-logo.svg';
 	import { page } from '$app/state';
 	import type { LayoutProps } from './$types';
 
