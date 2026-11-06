@@ -8,6 +8,7 @@ import {
 	validateSessionToken
 } from '#lib/server/auth/session.ts';
 import { db, prepareDatabase } from '#lib/server/db/index.ts';
+import { readTheme } from '#lib/ui/theme.ts';
 
 export const init: ServerInit = async () => {
 	if (!building) await prepareDatabase();
@@ -27,6 +28,7 @@ export const handle: Handle = async ({ event, resolve }) => {
 	const token = event.cookies.get(SESSION_COOKIE);
 	event.locals.user = null;
 	event.locals.session = null;
+	event.locals.theme = readTheme(event.cookies);
 	if (token) {
 		const result = await validateSessionToken(db, token);
 		if (result) {
@@ -45,7 +47,11 @@ export const handle: Handle = async ({ event, resolve }) => {
 		redirect(303, `/login${next}`);
 	}
 
-	const response = await resolve(event);
+	const response = await resolve(event, {
+		// Read at render time: the settings action changes it on the no-JS re-render.
+		transformPageChunk: ({ html }) =>
+			html.replace('data-theme="%theme%"', `data-theme="${event.locals.theme}"`)
+	});
 	for (const [name, value] of Object.entries(SECURITY_HEADERS)) response.headers.set(name, value);
 	return response;
 };

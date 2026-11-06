@@ -1,10 +1,18 @@
 <script lang="ts">
 	import '../app.css';
-	import favicon from '#lib/assets/favicon.svg';
+	// Temporary logo (D35).
+	import favicon from '#lib/assets/unground-logo.svg';
 	import { page } from '$app/state';
 	import type { LayoutProps } from './$types';
 
 	let { data, children }: LayoutProps = $props();
+
+	// Browser chrome colours. An enhanced save doesn't re-render <html>, so sync it here.
+	const BAR_LIGHT = '#fafaf8';
+	const BAR_DARK = '#141413';
+	$effect(() => {
+		document.documentElement.dataset.theme = data.theme;
+	});
 
 	const NAV = [
 		{ href: '/', label: 'Home', icon: '⌂' },
@@ -24,7 +32,12 @@
 
 <svelte:head>
 	<link rel="icon" href={favicon} />
-	<meta name="theme-color" content="#8a4b24" />
+	{#if data.theme === 'system'}
+		<meta name="theme-color" content={BAR_LIGHT} media="(prefers-color-scheme: light)" />
+		<meta name="theme-color" content={BAR_DARK} media="(prefers-color-scheme: dark)" />
+	{:else}
+		<meta name="theme-color" content={data.theme === 'dark' ? BAR_DARK : BAR_LIGHT} />
+	{/if}
 	<title>Unground</title>
 </svelte:head>
 

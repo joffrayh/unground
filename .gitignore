@@ -23,4 +23,19 @@ vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 # Playwright
 test-results
+playwright-report
+blob-report
+
+# Test coverage
+coverage
+
+# Editors and local tools
+.vscode
+.idea
+.claude/settings.local.json
+
+# Logs
+*.log
+
+# Neon CLI
 .neon
