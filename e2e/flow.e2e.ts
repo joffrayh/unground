@@ -16,8 +16,8 @@ function csvRows(text: string): Record<string, string>[] {
 
 /** Sign-ups are rate limited and the journeys use them all, so the theme tests reuse an account. */
 const THEME_EMAIL = uniqueEmail('theme');
-const LIGHT_BG = 'rgb(247, 243, 238)';
-const DARK_BG = 'rgb(23, 19, 16)';
+const LIGHT_BG = 'rgb(250, 250, 248)';
+const DARK_BG = 'rgb(20, 20, 19)';
 
 /** Picks each theme against the device's setting, checking the choice survives a reload. */
 async function checkThemeChoice(page: Page) {
@@ -36,7 +36,7 @@ async function checkThemeChoice(page: Page) {
 
 	await choose('Dark');
 	await background(DARK_BG);
-	await expect(page.locator('meta[name="theme-color"]')).toHaveAttribute('content', '#171310');
+	await expect(page.locator('meta[name="theme-color"]')).toHaveAttribute('content', '#141413');
 	await page.reload();
 	await background(DARK_BG);
 

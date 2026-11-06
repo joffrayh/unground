@@ -7,8 +7,8 @@
 	let { data, children }: LayoutProps = $props();
 
 	// Browser chrome colours. An enhanced save doesn't re-render <html>, so sync it here.
-	const BAR_LIGHT = '#8a4b24';
-	const BAR_DARK = '#171310';
+	const BAR_LIGHT = '#fafaf8';
+	const BAR_DARK = '#141413';
 	$effect(() => {
 		document.documentElement.dataset.theme = data.theme;
 	});
