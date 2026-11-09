@@ -297,7 +297,7 @@
 		background: var(--surface);
 		box-shadow: var(--shadow);
 		/* Clear of the fixed tab bar when scrolled into view. */
-		scroll-margin-bottom: calc(var(--nav-h) + env(safe-area-inset-bottom) + 0.75rem);
+		scroll-margin-bottom: calc(var(--nav-clear) + 0.75rem);
 	}
 	.options[hidden] {
 		display: none;
@@ -329,7 +329,7 @@
 	}
 	.browse > summary {
 		font-size: 0.875rem;
-		color: var(--accent);
+		color: var(--accent-ink);
 	}
 	.tree {
 		border: 1px solid var(--border);

@@ -65,6 +65,7 @@
 		flex-wrap: wrap;
 		justify-content: space-between;
 		gap: 0.5rem 1rem;
+		padding-bottom: 1rem;
 	}
 	.info {
 		min-width: 0;

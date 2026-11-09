@@ -255,8 +255,11 @@
 	.info {
 		min-width: 0;
 	}
+	.left {
+		padding-bottom: 1.25rem;
+	}
 	.left p {
-		margin: 0 0 0.5rem;
+		margin: 0 0 0.15rem;
 	}
 	.left .hint {
 		display: block;

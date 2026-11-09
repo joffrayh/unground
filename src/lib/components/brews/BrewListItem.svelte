@@ -38,7 +38,8 @@
 		overflow-wrap: anywhere;
 	}
 	.roaster {
-		font-weight: 400;
+		font-family: var(--font);
+		font-weight: 300;
 		color: var(--muted);
 	}
 </style>

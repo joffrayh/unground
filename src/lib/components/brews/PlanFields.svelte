@@ -232,7 +232,7 @@
 		touch-action: manipulation;
 	}
 	.step:hover:not(:disabled) {
-		border-color: var(--accent);
+		border-color: var(--accent-ink);
 	}
 	.step:disabled {
 		opacity: 0.4;

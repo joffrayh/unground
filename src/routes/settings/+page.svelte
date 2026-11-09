@@ -250,8 +250,11 @@
 	}
 	.themes {
 		display: grid;
-		grid-template-columns: repeat(3, 1fr);
+		grid-template-columns: repeat(3, minmax(0, 1fr));
 		gap: 0.5rem;
+	}
+	.themes .btn {
+		padding-inline: 0.25rem;
 	}
 	.notes {
 		margin: 0;

@@ -570,9 +570,9 @@
 		padding: 0.75rem;
 	}
 	details.section {
-		background: var(--surface);
-		border: 1px solid var(--border);
+		background: var(--glass);
 		border-radius: var(--radius);
+		box-shadow: var(--edge), var(--shadow);
 		padding: 0 0.75rem;
 	}
 	details.section[open] {
@@ -649,17 +649,12 @@
 	}
 	.submit-bar {
 		position: sticky;
-		bottom: calc(var(--nav-h) + env(safe-area-inset-bottom) + 0.5rem);
+		bottom: calc(var(--nav-clear) + 0.5rem);
 		z-index: 5;
 		padding: 0.5rem;
 		margin: 0 -0.5rem;
 		border-radius: var(--radius);
 		background: color-mix(in srgb, var(--bg) 85%, transparent);
 		backdrop-filter: blur(6px);
-	}
-	@media (min-width: 48rem) {
-		.submit-bar {
-			bottom: 0.75rem;
-		}
 	}
 </style>
