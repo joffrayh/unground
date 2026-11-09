@@ -22,5 +22,9 @@ export const variables = defineEnvVars({
 	INVITE_CODE: {
 		description: 'Code required to sign up when REGISTRATION=invite.',
 		schema: (value) => value || undefined
+	},
+	SCALE_RECORDINGS_DIR: {
+		description: 'Folder where /dev/scale saves recordings. Unset: saving is off.',
+		schema: (value) => value || undefined
 	}
 });

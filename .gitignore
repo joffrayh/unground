@@ -39,3 +39,6 @@ coverage
 
 # Neon CLI
 .neon
+
+# Scale recordings (SCALE_RECORDINGS_DIR)
+/scale-recordings

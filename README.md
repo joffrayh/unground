@@ -35,12 +35,13 @@ Sign up at `/signup`. By default this needs the `INVITE_CODE` from `.env`.
 
 ### Environment
 
-| Variable       | Meaning                                                                                                                                                              |
-| -------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `DATABASE_URL` | Postgres connection string                                                                                                                                           |
-| `REGISTRATION` | `open`, `invite` (default; needs `INVITE_CODE`) or `closed`                                                                                                          |
-| `INVITE_CODE`  | Code required to sign up in `invite` mode                                                                                                                            |
-| `ORIGIN`       | **Build time.** The public URL, e.g. `https://coffee.example.com`, used for CSRF checks. If it's unset, the app derives it from the `Host` header and assumes https. |
+| Variable               | Meaning                                                                                                                                                              |
+| ---------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `DATABASE_URL`         | Postgres connection string                                                                                                                                           |
+| `REGISTRATION`         | `open`, `invite` (default; needs `INVITE_CODE`) or `closed`                                                                                                          |
+| `INVITE_CODE`          | Code required to sign up in `invite` mode                                                                                                                            |
+| `ORIGIN`               | **Build time.** The public URL, e.g. `https://coffee.example.com`, used for CSRF checks. If it's unset, the app derives it from the `Host` header and assumes https. |
+| `SCALE_RECORDINGS_DIR` | Folder where `/dev/scale` saves recordings. Unset: saving is off.                                                                                                    |
 
 ## Scripts
 
