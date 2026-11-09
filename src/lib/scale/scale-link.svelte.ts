@@ -19,6 +19,7 @@ export class ScaleLink {
 	/** The latest reading; null while not connected. */
 	reading = $state.raw<WeightPacket | null>(null);
 
+	#readers: ((reading: WeightPacket, at: number) => void)[] = [];
 	#owner: string | null = null;
 	#suspended = false;
 	#chosen: BluetoothDevice | null = null;
@@ -47,9 +48,11 @@ export class ScaleLink {
 				this.status = status;
 				if (status !== 'connected') this.reading = null;
 			},
-			onData: (_channel, bytes) => {
+			onData: (_channel, bytes, at) => {
 				const decoded = decodePacket(bytes);
-				if (decoded.ok && decoded.packet.type === 'weight') this.reading = decoded.packet;
+				if (!decoded.ok || decoded.packet.type !== 'weight') return;
+				this.reading = decoded.packet;
+				for (const read of this.#readers) read(decoded.packet, at);
 			}
 		});
 		this.#connection.start();
@@ -68,6 +71,14 @@ export class ScaleLink {
 		this.#connection?.stop();
 		this.#connection = null;
 		this.#owner = null;
+	}
+
+	/** Calls back for every reading, in order. Returns the function that stops it. */
+	onReading(read: (reading: WeightPacket, at: number) => void): () => void {
+		this.#readers.push(read);
+		return () => {
+			this.#readers = this.#readers.filter((r) => r !== read);
+		};
 	}
 
 	send(bytes: Uint8Array<ArrayBuffer>): Promise<void> {

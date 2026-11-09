@@ -4,7 +4,7 @@ interface FakeScale {
 	setPower(on: boolean): void;
 	isConnected(): boolean;
 	connectAttempts(): number;
-	sendReading(grams: number, flow: number): void;
+	sendReading(grams: number, flow: number, timerMs?: number): void;
 	commands(): number[][];
 }
 
@@ -101,11 +101,12 @@ export async function installFakeScale(page: Page): Promise<void> {
 			isConnected: () => device.gatt.connected,
 			connectAttempts: () => attempts,
 			commands: () => commands,
-			sendReading(grams, flow) {
+			sendReading(grams, flow, timerMs = 0) {
 				const packet = new Uint8Array(20);
 				const hundredths = Math.round(Math.abs(grams) * 100);
 				const flowHundredths = Math.round(Math.abs(flow) * 100);
-				packet.set([0x03, 0x0b, 0, 0, 0, 1, grams < 0 ? 0x2d : 0x2b]);
+				const timer = [(timerMs >> 16) & 255, (timerMs >> 8) & 255, timerMs & 255];
+				packet.set([0x03, 0x0b, ...timer, 1, grams < 0 ? 0x2d : 0x2b]);
 				packet.set([(hundredths >> 16) & 255, (hundredths >> 8) & 255, hundredths & 255], 7);
 				packet.set([flow < 0 ? 0x2d : 0x2b, (flowHundredths >> 8) & 255, flowHundredths & 255], 10);
 				packet[19] = packet.subarray(0, 19).reduce((sum, b) => sum ^ b, 0);
@@ -122,5 +123,11 @@ export const isScaleConnected = (page: Page) => page.evaluate(() => window.fakeS
 
 export const sendScaleReading = (page: Page, grams: number, flow = 0) =>
 	page.evaluate(([g, f]) => window.fakeScale.sendReading(g, f), [grams, flow]);
+
+/** Sends readings at once, each stamped with its own scale time: [timerMs, grams, flow]. */
+export const playScaleReadings = (page: Page, readings: [number, number, number][]) =>
+	page.evaluate((rows) => {
+		for (const [timerMs, grams, flow] of rows) window.fakeScale.sendReading(grams, flow, timerMs);
+	}, readings);
 
 export const scaleCommandsSent = (page: Page) => page.evaluate(() => window.fakeScale.commands());

@@ -8,6 +8,7 @@ import { expect, test, type Page } from '@playwright/test';
 import {
 	installFakeScale,
 	isScaleConnected,
+	playScaleReadings,
 	scaleCommandsSent,
 	sendScaleReading,
 	setScalePower
@@ -559,7 +560,12 @@ test('the scale card shows the live reading against pour 0', async ({ page }) =>
 		);
 
 	await enter.click();
-	await expect.poll(() => scaleCommandsSent(page)).toEqual([[3, 10, 1, 0, 0, 8]]);
+	await expect
+		.poll(() => scaleCommandsSent(page))
+		.toEqual([
+			[3, 10, 1, 0, 0, 8],
+			[3, 10, 6, 0, 0, 15]
+		]);
 	await expect
 		.poll(() =>
 			card.evaluate((el) => {
@@ -592,6 +598,117 @@ test('the scale card shows the live reading against pour 0', async ({ page }) =>
 
 	await setScalePower(page, false);
 	await expect(card).toHaveCount(0);
+});
+
+test('the scale card guides a brew from the first pour to the lift', async ({ page }) => {
+	await installFakeScale(page);
+	await logIn(page, THEME_EMAIL);
+	await page.goto('/equipment');
+	await page.locator('#new-scale-name').fill('Guide scale');
+	await page.getByRole('button', { name: 'Add scale' }).click();
+	const row = page.getByRole('listitem').filter({ hasText: 'Guide scale' });
+	await row.getByRole('button', { name: 'Pair' }).click();
+	await expect(row).toContainText('Connected');
+	await page
+		.getByRole('navigation', { name: 'Main' })
+		.getByRole('link', { name: 'Add Brew' })
+		.click();
+
+	const scales = page.locator('[name="pourScale"]');
+	const times = page.locator('[name="pourTime"]');
+	await scales.nth(0).fill('45');
+	await times.nth(1).fill('0:45');
+	await scales.nth(1).fill('150');
+	await page.getByRole('button', { name: /remove pour 2/i }).click();
+
+	const card = page.getByRole('region', { name: 'Scale' });
+	await card.getByRole('button', { name: 'Enter' }).click();
+	await expect.poll(async () => (await scaleCommandsSent(page)).length).toBe(2);
+
+	let timer = 0;
+	let weight = 0;
+	/** Readings every 100 ms of scale time, for this long, towards a weight. */
+	const play = async (ms: number, to = weight, flow = 0) => {
+		const rows: [number, number, number][] = [];
+		const from = weight;
+		const steps = ms / 100;
+		for (let i = 1; i <= steps; i++) {
+			timer += 100;
+			weight = from + ((to - from) * i) / steps;
+			rows.push([timer, weight, flow]);
+		}
+		await playScaleReadings(page, rows);
+	};
+
+	await play(500);
+	await expect(card.locator('.label')).toHaveText('Pour 0');
+	await expect(card.locator('.readout')).toHaveText('0.0g > 45.0g');
+
+	await play(3000, 45, 10);
+	await expect(card.locator('.readout')).toHaveText('45.0g > 45.0g');
+
+	await play(1000);
+	await expect(card.locator('.label')).toHaveText('Pour 1');
+	await expect(card.locator('.readout')).toHaveText('45.0g > 150.0g');
+	await expect(card.locator('.countdown')).toHaveText('0:42');
+
+	await play(41_100);
+	await expect(card.locator('.countdown')).toHaveText('Pour now');
+
+	await play(3000, 150, 10);
+	await play(1000);
+	await expect(card.locator('.label')).toHaveText('Drawdown');
+	await expect(card.locator('.readout')).toHaveText('150.0g');
+
+	weight = -240;
+	await play(3000);
+	await expect(card.locator('.label')).toHaveText('Done');
+	await expect
+		.poll(async () => (await scaleCommandsSent(page)).at(-1))
+		.toEqual([3, 10, 5, 0, 0, 12]);
+	// Nothing to confirm once the brew is over.
+	await card.getByRole('button', { name: 'Exit' }).click();
+	await expect(card.locator('.label')).toHaveCount(0);
+	await expect(scales.nth(0)).toHaveValue('45');
+});
+
+test('stopping short waits for a top-up, and leaving a brew asks first', async ({ page }) => {
+	await installFakeScale(page);
+	await logIn(page, THEME_EMAIL);
+	await page.goto('/equipment');
+	await page.locator('#new-scale-name').fill('Short scale');
+	await page.getByRole('button', { name: 'Add scale' }).click();
+	const row = page.getByRole('listitem').filter({ hasText: 'Short scale' });
+	await row.getByRole('button', { name: 'Pair' }).click();
+	await expect(row).toContainText('Connected');
+	await page
+		.getByRole('navigation', { name: 'Main' })
+		.getByRole('link', { name: 'Add Brew' })
+		.click();
+	await page.locator('[name="pourScale"]').nth(0).fill('45');
+
+	const card = page.getByRole('region', { name: 'Scale' });
+	await card.getByRole('button', { name: 'Enter' }).click();
+	await expect.poll(async () => (await scaleCommandsSent(page)).length).toBe(2);
+
+	const rows: [number, number, number][] = [];
+	for (let i = 1; i <= 5; i++) rows.push([i * 100, 0, 0]);
+	for (let i = 1; i <= 30; i++) rows.push([500 + i * 100, i, 10]);
+	for (let i = 1; i <= 10; i++) rows.push([3500 + i * 100, 30, 0]);
+	await playScaleReadings(page, rows);
+	await expect(card.locator('.label')).toHaveText('Pour 0');
+	await expect(card.locator('.short')).toHaveText('15.0g short');
+
+	await card.getByRole('button', { name: 'Next' }).click();
+	await expect(card.locator('.label')).toHaveText('Pour 1');
+
+	page.once('dialog', (dialog) => dialog.dismiss());
+	await card.getByRole('button', { name: 'Exit' }).click();
+	await expect(card.locator('.label')).toHaveText('Pour 1');
+
+	page.once('dialog', (dialog) => dialog.accept());
+	await card.getByRole('button', { name: 'Exit' }).click();
+	await expect(card.getByRole('button', { name: 'Enter' })).toBeVisible();
 });
 
 test.describe('without JavaScript', () => {
