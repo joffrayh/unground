@@ -1,10 +1,12 @@
 import { and, asc, eq, isNull, sql } from 'drizzle-orm';
 import type { ScaleInput } from '../../domain/schemas';
-import { scales } from '../db/schema';
+import { brews, scales } from '../db/schema';
+import { col } from '../db/sql';
 import type { Db } from '../db/types';
 import {
 	ConflictError,
 	NotFoundError,
+	isReferencedError,
 	PG_UNIQUE_VIOLATION,
 	pgErrorCode,
 	assertId
@@ -14,6 +16,7 @@ export interface Scale {
 	id: string;
 	name: string;
 	archivedAt: Date | null;
+	brewCount: number;
 }
 
 function translate(e: unknown): never {
@@ -29,7 +32,12 @@ export async function listScales(
 	opts: { includeArchived?: boolean } = {}
 ): Promise<Scale[]> {
 	return db
-		.select({ id: scales.id, name: scales.name, archivedAt: scales.archivedAt })
+		.select({
+			id: scales.id,
+			name: scales.name,
+			archivedAt: scales.archivedAt,
+			brewCount: sql<number>`(select count(*)::int from ${brews} where ${col(brews.scaleId)} = ${col(scales.id)})`
+		})
 		.from(scales)
 		.where(
 			and(eq(scales.userId, userId), opts.includeArchived ? undefined : isNull(scales.archivedAt))
@@ -87,11 +95,19 @@ export async function setScaleArchived(
 	if (rows.length === 0) throw new NotFoundError('Scale');
 }
 
+/** Deletes an unused scale. Scales with brews can only be archived. */
 export async function deleteScale(db: Db, userId: string, id: string): Promise<void> {
 	assertId(id, 'Scale');
-	const rows = await db
-		.delete(scales)
-		.where(and(eq(scales.id, id), eq(scales.userId, userId)))
-		.returning({ id: scales.id });
-	if (rows.length === 0) throw new NotFoundError('Scale');
+	try {
+		const rows = await db
+			.delete(scales)
+			.where(and(eq(scales.id, id), eq(scales.userId, userId)))
+			.returning({ id: scales.id });
+		if (rows.length === 0) throw new NotFoundError('Scale');
+	} catch (e) {
+		if (isReferencedError(e)) {
+			throw new ConflictError('This scale has brews logged with it. Archive it instead.');
+		}
+		throw e;
+	}
 }

@@ -7,5 +7,8 @@ export const BREW_MULTI = [
 	'pourRow',
 	'pourBloom',
 	'pourDrop',
+	'pourPlannedG',
+	'pourPlannedStart',
+	'pourDuration',
 	'perceivedNotes'
 ] as const;

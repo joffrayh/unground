@@ -419,6 +419,9 @@
 										<button class="btn btn-sm btn-danger">Delete</button>
 									</form>
 								</div>
+								{#if s.brewCount > 0}
+									<p class="hint">Has brews, so it can only be archived.</p>
+								{/if}
 							</div>
 						</details>
 					</li>

@@ -29,8 +29,10 @@
 
 	const scaleLink = new ScaleLink();
 	setScaleLink(scaleLink);
+	// Derived, so reloading the page's data (every saved form) doesn't restart the connection.
+	const scaleOwner = $derived(data.user?.email);
 	$effect(() => {
-		const owner = data.user?.email;
+		const owner = scaleOwner;
 		if (!owner) return;
 		untrack(() => scaleLink.start(owner));
 		return () => scaleLink.stop();

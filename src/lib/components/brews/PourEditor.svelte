@@ -19,11 +19,13 @@
 	import FieldError from '#lib/components/FieldError.svelte';
 	import { suggestPours } from '#lib/domain/plan.ts';
 	import { formatDuration, parseDuration, poursToEntries } from '#lib/domain/pours.ts';
+	import type { MeasuredPour } from '#lib/scale/brew-guide.ts';
 	import { ratioText } from '#lib/ui/format.ts';
 	import type { BrewSuggestions } from './brew-values.ts';
 	import { focusNextField } from './enter-nav.ts';
 	import {
 		FIRST_POUR_TIME,
+		applyMeasuredPours,
 		blankRow,
 		errorRowIndex,
 		isBlank,
@@ -77,6 +79,11 @@
 	/** Each row's placeholder time from the previous brew, without the estimates (which recalculate). */
 	export function timeDefaults(): string[] {
 		return rows.map((r) => r.defaultTime);
+	}
+
+	/** Writes in what a scale measured, keeping the plan each row followed (D51). */
+	export function applyMeasured(measured: readonly MeasuredPour[]) {
+		rows = applyMeasuredPours(rows, measured);
 	}
 
 	let list = $state<HTMLOListElement>();
@@ -323,6 +330,9 @@
 					</div>
 				</div>
 				<input type="hidden" name="pourScaleDefault" value={row.defaultScale} />
+				<input type="hidden" name="pourPlannedG" value={row.plannedG ?? ''} />
+				<input type="hidden" name="pourPlannedStart" value={row.plannedStart ?? ''} />
+				<input type="hidden" name="pourDuration" value={row.duration ?? ''} />
 
 				<label class="bloom" title="Bloom">
 					<input type="checkbox" name="pourBloom" value={id} bind:checked={row.bloom} />

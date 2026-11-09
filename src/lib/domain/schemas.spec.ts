@@ -37,6 +37,67 @@ function brewForm(overrides: Record<string, string | string[]> = {}): FormData {
 	});
 }
 
+describe('parseBrewForm, measured by a scale (D51)', () => {
+	const pours = (result: ReturnType<typeof parseBrewForm>) => {
+		if (!result.ok) throw new Error(JSON.stringify(result.errors));
+		return result.data.brew.details.pours;
+	};
+
+	it('keeps each pour’s plan and duration on its own row, and the scale', () => {
+		const result = parseBrewForm(
+			brewForm({
+				scaleId: BEAN,
+				pourPlannedG: ['45', '150', '', ''],
+				pourPlannedStart: ['0', '45', '', ''],
+				pourDuration: ['3.5', '4.04', '', '']
+			}),
+			'Europe/London'
+		);
+		expect(pours(result)).toMatchObject([
+			{ plannedCumulativeG: 45, plannedStartS: 0, durationS: 3.5 },
+			{ plannedCumulativeG: 150, plannedStartS: 45, durationS: 4 },
+			{ volumeG: 100 }
+		]);
+		expect(pours(result)[2]).not.toHaveProperty('plannedCumulativeG');
+		expect(result.ok && result.data.brew.scaleId).toBe(BEAN);
+	});
+
+	it('has none of it on a brew logged by hand', () => {
+		const result = parseBrewForm(brewForm(), 'Europe/London');
+		expect(pours(result)[0]).toEqual({ volumeG: 50, intervalS: 0, bloom: true });
+		expect(result.ok && result.data.brew.scaleId).toBeNull();
+	});
+
+	it.each([
+		['not a number', 'x'],
+		['negative', '-5'],
+		['too large', '99999']
+	])('ignores a planned amount that is %s', (_name, value) => {
+		const result = parseBrewForm(brewForm({ pourPlannedG: [value] }), 'Europe/London');
+		expect(pours(result)[0]).not.toHaveProperty('plannedCumulativeG');
+	});
+
+	it('drops a dropped row’s measurement with it', () => {
+		const result = parseBrewForm(
+			brewForm({
+				pourRow: ['a', 'b', 'c', 'd'],
+				pourBloom: [],
+				pourDrop: ['b'],
+				pourTime: ['0:00', '0:45', '1:15', ''],
+				pourScale: ['50', '150', '250', ''],
+				pourPlannedG: ['45', '150', '240', '']
+			}),
+			'Europe/London'
+		);
+		expect(pours(result).map((p) => p.plannedCumulativeG)).toEqual([45, 240]);
+	});
+
+	it('rejects a scale id that is not an id', () => {
+		const result = parseBrewForm(brewForm({ scaleId: 'nope' }), 'Europe/London');
+		expect(result.ok).toBe(false);
+	});
+});
+
 describe('parseBrewForm', () => {
 	it('parses a complete brew and converts pours, times and the local time zone', () => {
 		const result = parseBrewForm(

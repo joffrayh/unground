@@ -15,6 +15,7 @@ import {
 	drippers,
 	grinders,
 	pours,
+	scales,
 	ratingPerceivedNotes,
 	ratings,
 	roasters
@@ -55,6 +56,7 @@ export interface Brew extends BrewSummary {
 	dripperId: string | null;
 	dripperName: string | null;
 	dripperMaterial: DripperMaterial | null;
+	scaleId: string | null;
 	agitation: number | null;
 	storedFrozen: boolean;
 	/** Legacy (D25): what the user said they changed, on brews logged before the plan replaced it. */
@@ -93,6 +95,7 @@ function baseQuery(q: Queryable) {
 			dripperId: brews.dripperId,
 			dripperName: drippers.name,
 			dripperMaterial: sql<DripperMaterial | null>`${drippers.material}`,
+			scaleId: brews.scaleId,
 			agitation: brews.agitation,
 			storedFrozen: beans.storedFrozen,
 			changed: sql<ChangedVariable[]>`${brews.changed}`,
@@ -262,6 +265,14 @@ async function assertOwnedRefs(tx: Tx, userId: string, input: BrewInput): Promis
 			.where(and(eq(drippers.id, input.dripperId), eq(drippers.userId, userId)));
 		if (!dripper) throw new NotFoundError('Dripper');
 	}
+	if (input.scaleId) {
+		assertId(input.scaleId, 'Scale');
+		const [scale] = await tx
+			.select({ id: scales.id })
+			.from(scales)
+			.where(and(eq(scales.id, input.scaleId), eq(scales.userId, userId)));
+		if (!scale) throw new NotFoundError('Scale');
+	}
 	const [bean] = await tx
 		.select({ id: beans.id })
 		.from(beans)
@@ -279,6 +290,7 @@ function brewColumns(input: BrewInput) {
 		beanId: input.beanId,
 		grinderId: input.grinderId,
 		dripperId: input.dripperId,
+		scaleId: input.scaleId ?? null,
 		method: input.method,
 		brewedAt: input.brewedAt,
 		timezone: input.timezone,

@@ -2,7 +2,8 @@
 	/**
 	 * The paired scale under the pours, shown while it's connected. Enter opens it, centres it, tares the
 	 * scale and guides the brew: the live reading against each pour's target, a countdown to the next
-	 * pour, and the end when the brewer is lifted off. It only reads: nothing here is posted (D49).
+	 * pour, and the end when the brewer is lifted off (D49). When the brew finishes it hands over what
+	 * was measured; leaving part-way with Exit discards it.
 	 */
 	import { onDestroy, tick } from 'svelte';
 	import { prefersReducedMotion } from 'svelte/motion';
@@ -14,8 +15,16 @@
 	import { createWakeLock } from '#lib/ui/wake-lock.ts';
 	import type { PourTarget } from './pour-rows.ts';
 
-	let { scales, targets }: { scales: readonly ScaleOption[]; targets: readonly PourTarget[] } =
-		$props();
+	let {
+		scales,
+		targets,
+		onfinish
+	}: {
+		scales: readonly ScaleOption[];
+		targets: readonly PourTarget[];
+		/** The brew has finished, with what was measured and the scale that measured it. */
+		onfinish: (brew: GuideState, scaleId: string) => void;
+	} = $props();
 
 	const scaleLink = getScaleLink();
 	const wakeLock = createWakeLock();
@@ -33,14 +42,18 @@
 	const started = $derived(phase !== 'arming' && phase !== 'waiting');
 	const brewing = $derived(started && phase !== 'done');
 	const canSkip = $derived(phase === 'pouring' || phase === 'short' || phase === 'countdown');
-	const readout = $derived.by(() => {
-		const live = formatReading(connected ? scaleLink.reading?.weight : undefined);
-		return view?.target == null ? live : `${live} > ${formatReading(view.target)}`;
-	});
+	const live = $derived(formatReading(connected ? scaleLink.reading?.weight : undefined));
+
+	function send(commands: GuideCommand[]) {
+		for (const command of commands) scaleLink.send(scaleCommands[command]()).catch(() => {});
+	}
 
 	function apply(commands: GuideCommand[]) {
+		const before = view?.phase;
 		if (guide) view = guide.snapshot();
-		for (const command of commands) scaleLink.send(scaleCommands[command]()).catch(() => {});
+		send(commands);
+		const scaleId = scaleLink.pairing?.scaleId;
+		if (view?.phase === 'done' && before !== 'done' && scaleId) onfinish(view, scaleId);
 	}
 
 	// A target edited in the form shows at once.
@@ -78,7 +91,7 @@
 
 	function exit() {
 		if (brewing && !confirm('Exit this brew?')) return;
-		apply(guide?.stop() ?? []);
+		send(guide?.stop() ?? []);
 		close();
 		view = null;
 		open = false;
@@ -103,22 +116,31 @@
 
 		{#if open && view}
 			<div class="body">
-				{#if started}<p class="elapsed num">{clock(view.elapsedMs)}</p>{/if}
+				{#if started}<p class="elapsed">{clock(view.elapsedMs)}</p>{/if}
 
 				<p class="label">
 					{#if phase === 'drawdown'}Drawdown{:else if phase === 'done'}Done{:else}{pourName(
 							view.pour
 						)}{/if}
 				</p>
-				<p class="readout num">{readout}</p>
+				<p class="readout num">
+					<span class="current">{live}</span>
+					{#if view.target !== null}
+						<svg class="arrow" viewBox="0 0 24 24" aria-hidden="true">
+							<path d="M4 12h15M13 6l6 6-6 6" />
+						</svg>
+						<span class="visually-hidden">target</span>
+						<span class="target">{formatReading(view.target)}</span>
+					{/if}
+				</p>
 
 				{#if phase === 'drawdown'}
 					<p class="status">Lift to finish</p>
 				{:else if phase === 'short' && view.target !== null}
 					<p class="status short">{formatReading(view.target - view.weight)} short</p>
 				{:else if phase === 'countdown' && view.countdownMs !== null}
-					<p class="status countdown num">
-						{view.countdownMs > 0 ? countdown(view.countdownMs) : 'Pour now'}
+					<p class="status countdown">
+						{view.countdownMs > 0 ? countdown(view.countdownMs) : 'Pour'}
 					</p>
 				{:else if phase === 'countdown'}
 					<p class="status">Pour when ready</p>
@@ -177,10 +199,35 @@
 		color: var(--muted);
 		font-size: 0.9rem;
 	}
+	.elapsed {
+		font-family: var(--display);
+		font-size: 1.1rem;
+	}
 	.body .readout {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		gap: 0.5rem;
 		margin: 0.25rem 0;
-		font-size: clamp(1.5rem, 8.5vw, 2.5rem);
 		white-space: nowrap;
+	}
+	.current {
+		font-size: clamp(2rem, 11vw, 3rem);
+		font-weight: 700;
+	}
+	.target {
+		color: var(--muted);
+		font-size: clamp(1.1rem, 6vw, 1.6rem);
+	}
+	.arrow {
+		flex: none;
+		width: clamp(1.1rem, 6vw, 1.5rem);
+		height: clamp(1.1rem, 6vw, 1.5rem);
+		fill: none;
+		stroke: var(--muted);
+		stroke-width: 2.5;
+		stroke-linecap: round;
+		stroke-linejoin: round;
 	}
 	.status {
 		font-size: 1.1rem;
@@ -190,8 +237,8 @@
 	}
 	.countdown {
 		color: var(--scale);
+		font-family: var(--display);
 		font-size: clamp(2rem, 12vw, 3.25rem);
-		font-weight: 700;
 	}
 	.error {
 		color: var(--danger);

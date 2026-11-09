@@ -27,7 +27,7 @@ The project is deliberately split into two stages.
 
 - **In scope now:** V60 pour-over brewing only.
 - **Designed to extend:** The brew model must accommodate other methods later (espresso, AeroPress, etc.) without restructuring. Method-specific fields live in a method-specific section so adding a new method = adding a new section, not migrating everything.
-- **Out of scope now:** Stage 2 analysis features; social/sharing features; water-chemistry logging (author uses tap water — deferred, acknowledged as important); a live brew timer (pour data is entered manually for now); blends (single-origin beans only); password reset by email.
+- **Out of scope now:** Stage 2 analysis features; social/sharing features; water-chemistry logging (author uses tap water — deferred, acknowledged as important); blends (single-origin beans only); password reset by email.
 
 See the [decision log](#8-decision-log) for the rationale behind these and other settled choices.
 
@@ -92,10 +92,11 @@ A **Brew** is a single brewing event. It references one **Bean**, one **Grinder*
 **V60-specific attributes** (the method-specific block):
 
 - **Filter** (Hario tabbed, Hario tabless, Cafec, Sibarist, other) — optional. (The dripper's material now lives on the Dripper entity, D23.)
-- **Pours** — an ordered list, **entered manually** for now (a live tap-to-mark timer is a future enhancement that would not change this data shape). Each pour stores:
+- **Pours** — an ordered list, typed in or **measured by a connected scale** (D49, D51). Each pour stores:
   - **volume** (g) poured in that pour,
   - **interval** — seconds since the previous pour _started_. The first pour starts the brew, so its interval is **0** by definition.
   - **bloom** — a tick box per pour (D27). Pours are named from 0 ("Pour 0", "Pour 1", …); any of them can be a bloom, e.g. a double bloom. The bloom wait is the time to the first pour that isn't a bloom.
+  - **measured** _(scale only, D51)_ — the running total and start the pour was planned for, and how long the water ran.
   - **Entry UX:** the user types what they see — the **timer reading** when each pour starts and the **scale reading** (running total) after it. The app converts these into per-pour volume and interval.
 - **Total brew time** (drawdown complete), stored on the common block since every method has one.
 - Number of pours is derived (count of pours).
@@ -128,6 +129,7 @@ Roaster (1) ──< (many) Bean       # many beans share one roaster
 Bean    (1) ──< (many) Brew       # a bag of beans is brewed many times
 Grinder (1) ──< (many) Brew       # grind settings only compare within a grinder
 Dripper (1) ──< (many) Brew       # optional on a brew
+Scale   (1) ──< (many) Brew       # set when the brew was measured
 Brew    (1) ──  (0..1) BrewV60    # method-specific block
 Brew    (1) ──< (many) Pour       # ordered pours within one pour-over brew
 Brew    (1) ──  (0..1) Rating     # added at or after brew time
@@ -170,7 +172,7 @@ Bean  (per user, archivable)
   bag_weight_g?, bag_price?
 
 Brew
-  id, user_id, bean_id -> Bean, grinder_id -> Grinder, dripper_id? -> Dripper
+  id, user_id, bean_id -> Bean, grinder_id -> Grinder, dripper_id? -> Dripper, scale_id? -> Scale
   method              # 'v60'
   brewed_at           # timestamptz
   timezone            # IANA zone it was logged in; local date & roast age use it (D20)
@@ -184,6 +186,7 @@ BrewV60  (1:1 with a v60 brew)
 
 Pour
   brew_id, idx (1..n), volume_g, interval_s, bloom   # idx 1 ⇔ interval 0; shown as "Pour idx-1"
+  planned_cumulative_g?, planned_start_s?, duration_s?   # set when a scale measured it (D51)
 
 Rating  (1:1 with brew)
   brew_id, overall (1-10), acidity?, sweetness?, body?, bitterness?, astringency?, clarity? (1-10 intensity),
@@ -284,6 +287,7 @@ The substance of each decision lives in the section noted under _Where_; this ta
 | D48 | **While its scale is connected, a new brew has a scale card under Pours**: name, green dot and a blue (`#56ABFA`) Enter. Enter opens and centres it, tares the scale and shows the live reading against the pour's target. | Blue marks live scale actions apart from amber saves and green plans. Dark text, as on the primary button, because white on that blue is hard to read. | [§4.2](#42-brew) |
 | D49 | **The scale card guides the brew** one pour at a time: live reading against the running target, then a countdown to the next pour once the pour stops within 4 g under or anything over. Stopping further short waits for a top-up or Next. Water straight after a pour, or long before the next is due, tops it up. Over-pours keep the running targets. Lifting the brewer after the last pour ends the brew and putting it back undoes that. | The brewer's hands are full, so the scale drives. Keeping running targets means the total still lands on plan. | [§4.2](#42-brew) |
 | D50 | **Pour timing comes from the weight and starts at the first water.** A pour's stop time is when the weight levels off, confirmed by flow staying under 0.5 g/s. The clock follows the scale's timer while it's moving, else the time between readings. | Flow lags weight by about 0.5 s and never holds at exactly zero. The scale's timer can start early on a bump, or not at all in some modes. | [§4.2](#42-brew) |
+| D51 | **A measured brew saves what happened and keeps the plan beside it.** When a guided brew finishes, the scale's readings replace the pour rows and Total time, and each pour stores the running total and start it was planned for and how long the water ran. The next brew's placeholders and reshaped suggestions come from the plan. The adjustments use the measured ratio. Leaving with Exit discards the measurements. | Stage 2 needs what really went in the cup. Repeating measured pours would drift the recipe by a gram or a second each brew, so "same as last time" (D15) has to mean the plan. | [§4.2](#42-brew) |
 
 ## 9. Open questions / decisions to revisit
 

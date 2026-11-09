@@ -1,7 +1,8 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { Db } from '../db/types';
 import { ConflictError, NotFoundError } from '../errors';
-import { createTestDb, createTestUser } from '../testing';
+import { brewInput, createTestDb, createTestUser, setupBrewer } from '../testing';
+import { createBrew } from './brews';
 import { createScale, deleteScale, listScales, setScaleArchived, updateScale } from './scales';
 
 let db: Db;
@@ -44,6 +45,24 @@ describe('scales', () => {
 		await expect(
 			createScale(db, await createTestUser(db), { name: 'Shared' })
 		).resolves.toHaveProperty('id');
+	});
+
+	it('counts its brews, and can only be archived once it has any', async () => {
+		const refs = await setupBrewer(db);
+		const { id } = await createScale(db, refs.userId, { name: 'Used' });
+		await createBrew(db, refs.userId, brewInput(refs, { scaleId: id }));
+		expect((await listScales(db, refs.userId))[0].brewCount).toBe(1);
+		await expect(deleteScale(db, refs.userId, id)).rejects.toBeInstanceOf(ConflictError);
+		await setScaleArchived(db, refs.userId, id, true);
+		expect(await listScales(db, refs.userId)).toEqual([]);
+	});
+
+	it("won't record a brew on another user's scale", async () => {
+		const refs = await setupBrewer(db);
+		const { id } = await createScale(db, await createTestUser(db), { name: 'Theirs' });
+		await expect(
+			createBrew(db, refs.userId, brewInput(refs, { scaleId: id }))
+		).rejects.toBeInstanceOf(NotFoundError);
 	});
 
 	it("can't touch another user's scale", async () => {

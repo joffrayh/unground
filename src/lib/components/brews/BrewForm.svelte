@@ -39,6 +39,7 @@
 	} from './brew-values.ts';
 	import { focusNextField, isTextLike } from './enter-nav.ts';
 	import {
+		measuredTotalS,
 		parseGrams,
 		rowsFromValues,
 		summarizePours,
@@ -46,6 +47,7 @@
 		type PourTarget
 	} from './pour-rows.ts';
 	import ScaleCard from './ScaleCard.svelte';
+	import type { GuideState } from '#lib/scale/brew-guide.ts';
 	import type { ScaleOption } from '#lib/scale/scale-link.svelte.ts';
 
 	let {
@@ -95,6 +97,7 @@
 		beanId: val(form, 'beanId', values.beanId),
 		grinderId: val(form, 'grinderId', values.grinderId),
 		dripperId: val(form, 'dripperId', values.dripperId),
+		scaleId: val(form, 'scaleId', values.scaleId),
 		filterType: val(form, 'filterType', values.filterType),
 		grindSetting: val(form, 'grindSetting', values.grindSetting),
 		doseG: val(form, 'doseG', values.doseG),
@@ -110,7 +113,10 @@
 					scaleDefaults: vals(form, 'pourScaleDefault'),
 					rowIds: vals(form, 'pourRow'),
 					bloom: vals(form, 'pourBloom'),
-					drop: vals(form, 'pourDrop')
+					drop: vals(form, 'pourDrop'),
+					plannedGs: vals(form, 'pourPlannedG'),
+					plannedStarts: vals(form, 'pourPlannedStart'),
+					durations: vals(form, 'pourDuration')
 				})
 			: values.pours
 	};
@@ -130,6 +136,7 @@
 	let beanId = $state(start.beanId);
 	let grinderId = $state(start.grinderId);
 	let dripperId = $state(start.dripperId);
+	let scaleId = $state(start.scaleId);
 	let filterType = $state(start.filterType);
 	let grindSetting = $state(start.grindSetting);
 	let doseG = $state(start.doseG);
@@ -300,6 +307,13 @@
 		};
 	}
 
+	/** A guided brew has finished: its measurements replace what was planned (D51). */
+	function recordMeasured(brew: GuideState, id: string) {
+		pourEditor?.applyMeasured(brew.pours);
+		totalTime = formatDuration(measuredTotalS(brew.pours, brew.elapsedMs));
+		scaleId = id;
+	}
+
 	function normalizeTotalTime() {
 		const s = parseDuration(totalTime);
 		if (s !== null) totalTime = formatDuration(s);
@@ -362,6 +376,7 @@
 >
 	<FormError {form} />
 	<input type="hidden" name="method" value="v60" />
+	<input type="hidden" name="scaleId" value={scaleId} />
 	{#if defaults}
 		<input type="hidden" name="grindSettingDefault" value={defaults.grindSetting} />
 		<input type="hidden" name="grindSettingDefaultFor" value={defaults.grindSettingFor} />
@@ -578,7 +593,7 @@
 	/>
 
 	{#if scales}
-		<ScaleCard {scales} {targets} />
+		<ScaleCard {scales} {targets} onfinish={recordMeasured} />
 	{/if}
 
 	<fieldset class="section">

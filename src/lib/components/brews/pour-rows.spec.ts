@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
+	applyMeasuredPours,
 	effectiveScale,
+	measuredTotalS,
 	errorRowIndex,
 	isBlank,
 	parseGrams,
@@ -13,6 +15,157 @@ import {
 	withSpareRows,
 	type PourRow
 } from './pour-rows.ts';
+
+describe('applyMeasuredPours', () => {
+	const planned = (time: string, scale: string): PourRow => ({
+		time: '',
+		scale: '',
+		bloom: false,
+		defaultTime: time,
+		defaultScale: scale
+	});
+	const measured = (startMs: number, endMs: number | null, weight: number | null) => ({
+		startMs,
+		endMs,
+		weight
+	});
+
+	it('fills in what was measured, keeping the plan', () => {
+		const rows = [planned('', '45'), planned('0:45', '150')];
+		expect(
+			applyMeasuredPours(rows, [measured(0, 3500, 46.24), measured(46_400, 49_900, 153.5)])
+		).toEqual([
+			{ ...rows[0], scale: '46.2', plannedG: '45', plannedStart: '0', duration: '3.5' },
+			{
+				...rows[1],
+				time: '0:46',
+				scale: '153.5',
+				plannedG: '150',
+				plannedStart: '45',
+				duration: '3.5'
+			}
+		]);
+	});
+
+	it('takes the plan from typed values too', () => {
+		const rows = [
+			{ ...planned('', ''), scale: '50' },
+			{ ...planned('', ''), time: '1:00', scale: '120' }
+		];
+		const [, second] = applyMeasuredPours(rows, [
+			measured(0, 1000, 50),
+			measured(61_000, 64_000, 121)
+		]);
+		expect(second).toMatchObject({ plannedG: '120', plannedStart: '60', scale: '121' });
+	});
+
+	it('leaves a pour it did not measure to be typed', () => {
+		const rows = [planned('', '45'), planned('0:45', '150')];
+		const out = applyMeasuredPours(rows, [measured(0, 3000, 45)]);
+		expect(out[1]).toEqual(rows[1]);
+	});
+
+	it('skips blank rows, as the targets do', () => {
+		const rows = [planned('', '45'), planned('', ''), planned('1:30', '200')];
+		const out = applyMeasuredPours(rows, [measured(0, 3000, 45), measured(90_000, 93_000, 201)]);
+		expect(out[1]).toEqual(rows[1]);
+		expect(out[2]).toMatchObject({ scale: '201', plannedG: '200' });
+	});
+
+	it('keeps pours in order when they round to the same second', () => {
+		const rows = [planned('', '45'), planned('0:01', '90'), planned('0:02', '150')];
+		const out = applyMeasuredPours(rows, [
+			measured(0, 300, 45),
+			measured(400, 900, 90),
+			measured(1200, 1800, 150)
+		]);
+		expect(out.map((r) => r.time)).toEqual(['', '0:01', '0:02']);
+	});
+
+	it('keeps the original plan when measuring a second time', () => {
+		const first = applyMeasuredPours([planned('', '45')], [measured(0, 3000, 46)]);
+		const second = applyMeasuredPours(first, [measured(0, 3500, 47)]);
+		expect(second[0]).toMatchObject({ scale: '47', plannedG: '45', duration: '3.5' });
+	});
+
+	it('leaves the duration blank for a pour that never ended', () => {
+		const [row] = applyMeasuredPours([planned('', '45')], [measured(0, null, 30)]);
+		expect(row.duration).toBe('');
+	});
+
+	it('leaves a pour alone if it has no weight', () => {
+		const rows = [planned('', '45')];
+		expect(applyMeasuredPours(rows, [measured(0, null, null)])[0]).toEqual(rows[0]);
+	});
+
+	it('keeps extra row fields, such as the key', () => {
+		const rows = [{ ...planned('', '45'), key: 7 }];
+		expect(applyMeasuredPours(rows, [measured(0, 3000, 45)])[0].key).toBe(7);
+	});
+});
+
+describe('measuredTotalS', () => {
+	const pour = (startMs: number) => ({ startMs, endMs: startMs + 1000, weight: 50 });
+
+	it('rounds the elapsed time', () => {
+		expect(measuredTotalS([pour(0)], 180_400)).toBe(180);
+	});
+
+	it('is always after the last pour starts', () => {
+		expect(measuredTotalS([pour(0), pour(45_000)], 45_100)).toBe(46);
+	});
+
+	it('copes with no pours', () => {
+		expect(measuredTotalS([], 0)).toBe(1);
+	});
+});
+
+describe('measured brews as templates (D51)', () => {
+	const entry = {
+		startS: 47,
+		cumulativeG: 153.5,
+		bloom: false,
+		plannedCumulativeG: 150,
+		plannedStartS: 45,
+		durationS: 3.5
+	};
+
+	it('offers the plan as placeholders, not what was measured', () => {
+		expect(placeholderRowsFromEntries([entry])[0]).toMatchObject({
+			defaultTime: '0:45',
+			defaultScale: '150'
+		});
+	});
+
+	it('offers the logged values for a pour with no plan', () => {
+		const logged = { startS: 47, cumulativeG: 153.5, bloom: false };
+		expect(placeholderRowsFromEntries([logged])[0]).toMatchObject({
+			defaultTime: '0:47',
+			defaultScale: '153.5'
+		});
+	});
+
+	it('keeps the measurement when editing the brew', () => {
+		expect(rowsFromEntries([entry])[0]).toMatchObject({
+			time: '0:47',
+			scale: '153.5',
+			plannedG: '150',
+			plannedStart: '45',
+			duration: '3.5'
+		});
+	});
+
+	it('survives a failed submit', () => {
+		const [row] = rowsFromValues({
+			times: ['0:47'],
+			scales: ['153.5'],
+			plannedGs: ['150'],
+			plannedStarts: ['45'],
+			durations: ['3.5']
+		});
+		expect(row).toMatchObject({ plannedG: '150', plannedStart: '45', duration: '3.5' });
+	});
+});
 
 describe('pourTargets', () => {
 	const row = (time: string, scale: string): PourRow => ({

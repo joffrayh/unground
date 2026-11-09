@@ -97,8 +97,8 @@ migrations and refreshes the flavour vocabulary when it starts. Back up nightly 
 
 Go to **Settings → Export**, or fetch the files directly while signed in:
 
-- `/export/brews.csv` has one row per brew: bean (with bag weight and price), grinder, dripper, recipe (incl. `agitation`), method-specific columns (`pour_count`, `bloom_pours`, `bloom_g`, `bloom_time_s`, …), rating (`rating_acidity` … `rating_clarity`, plus the legacy `rating_aftertaste`), the next-time plan (`next_*`, blank = keep as it was), and derived values (`ratio`, `roast_age_days`, `brewed_local_date`, …).
-- `/export/pours.csv` has one row per pour (`brew_id`, `idx` from 1, `pour_number` from 0 as the app shows it, `volume_g`, `interval_s`, `bloom`, plus derived `start_s` and `cumulative_g`).
+- `/export/brews.csv` has one row per brew: bean (with bag weight and price), grinder, dripper, scale, recipe (incl. `agitation`), method-specific columns (`pour_count`, `bloom_pours`, `bloom_g`, `bloom_time_s`, …), rating (`rating_acidity` … `rating_clarity`, plus the legacy `rating_aftertaste`), the next-time plan (`next_*`, blank = keep as it was), and derived values (`ratio`, `roast_age_days`, `brewed_local_date`, …).
+- `/export/pours.csv` has one row per pour (`brew_id`, `idx` from 1, `pour_number` from 0 as the app shows it, `volume_g`, `interval_s`, `bloom`, plus derived `start_s` and `cumulative_g`, and for pours a scale measured, `planned_start_s`, `planned_cumulative_g` and `duration_s`).
 
 Flavour tags are `;`-separated wheel paths such as `fruity.berry.blueberry`, so you can roll them up with a prefix match. Blank cells mean "not recorded", never zero.
 

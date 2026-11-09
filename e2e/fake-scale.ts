@@ -130,4 +130,7 @@ export const playScaleReadings = (page: Page, readings: [number, number, number]
 		for (const [timerMs, grams, flow] of rows) window.fakeScale.sendReading(grams, flow, timerMs);
 	}, readings);
 
+export const scaleConnectAttempts = (page: Page) =>
+	page.evaluate(() => window.fakeScale.connectAttempts());
+
 export const scaleCommandsSent = (page: Page) => page.evaluate(() => window.fakeScale.commands());
