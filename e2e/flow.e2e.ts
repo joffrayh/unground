@@ -5,7 +5,13 @@
  * same logging flow with JavaScript disabled. The theme choice is covered both ways.
  */
 import { expect, test, type Page } from '@playwright/test';
-import { installFakeScale, isScaleConnected, setScalePower } from './fake-scale';
+import {
+	installFakeScale,
+	isScaleConnected,
+	scaleCommandsSent,
+	sendScaleReading,
+	setScalePower
+} from './fake-scale';
 import { fillPours, isoDate, logIn, signUp, uniqueEmail } from './helpers';
 
 /** CSV rows as objects (the export never quotes the fields this test reads). */
@@ -522,6 +528,70 @@ test('a paired scale connects by itself', async ({ page }) => {
 	await expect(row).toContainText('Not paired');
 	await expect(row.getByRole('button', { name: 'Pair' })).toHaveCount(0);
 	expect(await isScaleConnected(page)).toBe(false);
+});
+
+test('the scale card shows the live reading against pour 0', async ({ page }) => {
+	await installFakeScale(page);
+	await logIn(page, THEME_EMAIL);
+	await page.goto('/equipment');
+	await page.locator('#new-scale-name').fill('Brew scale');
+	await page.getByRole('button', { name: 'Add scale' }).click();
+	const row = page.getByRole('listitem').filter({ hasText: 'Brew scale' });
+	await row.getByRole('button', { name: 'Pair' }).click();
+	await expect(row).toContainText('Connected');
+
+	// The connection carries over to the brew form.
+	await page
+		.getByRole('navigation', { name: 'Main' })
+		.getByRole('link', { name: 'Add Brew' })
+		.click();
+	const card = page.getByRole('region', { name: 'Scale' });
+	await expect(card).toContainText('Brew scale');
+	const enter = card.getByRole('button', { name: 'Enter' });
+	await expect(enter).toHaveCSS('background-color', 'rgb(86, 171, 250)');
+
+	const scales = page.locator('[name="pourScale"]');
+	await scales.first().fill('45');
+	const before = await page
+		.locator('form.brew-form')
+		.evaluate((f: HTMLFormElement) =>
+			JSON.stringify([...new FormData(f).entries()].filter(([k]) => k !== 'brewedAt'))
+		);
+
+	await enter.click();
+	await expect.poll(() => scaleCommandsSent(page)).toEqual([[3, 10, 1, 0, 0, 8]]);
+	await expect
+		.poll(() =>
+			card.evaluate((el) => {
+				const box = el.getBoundingClientRect();
+				return Math.abs(box.top + box.height / 2 - innerHeight / 2);
+			})
+		)
+		.toBeLessThan(40);
+
+	const readout = card.locator('.readout');
+	await sendScaleReading(page, 12.34, 3);
+	await expect(readout).toHaveText('12.3g > 45.0g');
+	await sendScaleReading(page, -0.04);
+	await expect(readout).toHaveText('0.0g > 45.0g');
+
+	// The target follows the form.
+	await scales.first().fill('50');
+	await expect(readout).toHaveText('0.0g > 50.0g');
+	await scales.first().fill('45');
+
+	// It only reads: the form posts exactly what it did before.
+	await card.getByRole('button', { name: 'Exit' }).click();
+	await expect(readout).toHaveCount(0);
+	const after = await page
+		.locator('form.brew-form')
+		.evaluate((f: HTMLFormElement) =>
+			JSON.stringify([...new FormData(f).entries()].filter(([k]) => k !== 'brewedAt'))
+		);
+	expect(after).toBe(before);
+
+	await setScalePower(page, false);
+	await expect(card).toHaveCount(0);
 });
 
 test.describe('without JavaScript', () => {

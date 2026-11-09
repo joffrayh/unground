@@ -1,8 +1,14 @@
 import { createContext } from 'svelte';
+import { decodePacket, type WeightPacket } from './bookoo';
 import { createScaleConnection, type ConnectionStatus } from './connection';
 import { clearPairing, matchDevice, readPairing, writePairing, type ScalePairing } from './pairing';
 import type { ScaleTransport } from './transport';
 import { WebBluetoothTransport, requestScale } from './web-bluetooth';
+
+export interface ScaleOption {
+	id: string;
+	name: string;
+}
 
 /** This phone's link to its paired scale, for every page. Lives in the root layout. */
 export class ScaleLink {
@@ -10,6 +16,8 @@ export class ScaleLink {
 	available = $state(false);
 	pairing = $state.raw<ScalePairing | null>(null);
 	status = $state<ConnectionStatus>('searching');
+	/** The latest reading; null while not connected. */
+	reading = $state.raw<WeightPacket | null>(null);
 
 	#owner: string | null = null;
 	#suspended = false;
@@ -30,11 +38,19 @@ export class ScaleLink {
 		this.#connection?.stop();
 		this.#connection = null;
 		this.status = 'searching';
+		this.reading = null;
 		if (!this.available || !this.pairing || this.#suspended) return;
 		this.#connection = createScaleConnection({
 			locate: this.#locate,
 			isVisible: () => document.visibilityState === 'visible',
-			onStatus: (status) => (this.status = status)
+			onStatus: (status) => {
+				this.status = status;
+				if (status !== 'connected') this.reading = null;
+			},
+			onData: (_channel, bytes) => {
+				const decoded = decodePacket(bytes);
+				if (decoded.ok && decoded.packet.type === 'weight') this.reading = decoded.packet;
+			}
 		});
 		this.#connection.start();
 	}
@@ -52,6 +68,10 @@ export class ScaleLink {
 		this.#connection?.stop();
 		this.#connection = null;
 		this.#owner = null;
+	}
+
+	send(bytes: Uint8Array<ArrayBuffer>): Promise<void> {
+		return this.#connection?.send(bytes) ?? Promise.reject(new Error('Not connected'));
 	}
 
 	/** Opens the device chooser, so it must be called from a tap. Cancelling changes nothing. */

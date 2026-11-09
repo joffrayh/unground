@@ -34,6 +34,9 @@ function fakeScale() {
 		drop() {
 			scale.connected = false;
 			for (const l of listeners) l.disconnected();
+		},
+		emit(bytes: Uint8Array) {
+			for (const l of listeners) l.data('weight', bytes, 5);
 		}
 	};
 	return scale satisfies ScaleTransport & Record<string, unknown>;
@@ -43,12 +46,14 @@ function setup(scale: ReturnType<typeof fakeScale> | null = fakeScale()) {
 	const statuses: ConnectionStatus[] = [];
 	const state = { visible: true, available: scale };
 	const locate = vi.fn(async () => state.available);
+	const onData = vi.fn();
 	const connection = createScaleConnection({
 		locate,
 		isVisible: () => state.visible,
-		onStatus: (s) => statuses.push(s)
+		onStatus: (s) => statuses.push(s),
+		onData
 	});
-	return { connection, statuses, state, locate, last: () => statuses.at(-1) };
+	return { connection, statuses, state, locate, onData, last: () => statuses.at(-1) };
 }
 
 const flush = () => vi.advanceTimersByTimeAsync(0);
@@ -165,6 +170,34 @@ describe('createScaleConnection', () => {
 		state.visible = false;
 		await vi.advanceTimersByTimeAsync(RETRY_MS * 3);
 		expect(scale.connected).toBe(true);
+	});
+
+	it('passes on what the scale sends', async () => {
+		const scale = fakeScale();
+		const { connection, onData } = setup(scale);
+		connection.start();
+		await flush();
+		const bytes = Uint8Array.of(1, 2);
+		scale.emit(bytes);
+		expect(onData).toHaveBeenCalledWith('weight', bytes, 5);
+	});
+
+	it('sends commands only while connected', async () => {
+		const scale = fakeScale();
+		const send = vi.spyOn(scale, 'send');
+		const { connection } = setup(scale);
+		const bytes = Uint8Array.of(1);
+		await expect(connection.send(bytes)).rejects.toThrow('Not connected');
+
+		connection.start();
+		await flush();
+		await connection.send(bytes);
+		expect(send).toHaveBeenCalledWith(bytes);
+
+		scale.power = 'off';
+		scale.drop();
+		await flush();
+		await expect(connection.send(bytes)).rejects.toThrow('Not connected');
 	});
 
 	it('disconnects and stops trying when stopped', async () => {

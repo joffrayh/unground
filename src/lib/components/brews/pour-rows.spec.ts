@@ -4,6 +4,7 @@ import {
 	errorRowIndex,
 	isBlank,
 	parseGrams,
+	pourTargets,
 	placeholderRowsFromEntries,
 	rowsFromEntries,
 	rowsFromValues,
@@ -12,6 +13,47 @@ import {
 	withSpareRows,
 	type PourRow
 } from './pour-rows.ts';
+
+describe('pourTargets', () => {
+	const row = (time: string, scale: string): PourRow => ({
+		time,
+		scale,
+		bloom: false,
+		defaultTime: '',
+		defaultScale: ''
+	});
+
+	it('uses the typed readings, in order', () => {
+		const summary = summarizePours([row('', '45'), row('0:45', '150')], '15');
+		expect(pourTargets(summary)).toEqual([
+			{ startS: 0, cumulativeG: 45 },
+			{ startS: 45, cumulativeG: 150 }
+		]);
+	});
+
+	it('uses a placeholder when nothing is typed', () => {
+		const summary = summarizePours(
+			[
+				{ ...row('', ''), defaultScale: '50' },
+				{ ...row('', ''), defaultTime: '1:00', defaultScale: '120' }
+			],
+			'15'
+		);
+		expect(pourTargets(summary)).toEqual([
+			{ startS: 0, cumulativeG: 50 },
+			{ startS: 60, cumulativeG: 120 }
+		]);
+	});
+
+	it('leaves out rows with no reading', () => {
+		const summary = summarizePours([row('', '45'), row('', ''), row('', '')], '15');
+		expect(pourTargets(summary)).toEqual([{ startS: 0, cumulativeG: 45 }]);
+	});
+
+	it('is empty when pour 0 has no reading yet', () => {
+		expect(pourTargets(summarizePours([row('', '')], '15'))).toEqual([]);
+	});
+});
 
 /** A typed row. */
 const r = (time: string, scale: string, bloom = false): PourRow => ({

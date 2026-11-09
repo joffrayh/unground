@@ -38,10 +38,7 @@ export function clearPairing(owner: string): void {
 	}
 }
 
-/**
- * The paired device among those the browser remembers: by id, else by name, else the only one there
- * is. A browser may report a different id or no name after restarting.
- */
+/** The paired device among those the browser remembers. Falls back to its name if the id changed. */
 export function matchDevice<T extends { id: string; name?: string }>(
 	devices: readonly T[],
 	pairing: ScalePairing
@@ -49,6 +46,6 @@ export function matchDevice<T extends { id: string; name?: string }>(
 	return (
 		devices.find((d) => d.id === pairing.deviceId) ??
 		devices.find((d) => pairing.deviceName !== null && d.name === pairing.deviceName) ??
-		(devices.length === 1 ? devices[0] : null)
+		null
 	);
 }

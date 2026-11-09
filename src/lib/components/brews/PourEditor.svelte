@@ -28,12 +28,14 @@
 		errorRowIndex,
 		isBlank,
 		parseGrams,
+		pourTargets,
 		rowLabel,
 		summarizePours,
 		trimSpareRows,
 		withSpareRows,
 		type PourRow,
-		type PourStats
+		type PourStats,
+		type PourTarget
 	} from './pour-rows.ts';
 
 	let {
@@ -41,7 +43,8 @@
 		dose,
 		error,
 		suggestion = null,
-		stats = $bindable()
+		stats = $bindable(),
+		targets = $bindable()
 	}: {
 		initial: readonly PourRow[];
 		/** The dose that counts (typed, else its placeholder), for the ratio. */
@@ -51,6 +54,8 @@
 		suggestion?: BrewSuggestions | null;
 		/** Live totals, for the rest of the form (the next-time card). */
 		stats?: PourStats;
+		/** Live pour targets, for the scale card. */
+		targets?: PourTarget[];
 	} = $props();
 
 	const uid = $props.id();
@@ -84,6 +89,7 @@
 
 	$effect(() => {
 		stats = { count: summary.count, totalG: summary.totalG, ratio: summary.ratio };
+		targets = pourTargets(summary);
 	});
 
 	// --- the plan's suggestion ------------------------------------------------------------------

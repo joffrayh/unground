@@ -4,6 +4,8 @@ interface FakeScale {
 	setPower(on: boolean): void;
 	isConnected(): boolean;
 	connectAttempts(): number;
+	sendReading(grams: number, flow: number): void;
+	commands(): number[][];
 }
 
 declare global {
@@ -23,6 +25,7 @@ export async function installFakeScale(page: Page): Promise<void> {
 		let attempts = 0;
 		// As on iOS: after a restart the device must be heard before it can be connected.
 		let heard = false;
+		const commands: number[][] = [];
 
 		class Characteristic extends EventTarget {
 			value: DataView | null = null;
@@ -34,8 +37,16 @@ export async function installFakeScale(page: Page): Promise<void> {
 			async startNotifications() {
 				return this;
 			}
-			async writeValueWithResponse() {}
-			async writeValueWithoutResponse() {}
+			async writeValueWithResponse(value: Uint8Array) {
+				commands.push(Array.from(value));
+			}
+			async writeValueWithoutResponse(value: Uint8Array) {
+				commands.push(Array.from(value));
+			}
+			emit(bytes: Uint8Array) {
+				this.value = new DataView(bytes.buffer as ArrayBuffer);
+				this.dispatchEvent(new Event('characteristicvaluechanged'));
+			}
 		}
 
 		const weight = new Characteristic(false);
@@ -88,7 +99,18 @@ export async function installFakeScale(page: Page): Promise<void> {
 				if (!on) device.gatt.disconnect();
 			},
 			isConnected: () => device.gatt.connected,
-			connectAttempts: () => attempts
+			connectAttempts: () => attempts,
+			commands: () => commands,
+			sendReading(grams, flow) {
+				const packet = new Uint8Array(20);
+				const hundredths = Math.round(Math.abs(grams) * 100);
+				const flowHundredths = Math.round(Math.abs(flow) * 100);
+				packet.set([0x03, 0x0b, 0, 0, 0, 1, grams < 0 ? 0x2d : 0x2b]);
+				packet.set([(hundredths >> 16) & 255, (hundredths >> 8) & 255, hundredths & 255], 7);
+				packet.set([flow < 0 ? 0x2d : 0x2b, (flowHundredths >> 8) & 255, flowHundredths & 255], 10);
+				packet[19] = packet.subarray(0, 19).reduce((sum, b) => sum ^ b, 0);
+				weight.emit(packet);
+			}
 		};
 	});
 }
@@ -97,3 +119,8 @@ export const setScalePower = (page: Page, on: boolean) =>
 	page.evaluate((value) => window.fakeScale.setPower(value), on);
 
 export const isScaleConnected = (page: Page) => page.evaluate(() => window.fakeScale.isConnected());
+
+export const sendScaleReading = (page: Page, grams: number, flow = 0) =>
+	page.evaluate(([g, f]) => window.fakeScale.sendReading(g, f), [grams, flow]);
+
+export const scaleCommandsSent = (page: Page) => page.evaluate(() => window.fakeScale.commands());

@@ -2,7 +2,7 @@
  * Keeps a paired scale connected: tries at once, then every 20 seconds, so a scale turned on later
  * connects by itself. One attempt at a time, and none while the app is hidden.
  */
-import type { ScaleTransport } from './transport';
+import type { ScaleListener, ScaleTransport } from './transport';
 
 export const RETRY_MS = 20_000;
 /** A connection to a scale that's off may never answer. */
@@ -15,6 +15,7 @@ export interface ConnectionOptions {
 	locate: () => Promise<ScaleTransport | null>;
 	isVisible: () => boolean;
 	onStatus: (status: ConnectionStatus) => void;
+	onData: ScaleListener['data'];
 }
 
 function withTimeout(work: Promise<void>): Promise<void> {
@@ -25,7 +26,7 @@ function withTimeout(work: Promise<void>): Promise<void> {
 	return Promise.race([work, timedOut]).finally(() => clearTimeout(timer));
 }
 
-export function createScaleConnection({ locate, isVisible, onStatus }: ConnectionOptions) {
+export function createScaleConnection({ locate, isVisible, onStatus, onData }: ConnectionOptions) {
 	let timer: ReturnType<typeof setInterval> | undefined;
 	let transport: ScaleTransport | null = null;
 	let unsubscribe: (() => void) | null = null;
@@ -42,7 +43,7 @@ export function createScaleConnection({ locate, isVisible, onStatus }: Connectio
 	function adopt(found: ScaleTransport) {
 		transport = found;
 		unsubscribe = found.subscribe({
-			data() {},
+			data: onData,
 			disconnected() {
 				if (status !== 'connected') return;
 				setStatus('searching');
@@ -89,6 +90,11 @@ export function createScaleConnection({ locate, isVisible, onStatus }: Connectio
 
 		/** Tries now, for when the app comes back into view. */
 		wake: attempt,
+
+		send(bytes: Uint8Array<ArrayBuffer>): Promise<void> {
+			if (status !== 'connected' || !transport) return Promise.reject(new Error('Not connected'));
+			return transport.send(bytes);
+		},
 
 		stop() {
 			clearInterval(timer);

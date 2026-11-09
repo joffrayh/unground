@@ -38,7 +38,15 @@
 		type GrinderOption
 	} from './brew-values.ts';
 	import { focusNextField, isTextLike } from './enter-nav.ts';
-	import { parseGrams, rowsFromValues, summarizePours, type PourStats } from './pour-rows.ts';
+	import {
+		parseGrams,
+		rowsFromValues,
+		summarizePours,
+		type PourStats,
+		type PourTarget
+	} from './pour-rows.ts';
+	import ScaleCard from './ScaleCard.svelte';
+	import type { ScaleOption } from '#lib/scale/scale-link.svelte.ts';
 
 	let {
 		form,
@@ -46,6 +54,7 @@
 		beans,
 		grinders,
 		drippers,
+		scales,
 		submitLabel = 'Save brew',
 		navSubmit = false,
 		catalogueLinks = false,
@@ -59,6 +68,8 @@
 		beans: BeanOption[];
 		grinders: GrinderOption[];
 		drippers: DripperOption[];
+		/** New brews: the user's scales, for the card that shows the paired one. */
+		scales?: ScaleOption[];
 		submitLabel?: string;
 		/** The nav's centre button saves this form, so it has no button of its own (D38). */
 		navSubmit?: boolean;
@@ -137,6 +148,7 @@
 	// A re-shown failed submit keeps exactly what was sent; a draft only has it once it was edited.
 	// svelte-ignore state_referenced_locally
 	let brewedAtEdited = form?.values?.brewedAt !== undefined;
+	let targets = $state<PourTarget[]>([]);
 	let submitting = $state(false);
 	// Suggestion chips only do something with JavaScript; before that they are plain text.
 	let hydrated = $state(false);
@@ -562,7 +574,12 @@
 		error={errors.pours}
 		suggestion={suggestions}
 		bind:stats={pourStats}
+		bind:targets
 	/>
+
+	{#if scales}
+		<ScaleCard {scales} {targets} />
+	{/if}
 
 	<fieldset class="section">
 		<legend>Timing</legend>

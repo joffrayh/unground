@@ -239,6 +239,19 @@ export function summarizePours(
 	};
 }
 
+/** What a pour is planned to do: start time (s) and the running total to reach (g). */
+export interface PourTarget {
+	startS: number | null;
+	cumulativeG: number;
+}
+
+/** The pours that have a target, in order. Blank rows have none and the server skips them too. */
+export function pourTargets(summary: PourSummary): PourTarget[] {
+	return summary.rows.flatMap((r) =>
+		r.scaleG === null ? [] : [{ startS: r.startS, cumulativeG: r.scaleG }]
+	);
+}
+
 /**
  * Which row a server `errors.pours` message is about, so that row can be marked invalid. The server
  * names pours from 0 by the rows it kept: pour 0 always counts (its time is posted as 0:00) and blank

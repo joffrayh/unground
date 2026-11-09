@@ -281,6 +281,7 @@ The substance of each decision lives in the section noted under _Where_; this ta
 | D45 | **Overall, agitation and the radar's fine control are one stepped slider: a disc in a slot, a small dot at each step.** Scores start at the far left, "not rated", and a planned agitation is a larger green dot. Without JavaScript they stay radio pills. | One control, usable one-handed. Starting unset means no default biases the data (D7). | [§4.3](#43-rating--tasting-the-target-variable) |
 | D46 | **Scale** is a per-user entity (a name) managed in Equipment like a dripper. | Same rules as other equipment, and a brew can reference the one it was logged with. | [§5](#5-data-model-overview) |
 | D47 | **A scale is paired per phone**, in the browser's local storage, one at a time. The app connects when opened and retries every 20 seconds while it's in view. Web Bluetooth only, so iPhones need a browser that has it, such as Bluefy. JavaScript only. | Bluetooth device ids only mean something to the browser that issued them. Retrying means a scale turned on later just connects. | — |
+| D48 | **While its scale is connected, a new brew has a scale card under Pours**: name, green dot and a blue (`#56ABFA`) Enter. Enter opens and centres it, tares the scale and shows the live reading against the pour's target. | Blue marks live scale actions apart from amber saves and green plans. Dark text, as on the primary button, because white on that blue is hard to read. | [§4.2](#42-brew) |
 
 ## 9. Open questions / decisions to revisit
 

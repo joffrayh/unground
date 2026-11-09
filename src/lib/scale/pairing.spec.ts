@@ -12,22 +12,11 @@ describe('matchDevice', () => {
 		const byName = { id: 'new-id', name: 'BOOKOO 1' };
 		expect(matchDevice([{ id: 'x', name: 'Other' }, byName], pairing)).toBe(byName);
 	});
-	it('falls back to the only device, for a browser that changes both', () => {
-		const only = { id: 'restarted' };
-		expect(matchDevice([only], pairing)).toBe(only);
-	});
-	it("won't guess between several devices", () => {
-		const devices = [
-			{ id: 'x', name: 'Other' },
-			{ id: 'y', name: 'Another' }
-		];
-		expect(matchDevice(devices, pairing)).toBeNull();
-	});
-	it('finds nothing when the browser remembers nothing', () => {
+	it('finds nothing else', () => {
+		expect(matchDevice([{ id: 'x', name: 'Other' }], pairing)).toBeNull();
 		expect(matchDevice([], pairing)).toBeNull();
 	});
-	it('never matches nameless devices on a missing name', () => {
-		const devices = [{ id: 'x' }, { id: 'y' }];
-		expect(matchDevice(devices, { ...pairing, deviceName: null })).toBeNull();
+	it('never matches a nameless device on a missing name', () => {
+		expect(matchDevice([{ id: 'x' }], { ...pairing, deviceName: null })).toBeNull();
 	});
 });
