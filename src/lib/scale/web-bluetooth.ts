@@ -7,6 +7,8 @@ import type { ScaleChannel, ScaleListener, ScaleTransport } from './transport';
 
 const DEVICE_INFORMATION = 'device_information';
 const OPTIONAL_SERVICES = [BOOKOO_SERVICE, DEVICE_INFORMATION];
+/** Shorter than the connection attempt's own limit, so a scale that's off fails cleanly. */
+export const ADVERTISEMENT_WAIT_MS = 10_000;
 
 /**
  * Opens the browser's device chooser, which needs a tap. `anyDevice` lists everything nearby, for a
@@ -32,6 +34,8 @@ export class WebBluetoothTransport implements ScaleTransport {
 	readonly device: BluetoothDevice;
 	/** Whether the scale can send events on the command characteristic. */
 	commandNotifications = false;
+	/** Reports each step of a difficult connection, for the scale test page. */
+	onNote: ((line: string) => void) | null = null;
 
 	#listeners = new Set<ScaleListener>();
 	#weight: BluetoothRemoteGATTCharacteristic | null = null;
@@ -53,7 +57,7 @@ export class WebBluetoothTransport implements ScaleTransport {
 	async connect(): Promise<void> {
 		const gatt = this.device.gatt;
 		if (!gatt) throw new Error('This device has no GATT server');
-		const server = await gatt.connect();
+		const server = await this.#reach(gatt);
 		try {
 			const service = await server.getPrimaryService(BOOKOO_SERVICE);
 			const weight = await service.getCharacteristic(BOOKOO_WEIGHT_CHARACTERISTIC);
@@ -101,6 +105,42 @@ export class WebBluetoothTransport implements ScaleTransport {
 		} catch {
 			return null;
 		}
+	}
+
+	/** After a full restart, Bluefy on iOS refuses to connect until it has heard the device again. */
+	async #reach(gatt: BluetoothRemoteGATTServer): Promise<BluetoothRemoteGATTServer> {
+		try {
+			return await gatt.connect();
+		} catch (e) {
+			this.onNote?.(`direct connect failed: ${String(e)}`);
+			if (!(await this.#hearAdvertisement())) throw e;
+			return gatt.connect();
+		}
+	}
+
+	#hearAdvertisement(): Promise<boolean> {
+		const device = this.device;
+		if (!device.watchAdvertisements) return Promise.resolve(false);
+		return new Promise((resolve) => {
+			const abort = new AbortController();
+			let done = false;
+			const finish = (heard: boolean) => {
+				if (done) return;
+				done = true;
+				clearTimeout(timer);
+				device.removeEventListener('advertisementreceived', onAdvertisement);
+				abort.abort();
+				this.onNote?.(heard ? 'advertisement heard' : 'no advertisement heard');
+				resolve(heard);
+			};
+			const onAdvertisement = () => finish(true);
+			const timer = setTimeout(() => finish(false), ADVERTISEMENT_WAIT_MS);
+			device.addEventListener('advertisementreceived', onAdvertisement);
+			device.watchAdvertisements({ signal: abort.signal }).catch((e: unknown) => {
+				if (!done) this.onNote?.(`watchAdvertisements failed: ${String(e)}`);
+				finish(false);
+			});
+		});
 	}
 
 	#release() {

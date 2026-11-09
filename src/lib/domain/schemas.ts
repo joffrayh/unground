@@ -147,6 +147,10 @@ export const dripperSchema = z.object({
 export type DripperInput = z.infer<typeof dripperSchema>;
 export const parseDripperForm = (fd: FormData) => run(dripperSchema, formObject(fd));
 
+export const scaleSchema = z.object({ name: reqText(100) });
+export type ScaleInput = z.infer<typeof scaleSchema>;
+export const parseScaleForm = (fd: FormData) => run(scaleSchema, formObject(fd));
+
 // --- bean -------------------------------------------------------------------------------------
 
 export const beanSchema = z

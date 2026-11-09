@@ -13,6 +13,7 @@
 		type Recorder,
 		type ScaleRecording
 	} from '#lib/scale/recording.ts';
+	import { getScaleLink } from '#lib/scale/scale-link.svelte.ts';
 	import type { ScaleChannel } from '#lib/scale/transport.ts';
 	import { WebBluetoothTransport, requestScale } from '#lib/scale/web-bluetooth.ts';
 	import { createProbe } from './probe.ts';
@@ -69,6 +70,7 @@
 		}
 	];
 
+	const scaleLink = getScaleLink();
 	const probe = createProbe();
 	const startedAt = typeof performance === 'undefined' ? 0 : performance.now();
 
@@ -202,6 +204,7 @@
 	async function attach(device: BluetoothDevice) {
 		detach();
 		const t = new WebBluetoothTransport(device);
+		t.onNote = note;
 		transport = t;
 		scaleName = device.name ?? device.id;
 		note(`device: ${device.name ?? 'no name'} (${device.id})`);
@@ -243,7 +246,8 @@
 		}
 		try {
 			const devices = await navigator.bluetooth.getDevices();
-			note(`getDevices: ${devices.length} device(s)`);
+			note(`getDevices: ${JSON.stringify(devices.map((d) => ({ id: d.id, name: d.name })))}`);
+			note(`paired: ${JSON.stringify(scaleLink.pairing)}`);
 			if (devices[0]) await attach(devices[0]);
 		} catch (e) {
 			note(`getDevices failed: ${describeError(e)}`);
@@ -298,6 +302,8 @@
 
 	onMount(() => {
 		hydrated = true;
+		// This page talks to the scale itself.
+		scaleLink.suspend();
 		const bluetooth = navigator.bluetooth;
 		environment = {
 			userAgent: navigator.userAgent,
@@ -315,6 +321,7 @@
 			clearTimeout(noTapTimer);
 			detach();
 			wakeLock?.release();
+			scaleLink.resume();
 		};
 	});
 

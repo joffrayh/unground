@@ -1,5 +1,10 @@
 import { fail, redirect } from '@sveltejs/kit';
-import { parseDripperForm, parseGrinderForm, parseRoasterForm } from '#lib/domain/schemas.ts';
+import {
+	parseDripperForm,
+	parseGrinderForm,
+	parseRoasterForm,
+	parseScaleForm
+} from '#lib/domain/schemas.ts';
 import { db } from '#lib/server/db/index.ts';
 import { domainFailure, formValues, requireUser, safeReturnPath } from '#lib/server/http.ts';
 import {
@@ -22,12 +27,19 @@ import {
 	setRoasterArchived,
 	updateRoaster
 } from '#lib/server/services/roasters.ts';
+import {
+	createScale,
+	deleteScale,
+	listScales,
+	setScaleArchived,
+	updateScale
+} from '#lib/server/services/scales.ts';
 import { activeFirst, withParam } from '../beans/helpers.ts';
 import type { Actions, PageServerLoad } from './$types';
 
 /**
  * Many small forms share this page, so every result carries a `target` naming the form it belongs to
- * ('newGrinder', 'grinder:<id>', 'newDripper', 'dripper:<id>', 'roaster:<id>'); the page shows errors next to that form only.
+ * ('newGrinder', 'grinder:<id>', 'newDripper', 'dripper:<id>', 'newScale', 'scale:<id>', 'roaster:<id>'); the page shows errors next to that form only.
  */
 
 /** `?return=<path>`: where to go after adding a grinder or dripper (e.g. the brew form), or null. */
@@ -48,14 +60,16 @@ function failureFor(target: string, e: unknown, values?: Record<string, unknown>
 
 export const load: PageServerLoad = async (event) => {
 	const user = requireUser(event);
-	const [grinders, drippers, roasters] = await Promise.all([
+	const [grinders, drippers, scales, roasters] = await Promise.all([
 		listGrinders(db, user.id, { includeArchived: true }),
 		listDrippers(db, user.id, { includeArchived: true }),
+		listScales(db, user.id, { includeArchived: true }),
 		listRoasters(db, user.id, { includeArchived: true })
 	]);
 	return {
 		grinders: activeFirst(grinders),
 		drippers: activeFirst(drippers),
+		scales: activeFirst(scales),
 		roasters: activeFirst(roasters),
 		returnTo: returnPath(event.url)
 	};
@@ -176,6 +190,64 @@ export const actions: Actions = {
 		const target = `dripper:${id}`;
 		try {
 			await deleteDripper(db, user.id, id);
+		} catch (e) {
+			return failureFor(target, e);
+		}
+		return { target };
+	},
+
+	createScale: async (event) => {
+		const user = requireUser(event);
+		const target = 'newScale';
+		const fd = await event.request.formData();
+		const parsed = parseScaleForm(fd);
+		const values = formValues(fd);
+		if (!parsed.ok) return fail(400, { target, errors: parsed.errors, values });
+		let id: string;
+		try {
+			({ id } = await createScale(db, user.id, parsed.data));
+		} catch (e) {
+			return failureFor(target, e, values);
+		}
+		return { target, created: id };
+	},
+
+	updateScale: async (event) => {
+		const user = requireUser(event);
+		const fd = await event.request.formData();
+		const id = idOf(fd);
+		const target = `scale:${id}`;
+		const parsed = parseScaleForm(fd);
+		const values = formValues(fd);
+		if (!parsed.ok) return fail(400, { target, errors: parsed.errors, values });
+		try {
+			await updateScale(db, user.id, id, parsed.data);
+		} catch (e) {
+			return failureFor(target, e, values);
+		}
+		return { target };
+	},
+
+	archiveScale: async (event) => {
+		const user = requireUser(event);
+		const fd = await event.request.formData();
+		const id = idOf(fd);
+		const target = `scale:${id}`;
+		try {
+			await setScaleArchived(db, user.id, id, fd.get('archived') === '1');
+		} catch (e) {
+			return failureFor(target, e);
+		}
+		return { target };
+	},
+
+	deleteScale: async (event) => {
+		const user = requireUser(event);
+		const fd = await event.request.formData();
+		const id = idOf(fd);
+		const target = `scale:${id}`;
+		try {
+			await deleteScale(db, user.id, id);
 		} catch (e) {
 			return failureFor(target, e);
 		}

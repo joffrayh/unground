@@ -5,6 +5,7 @@
  * same logging flow with JavaScript disabled. The theme choice is covered both ways.
  */
 import { expect, test, type Page } from '@playwright/test';
+import { installFakeScale, isScaleConnected, setScalePower } from './fake-scale';
 import { fillPours, isoDate, logIn, signUp, uniqueEmail } from './helpers';
 
 /** CSV rows as objects (the export never quotes the fields this test reads). */
@@ -478,6 +479,49 @@ test('a new page is animating from its first frame and leaves nothing behind', a
 			page.evaluate(() => document.querySelector('main')?.getAnimations({ subtree: true }).length)
 		)
 		.toBe(0);
+});
+
+test('a paired scale connects by itself', async ({ page }) => {
+	await installFakeScale(page);
+	await page.clock.install();
+	await logIn(page, THEME_EMAIL);
+	await page.goto('/equipment');
+	await page.locator('#new-scale-name').fill('Kitchen scale');
+	await page.getByRole('button', { name: 'Add scale' }).click();
+
+	const row = page.getByRole('listitem').filter({ hasText: 'Kitchen scale' });
+	await expect(row).toContainText('Not paired');
+	await row.getByRole('button', { name: 'Pair' }).click();
+	await expect(row).toContainText('Connected');
+
+	// Turned off, then on again: picked up at the next 20-second retry.
+	await setScalePower(page, false);
+	await expect(row).toContainText('Looking for it');
+	await setScalePower(page, true);
+	await page.clock.fastForward(18_000);
+	await expect(row).toContainText('Looking for it');
+	await page.clock.fastForward(3_000);
+	await expect(row).toContainText('Connected');
+
+	// A fresh open needs no tap.
+	await page.reload();
+	await expect(row).toContainText('Connected');
+
+	await row.getByRole('button', { name: 'Unpair' }).click();
+	await expect(row).toContainText('Not paired');
+	expect(await isScaleConnected(page)).toBe(false);
+	await page.reload();
+	await expect(row).toContainText('Not paired');
+	expect(await isScaleConnected(page)).toBe(false);
+
+	// Archiving a paired scale forgets the pairing.
+	await row.getByRole('button', { name: 'Pair' }).click();
+	await expect(row).toContainText('Connected');
+	await row.getByText('Edit').click();
+	await row.getByRole('button', { name: 'Archive' }).click();
+	await expect(row).toContainText('Not paired');
+	await expect(row.getByRole('button', { name: 'Pair' })).toHaveCount(0);
+	expect(await isScaleConnected(page)).toBe(false);
 });
 
 test.describe('without JavaScript', () => {

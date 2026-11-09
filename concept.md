@@ -150,6 +150,9 @@ Grinder  (per user, name unique per user, archivable)
 Dripper  (per user, name unique per user, archivable)
   id, user_id, name, material?       # plastic | ceramic | glass | metal
 
+Scale  (per user, name unique per user, archivable)
+  id, user_id, name
+
 Bean  (per user, archivable)
   id, user_id, roaster_id -> Roaster, name
   # --- origin ---
@@ -276,6 +279,8 @@ The substance of each decision lives in the section noted under _Where_; this ta
 | D43 | **A new brew in progress is kept as a draft** in the browser's local storage (one per account) when the form is left or hidden, and restored on return. Saving or **Cancel brew** (bottom of the form; asks first if anything was entered) clears it. Copying a different brew shows that copy instead; the draft is replaced only once the copy is edited. JavaScript only. | Checking another page mid-brew shouldn't cost the input. Unfinished brews stay out of the database, so Stage 2 never sees them. | [§4.2](#42-brew) |
 | D44 | **A card's toggle sits in its top right corner**, level with the heading; what it opens flows below. Covers the plan, the rating and each equipment row, and the Edit toggles read just "Edit". CSS only, so it works without JavaScript. | The action is where the eye lands and the card stays compact while closed. The heading already says what's being edited. | — |
 | D45 | **Overall, agitation and the radar's fine control are one stepped slider: a disc in a slot, a small dot at each step.** Scores start at the far left, "not rated", and a planned agitation is a larger green dot. Without JavaScript they stay radio pills. | One control, usable one-handed. Starting unset means no default biases the data (D7). | [§4.3](#43-rating--tasting-the-target-variable) |
+| D46 | **Scale** is a per-user entity (a name) managed in Equipment like a dripper. | Same rules as other equipment, and a brew can reference the one it was logged with. | [§5](#5-data-model-overview) |
+| D47 | **A scale is paired per phone**, in the browser's local storage, one at a time. The app connects when opened and retries every 20 seconds while it's in view. Web Bluetooth only, so iPhones need a browser that has it, such as Bluefy. JavaScript only. | Bluetooth device ids only mean something to the browser that issued them. Retrying means a scale turned on later just connects. | — |
 
 ## 9. Open questions / decisions to revisit
 

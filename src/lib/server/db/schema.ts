@@ -154,6 +154,25 @@ export const drippers = pgTable(
 	]
 );
 
+/** A Bluetooth scale (D46). Which phone it's paired with is kept on the phone (D47). */
+export const scales = pgTable(
+	'scales',
+	{
+		id: uuid('id').primaryKey().defaultRandom(),
+		userId: uuid('user_id')
+			.notNull()
+			.references(() => users.id, { onDelete: 'cascade' }),
+		name: text('name').notNull(),
+		archivedAt: timestamp('archived_at', { withTimezone: true }),
+		...timestamps
+	},
+	(t) => [
+		unique('scales_id_user').on(t.id, t.userId),
+		uniqueIndex('scales_user_name').on(t.userId, sql`lower(${t.name})`),
+		check('scales_name_nonempty', sql`length(trim(${t.name})) > 0`)
+	]
+);
+
 export const flavors = pgTable(
 	'flavors',
 	{
