@@ -84,6 +84,24 @@ async function setUpGrinderAndBean(page: Page, { js = true } = {}) {
 	await expect(page).toHaveURL(/\/brews\/new\?.*bean=/);
 }
 
+/** On the brew form the nav's centre button saves, and scrolling leaves only that button. */
+async function checkNavFolds(page: Page) {
+	const nav = page.getByRole('navigation', { name: 'Main' });
+	const brews = nav.getByRole('link', { name: 'Brews' });
+	const scrollTo = (y: number) => page.evaluate((top) => window.scrollTo(0, top), y);
+
+	await expect(nav.getByRole('button', { name: 'Save brew' })).toBeVisible();
+	await expect(nav.getByRole('link', { name: 'Add Brew' })).toHaveCount(0);
+	await expect(brews).toBeVisible();
+
+	await scrollTo(400);
+	await expect(brews).toBeHidden();
+	await expect(nav.getByRole('button', { name: 'Save brew' })).toBeVisible();
+
+	await scrollTo(0);
+	await expect(brews).toBeVisible();
+}
+
 async function logBrew(page: Page) {
 	await page.locator('[name="grindSetting"]').fill('24');
 	await page.locator('[name="doseG"]').fill('15');
@@ -110,6 +128,8 @@ test('log, rate, plan, repeat and export a brew', async ({ page }) => {
 	await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
 
 	await setUpGrinderAndBean(page);
+
+	await checkNavFolds(page);
 
 	// The dripper is added from the set-up card like a grinder, and comes back selected.
 	await page.getByRole('main').getByRole('link', { name: '+ Add a dripper' }).click();
@@ -323,6 +343,38 @@ test('a blank pour time saves the time it shows, and the brew page leads back to
 
 test('choosing a theme', async ({ page }) => {
 	await checkThemeChoice(page);
+});
+
+test('a new page is animating from its first frame and leaves nothing behind', async ({ page }) => {
+	await logIn(page, THEME_EMAIL);
+	await page.waitForLoadState('networkidle');
+
+	// requestAnimationFrame runs just before each paint, so this sees what the first frame shows.
+	const splitOnFirstFrame = page.evaluate(
+		() =>
+			new Promise<boolean>((resolve) => {
+				const onFrame = () => {
+					const heading = document.querySelector('main h1');
+					if (heading?.textContent?.includes('Beans')) {
+						resolve(heading.querySelector('[aria-hidden]') !== null);
+					} else {
+						requestAnimationFrame(onFrame);
+					}
+				};
+				onFrame();
+			})
+	);
+	await page.getByRole('navigation', { name: 'Main' }).getByRole('link', { name: 'Beans' }).click();
+	expect(await splitOnFirstFrame).toBe(true);
+
+	const heading = page.getByRole('heading', { name: 'Beans', level: 1 });
+	await expect(heading.locator('span')).toHaveCount(0);
+	await expect(heading).toHaveText('Beans');
+	await expect
+		.poll(() =>
+			page.evaluate(() => document.querySelector('main')?.getAnimations({ subtree: true }).length)
+		)
+		.toBe(0);
 });
 
 test.describe('without JavaScript', () => {
