@@ -1,13 +1,31 @@
 <script lang="ts">
+	import { onMount } from 'svelte';
 	import { enhance, type SubmitFunction } from '$app/forms';
 	import FieldError from '#lib/components/FieldError.svelte';
 	import FormError from '#lib/components/FormError.svelte';
 	import { DRIPPER_MATERIALS } from '#lib/domain/vocab.ts';
+	import type { ConnectionStatus } from '#lib/scale/connection.ts';
+	import { getScaleLink } from '#lib/scale/scale-link.svelte.ts';
 	import { label, options } from '#lib/ui/format.ts';
 	import { err, val, type FormState } from '#lib/ui/forms.ts';
 	import type { PageProps } from './$types';
 
 	let { data, form }: PageProps = $props();
+
+	const scaleLink = getScaleLink();
+	// Pairing only works with JavaScript, so its controls appear once it runs.
+	let hydrated = $state(false);
+	onMount(() => {
+		hydrated = true;
+	});
+	const STATUS_TEXT: Record<ConnectionStatus, string> = {
+		searching: 'Looking for it',
+		connecting: 'Looking for it',
+		connected: 'Connected'
+	};
+	$effect(() => {
+		scaleLink.keepOnly(data.scales.filter((s) => !s.archivedAt).map((s) => s.id));
+	});
 
 	/** The action result only if it belongs to `target`, so each form shows just its own errors. */
 	function scoped(target: string): FormState {
@@ -47,6 +65,8 @@
 	const grinderAdded = $derived(form?.target === 'newGrinder' && !!form.created);
 	const newDripper = $derived(scoped('newDripper'));
 	const dripperAdded = $derived(form?.target === 'newDripper' && !!form.created);
+	const newScale = $derived(scoped('newScale'));
+	const scaleAdded = $derived(form?.target === 'newScale' && !!form.created);
 	const materials = options(DRIPPER_MATERIALS);
 </script>
 
@@ -325,6 +345,113 @@
 		</form>
 	</section>
 
+	<section class="stack" aria-labelledby="scales-heading">
+		<h2 id="scales-heading">Scales</h2>
+
+		{#if data.scales.length === 0}
+			<p class="card empty-state small">No scales yet.</p>
+		{:else}
+			<ul class="list">
+				{#each data.scales as s (s.id)}
+					{@const f = scoped(`scale:${s.id}`)}
+					{@const key = `scale-${s.id}`}
+					{@const paired = scaleLink.pairing?.scaleId === s.id}
+					<li class="item" class:archived={s.archivedAt != null}>
+						<div class="head">
+							<span class="title">{s.name}</span>
+							{#if s.archivedAt}<span class="chip badge">Archived</span>{/if}
+						</div>
+						{#if hydrated}
+							<div class="small muted connection" role="status">
+								{#if paired}
+									<span class="dot" class:live={scaleLink.status === 'connected'} aria-hidden="true"
+									></span>
+									{STATUS_TEXT[scaleLink.status]}
+								{:else}
+									{scaleLink.available ? 'Not paired' : 'Bluetooth unavailable'}
+								{/if}
+							</div>
+							{#if scaleLink.available && !s.archivedAt}
+								<div class="pair">
+									{#if paired}
+										<button class="btn btn-sm" onclick={() => scaleLink.unpair()}>Unpair</button>
+									{:else}
+										<button class="btn btn-sm" onclick={() => scaleLink.pair(s.id)}>Pair</button>
+									{/if}
+								</div>
+							{/if}
+						{/if}
+						<details class="corner" open={hasErrors(f)}>
+							<summary class="btn-toggle edit">Edit</summary>
+							<div class="stack">
+								<FormError form={f} />
+								<form
+									method="POST"
+									action={act('updateScale')}
+									class="stack"
+									use:enhance={closeOnSuccess}
+								>
+									<input type="hidden" name="id" value={s.id} />
+									<div class="field">
+										<label for="{key}-name">Name</label>
+										<input
+											id="{key}-name"
+											name="name"
+											required
+											maxlength="100"
+											autocomplete="off"
+											value={val(f, 'name', s.name)}
+											aria-invalid={err(f, 'name') ? 'true' : undefined}
+											aria-describedby={err(f, 'name') ? `${key}-name-error` : undefined}
+										/>
+										<FieldError id="{key}-name-error" message={err(f, 'name')} />
+									</div>
+									<div><button class="btn btn-primary btn-sm">Save</button></div>
+								</form>
+								<div class="actions">
+									<form method="POST" action={act('archiveScale')} use:enhance={closeOnSuccess}>
+										<input type="hidden" name="id" value={s.id} />
+										<input type="hidden" name="archived" value={s.archivedAt ? '0' : '1'} />
+										<button class="btn btn-sm">{s.archivedAt ? 'Unarchive' : 'Archive'}</button>
+									</form>
+									<form method="POST" action={act('deleteScale')} onsubmit={confirmDelete(s.name)}>
+										<input type="hidden" name="id" value={s.id} />
+										<button class="btn btn-sm btn-danger">Delete</button>
+									</form>
+								</div>
+								{#if s.brewCount > 0}
+									<p class="hint">Has brews, so it can only be archived.</p>
+								{/if}
+							</div>
+						</details>
+					</li>
+				{/each}
+			</ul>
+		{/if}
+
+		<form method="POST" action={act('createScale')} class="card stack" use:enhance>
+			<h3>Add scale</h3>
+			<FormError form={newScale} />
+			<div class="field">
+				<label for="new-scale-name">Name</label>
+				<input
+					id="new-scale-name"
+					name="name"
+					required
+					maxlength="100"
+					autocomplete="off"
+					placeholder="e.g. Bookoo Themis Ultra"
+					value={val(newScale, 'name')}
+					aria-invalid={err(newScale, 'name') ? 'true' : undefined}
+					aria-describedby={err(newScale, 'name') ? 'new-scale-name-error' : undefined}
+				/>
+				<FieldError id="new-scale-name-error" message={err(newScale, 'name')} />
+			</div>
+			{#if scaleAdded}<p class="small ok" role="status">Scale added.</p>{/if}
+			<div><button class="btn btn-primary">Add scale</button></div>
+		</form>
+	</section>
+
 	<section class="stack" aria-labelledby="roasters-heading">
 		<h2 id="roasters-heading">Roasters</h2>
 		{#if data.roasters.length === 0}
@@ -432,6 +559,23 @@
 	.head,
 	.item > .small {
 		padding-right: 6.5rem;
+	}
+	.connection {
+		display: flex;
+		align-items: center;
+		gap: 0.4rem;
+	}
+	.dot {
+		width: 0.6rem;
+		height: 0.6rem;
+		border-radius: 50%;
+		background: var(--muted);
+	}
+	.dot.live {
+		background: var(--ok);
+	}
+	.pair {
+		margin-top: 0.5rem;
 	}
 	.item.archived {
 		background: var(--surface-2);

@@ -13,9 +13,11 @@ import {
 	entriesToPours,
 	parseDuration,
 	pourName,
+	roundTenth,
 	totalWater,
 	type Pour,
-	type PourEntry
+	type PourEntry,
+	type PourMeasurement
 } from './pours';
 import {
 	AGITATION_MAX,
@@ -146,6 +148,10 @@ export const dripperSchema = z.object({
 });
 export type DripperInput = z.infer<typeof dripperSchema>;
 export const parseDripperForm = (fd: FormData) => run(dripperSchema, formObject(fd));
+
+export const scaleSchema = z.object({ name: reqText(100) });
+export type ScaleInput = z.infer<typeof scaleSchema>;
+export const parseScaleForm = (fd: FormData) => run(scaleSchema, formObject(fd));
 
 // --- bean -------------------------------------------------------------------------------------
 
@@ -302,6 +308,8 @@ export interface BrewInput {
 	grinderId: string;
 	/** Null = not recorded (D23). */
 	dripperId: string | null;
+	/** The scale it was measured on (D51). */
+	scaleId?: string | null;
 	method: 'v60';
 	brewedAt: Date;
 	grindSetting: number;
@@ -319,6 +327,7 @@ const brewCommonSchema = z.object({
 	beanId: uuid,
 	grinderId: uuid,
 	dripperId: z.preprocess(blankToNull, uuid.nullable()),
+	scaleId: z.preprocess(blankToNull, uuid.nullable()),
 	method: z.literal('v60', { error: 'Unsupported brew method' }),
 	brewedAt: reqText(20),
 	grindSetting: reqNumber(0, 9999, { decimals: 2 }),
@@ -380,7 +389,16 @@ function dropPourRows(obj: Record<string, unknown>): Record<string, unknown> {
 	const out = { ...obj };
 	const drop = new Set(obj.pourDrop as string[]);
 	if (drop.size === 0) return out;
-	const perRow = ['pourTime', 'pourScale', 'pourTimeDefault', 'pourScaleDefault', 'pourRow'];
+	const perRow = [
+		'pourTime',
+		'pourScale',
+		'pourTimeDefault',
+		'pourScaleDefault',
+		'pourRow',
+		'pourPlannedG',
+		'pourPlannedStart',
+		'pourDuration'
+	];
 	const rows = Math.max(...perRow.map((k) => (obj[k] as string[]).length));
 	const ids = rowIds(obj, rows);
 	for (const key of perRow) {
@@ -391,6 +409,32 @@ function dropPourRows(obj: Record<string, unknown>): Record<string, unknown> {
 	return out;
 }
 
+/** The scale card's hidden per-row values (D51), as each row's measurement. */
+interface PostedMeasurements {
+	plannedG: string[];
+	plannedStart: string[];
+	duration: string[];
+}
+
+/** A hidden number within its range, else null: only the scale card writes these. */
+function rowNumber(values: readonly string[], i: number, max: number, min = 0): number | null {
+	const text = (values[i] ?? '').trim();
+	if (text === '') return null;
+	const n = Number(text);
+	return Number.isFinite(n) && n >= min && n <= max ? n : null;
+}
+
+function rowMeasurement(m: PostedMeasurements, i: number): PourMeasurement {
+	const plannedG = rowNumber(m.plannedG, i, 5000, 0.1);
+	const plannedStart = rowNumber(m.plannedStart, i, 3600);
+	const duration = rowNumber(m.duration, i, 3600, 0.1);
+	return {
+		plannedCumulativeG: plannedG === null ? null : roundTenth(plannedG),
+		plannedStartS: plannedStart === null ? null : Math.round(plannedStart),
+		durationS: duration === null ? null : roundTenth(duration)
+	};
+}
+
 /**
  * Reads the pour rows; fully blank rows are ignored so a no-JS form can offer spare rows.
  * `bloomRows` holds the row ids whose bloom box is ticked.
@@ -399,7 +443,8 @@ function parsePourRows(
 	times: string[],
 	scales: string[],
 	ids: string[],
-	bloomRows: ReadonlySet<string>
+	bloomRows: ReadonlySet<string>,
+	measurements: PostedMeasurements
 ): ParseResult<Pour[]> {
 	const entries: PourEntry[] = [];
 	const rows = Math.max(times.length, scales.length);
@@ -418,7 +463,12 @@ function parsePourRows(
 		if (!hasAtMostDecimals(cumulativeG, 1)) {
 			return { ok: false, errors: { pours: `${name}: at most 1 decimal place` } };
 		}
-		entries.push({ startS, cumulativeG, bloom: bloomRows.has(ids[i]) });
+		entries.push({
+			startS,
+			cumulativeG,
+			bloom: bloomRows.has(ids[i]),
+			...rowMeasurement(measurements, i)
+		});
 	}
 	const result = entriesToPours(entries);
 	if (!result.ok) return { ok: false, errors: { pours: result.error } };
@@ -452,7 +502,12 @@ export function parseBrewForm(fd: FormData, timeZone: string): ParseResult<BrewF
 		times,
 		scales,
 		rowIds(obj, Math.max(times.length, scales.length)),
-		new Set(obj.pourBloom as string[])
+		new Set(obj.pourBloom as string[]),
+		{
+			plannedG: obj.pourPlannedG as string[],
+			plannedStart: obj.pourPlannedStart as string[],
+			duration: obj.pourDuration as string[]
+		}
 	);
 	if (!pours.ok) Object.assign(errors, pours.errors);
 
@@ -492,6 +547,7 @@ export function parseBrewForm(fd: FormData, timeZone: string): ParseResult<BrewF
 				beanId: c.beanId,
 				grinderId: c.grinderId,
 				dripperId: c.dripperId,
+				scaleId: c.scaleId,
 				method: c.method,
 				brewedAt: brewedAt!,
 				grindSetting: c.grindSetting,

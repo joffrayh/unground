@@ -10,7 +10,7 @@ import { asc, eq } from 'drizzle-orm';
 import { brewRatio, localDate, roastAgeDays } from '../../domain/derive';
 import { poursToEntries } from '../../domain/pours';
 import { LEGACY_RATING_DIMENSIONS, RATING_DIMENSIONS } from '../../domain/vocab';
-import { beans, brews, drippers, grinders, pours, roasters } from '../db/schema';
+import { beans, brews, drippers, grinders, pours, roasters, scales } from '../db/schema';
 import type { Db, Tx } from '../db/types';
 import { METHODS } from '../methods';
 import type { CsvValue } from '../methods/types';
@@ -59,6 +59,8 @@ export const BREW_COLUMNS = [
 	'dripper_id',
 	'dripper_name',
 	'dripper_material',
+	'scale_id',
+	'scale_name',
 	'dose_g',
 	'water_g',
 	'ratio',
@@ -98,13 +100,15 @@ async function buildBrewsCsv(db: Tx, userId: string): Promise<string> {
 			roasterName: roasters.name,
 			grinderName: grinders.name,
 			dripperName: drippers.name,
-			dripperMaterial: drippers.material
+			dripperMaterial: drippers.material,
+			scaleName: scales.name
 		})
 		.from(brews)
 		.innerJoin(beans, eq(brews.beanId, beans.id))
 		.innerJoin(roasters, eq(beans.roasterId, roasters.id))
 		.innerJoin(grinders, eq(brews.grinderId, grinders.id))
 		.leftJoin(drippers, eq(brews.dripperId, drippers.id))
+		.leftJoin(scales, eq(brews.scaleId, scales.id))
 		.where(eq(brews.userId, userId))
 		.orderBy(asc(brews.brewedAt), asc(brews.id));
 
@@ -120,7 +124,8 @@ async function buildBrewsCsv(db: Tx, userId: string): Promise<string> {
 		detailsByMethod.set(id, await module.load(db, ids));
 	}
 
-	const out = rows.map(({ brew, bean, roasterName, grinderName, dripperName, dripperMaterial }) => {
+	const out = rows.map((row) => {
+		const { brew, bean, roasterName, grinderName, dripperName, dripperMaterial, scaleName } = row;
 		const rating = ratingMap.get(brew.id);
 		const plan = planMap.get(brew.id);
 		const scores: Record<string, CsvValue> = {};
@@ -157,6 +162,8 @@ async function buildBrewsCsv(db: Tx, userId: string): Promise<string> {
 			dripper_id: brew.dripperId,
 			dripper_name: dripperName,
 			dripper_material: dripperMaterial,
+			scale_id: brew.scaleId,
+			scale_name: scaleName,
 			dose_g: brew.doseG,
 			water_g: brew.waterG,
 			ratio: brewRatio(brew.doseG, brew.waterG),
@@ -192,7 +199,11 @@ export const POUR_COLUMNS = [
 	'interval_s',
 	'bloom',
 	'start_s',
-	'cumulative_g'
+	'cumulative_g',
+	// Blank unless a scale measured the pour (D51).
+	'planned_start_s',
+	'planned_cumulative_g',
+	'duration_s'
 ] as const;
 
 export function poursCsv(db: Db, userId: string): Promise<string> {
@@ -206,7 +217,10 @@ async function buildPoursCsv(db: Tx, userId: string): Promise<string> {
 			idx: pours.idx,
 			volumeG: pours.volumeG,
 			intervalS: pours.intervalS,
-			bloom: pours.bloom
+			bloom: pours.bloom,
+			plannedCumulativeG: pours.plannedCumulativeG,
+			plannedStartS: pours.plannedStartS,
+			durationS: pours.durationS
 		})
 		.from(pours)
 		.innerJoin(brews, eq(pours.brewId, brews.id))
@@ -228,7 +242,10 @@ async function buildPoursCsv(db: Tx, userId: string): Promise<string> {
 				interval_s: p.intervalS,
 				bloom: p.bloom,
 				start_s: entries[j].startS,
-				cumulative_g: entries[j].cumulativeG
+				cumulative_g: entries[j].cumulativeG,
+				planned_start_s: p.plannedStartS,
+				planned_cumulative_g: p.plannedCumulativeG,
+				duration_s: p.durationS
 			})
 		);
 	}

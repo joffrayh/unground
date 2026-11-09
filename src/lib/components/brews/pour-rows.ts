@@ -16,6 +16,7 @@ import {
 	roundTenth,
 	type PourEntry
 } from '#lib/domain/pours.ts';
+import type { MeasuredPour } from '#lib/scale/brew-guide.ts';
 
 export interface PourRow {
 	time: string;
@@ -27,6 +28,10 @@ export interface PourRow {
 	 */
 	defaultTime: string;
 	defaultScale: string;
+	/** Set once a scale has measured the row (D51), and posted with it. */
+	plannedG?: string;
+	plannedStart?: string;
+	duration?: string;
 }
 
 export const FIRST_POUR_TIME = '0:00';
@@ -44,16 +49,29 @@ export function rowsFromEntries(entries: readonly PourEntry[]): PourRow[] {
 	return entries.map((e) => ({
 		...blankRow(e.bloom),
 		time: formatDuration(e.startS),
-		scale: String(e.cumulativeG)
+		scale: String(e.cumulativeG),
+		...measurementFields(e)
 	}));
 }
 
-/** Blank rows with another brew's readings as placeholders (a new brew, D26). */
+/** A saved measurement as row fields; only those that are set. */
+function measurementFields(e: PourEntry): Partial<PourRow> {
+	const fields: Partial<PourRow> = {};
+	if (e.plannedCumulativeG != null) fields.plannedG = String(e.plannedCumulativeG);
+	if (e.plannedStartS != null) fields.plannedStart = String(e.plannedStartS);
+	if (e.durationS != null) fields.duration = String(e.durationS);
+	return fields;
+}
+
+/**
+ * Blank rows with another brew's readings as placeholders (a new brew, D26). A measured brew offers
+ * its plan, so the recipe doesn't drift by a gram each time (D51).
+ */
 export function placeholderRowsFromEntries(entries: readonly PourEntry[]): PourRow[] {
 	return entries.map((e) => ({
 		...blankRow(e.bloom),
-		defaultTime: formatDuration(e.startS),
-		defaultScale: String(e.cumulativeG)
+		defaultTime: formatDuration(e.plannedStartS ?? e.startS),
+		defaultScale: String(e.plannedCumulativeG ?? e.cumulativeG)
 	}));
 }
 
@@ -66,6 +84,9 @@ export interface PostedPours {
 	rowIds?: readonly string[];
 	bloom?: readonly string[];
 	drop?: readonly string[];
+	plannedGs?: readonly string[];
+	plannedStarts?: readonly string[];
+	durations?: readonly string[];
 }
 
 /** Rebuilds the rows from a submitted form, leaving out the rows ticked "drop". */
@@ -80,7 +101,10 @@ export function rowsFromValues(p: PostedPours): PourRow[] {
 			scale: p.scales[i] ?? '',
 			bloom: p.bloom?.includes(id) ?? false,
 			defaultTime: p.timeDefaults?.[i] ?? '',
-			defaultScale: p.scaleDefaults?.[i] ?? ''
+			defaultScale: p.scaleDefaults?.[i] ?? '',
+			...(p.plannedGs?.[i] ? { plannedG: p.plannedGs[i] } : {}),
+			...(p.plannedStarts?.[i] ? { plannedStart: p.plannedStarts[i] } : {}),
+			...(p.durations?.[i] ? { duration: p.durations[i] } : {})
 		});
 	}
 	return rows;
@@ -237,6 +261,57 @@ export function summarizePours(
 		totalG,
 		ratio: doseG === null || totalG === null ? null : brewRatio(doseG, totalG)
 	};
+}
+
+/** What a pour is planned to do: start time (s) and the running total to reach (g). */
+export interface PourTarget {
+	startS: number | null;
+	cumulativeG: number;
+}
+
+/** The pours that have a target, in order. Blank rows have none and the server skips them too. */
+export function pourTargets(summary: PourSummary): PourTarget[] {
+	return summary.rows.flatMap((r) =>
+		r.scaleG === null ? [] : [{ startS: r.startS, cumulativeG: r.scaleG }]
+	);
+}
+
+/**
+ * Writes what the scale measured into the rows that have a target, in order, keeping the plan they
+ * followed. A pour it didn't measure stays as it was, to be typed. Times are whole seconds and each
+ * pour starts after the one before, as the form requires.
+ */
+export function applyMeasuredPours<T extends PourRow>(
+	rows: readonly T[],
+	measured: readonly MeasuredPour[]
+): T[] {
+	const { rows: infos } = summarizePours(rows, null);
+	let next = 0;
+	let previousStart = 0;
+	return rows.map((row, i) => {
+		const info = infos[i];
+		if (info.scaleG === null) return row;
+		const pour = measured[next++];
+		if (!pour || pour.weight === null) return row;
+		const startS = i === 0 ? 0 : Math.max(Math.round(pour.startMs / 1000), previousStart + 1);
+		previousStart = startS;
+		const duration = pour.endMs === null ? 0 : roundTenth((pour.endMs - pour.startMs) / 1000);
+		return {
+			...row,
+			time: i === 0 ? row.time : formatDuration(startS),
+			scale: String(roundTenth(pour.weight)),
+			// Measuring again (put back after a lift) mustn't overwrite the plan with the last result.
+			plannedG: row.plannedG ?? String(info.scaleG),
+			plannedStart: row.plannedStart ?? (info.startS === null ? '' : String(info.startS)),
+			duration: duration > 0 ? String(duration) : ''
+		};
+	});
+}
+
+/** The total time (s) to record, which the form requires to be after the last pour starts. */
+export function measuredTotalS(measured: readonly MeasuredPour[], elapsedMs: number): number {
+	const lastStart = Math.round((measured.at(-1)?.startMs ?? 0) / 1000);
+	return Math.max(Math.round(elapsedMs / 1000), lastStart + 1);
 }
 
 /**

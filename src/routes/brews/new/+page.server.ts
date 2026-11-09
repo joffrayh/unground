@@ -14,16 +14,19 @@ import { listBeans } from '#lib/server/services/beans.ts';
 import { createBrew, getBrew, getLatestBrew, type Brew } from '#lib/server/services/brews.ts';
 import { listDrippers } from '#lib/server/services/drippers.ts';
 import { listGrinders } from '#lib/server/services/grinders.ts';
+import { listScales } from '#lib/server/services/scales.ts';
 import type { Actions, PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async (event) => {
 	const user = requireUser(event);
 	const { searchParams } = event.url;
-	const [allBeans, allGrinders, allDrippers] = await Promise.all([
+	const [allBeans, allGrinders, allDrippers, allScales] = await Promise.all([
 		listBeans(db, user.id),
 		listGrinders(db, user.id),
-		listDrippers(db, user.id)
+		listDrippers(db, user.id),
+		listScales(db, user.id)
 	]);
+	const scales = allScales.map(({ id, name }) => ({ id, name }));
 	const beans = beanOptions(allBeans);
 	const grinders = grinderOptions(allGrinders);
 	const drippers = dripperOptions(allDrippers);
@@ -35,6 +38,7 @@ export const load: PageServerLoad = async (event) => {
 			beans,
 			grinders,
 			drippers,
+			scales,
 			values: newBrewValues(null, brewedAt),
 			copiedFrom: null
 		};
@@ -71,6 +75,7 @@ export const load: PageServerLoad = async (event) => {
 		beans,
 		grinders,
 		drippers,
+		scales,
 		values,
 		copiedFrom: template
 			? {

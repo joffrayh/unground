@@ -5,6 +5,7 @@ import type { Db } from '../db/types';
 import { brewInput, createTestDb, ratingInput, setupBrewer } from '../testing';
 import { createBrew } from './brews';
 import { BREW_COLUMNS, brewsCsv, csvCell, poursCsv } from './export';
+import { createScale } from './scales';
 
 let db: Db;
 let close: () => Promise<void>;
@@ -186,7 +187,10 @@ describe('csv export', () => {
 				interval_s: '0',
 				bloom: 'true',
 				start_s: '0',
-				cumulative_g: '50'
+				cumulative_g: '50',
+				planned_start_s: '',
+				planned_cumulative_g: '',
+				duration_s: ''
 			},
 			{
 				brew_id: id,
@@ -196,7 +200,10 @@ describe('csv export', () => {
 				interval_s: '45',
 				bloom: 'false',
 				start_s: '45',
-				cumulative_g: '150'
+				cumulative_g: '150',
+				planned_start_s: '',
+				planned_cumulative_g: '',
+				duration_s: ''
 			},
 			{
 				brew_id: id,
@@ -206,9 +213,47 @@ describe('csv export', () => {
 				interval_s: '30',
 				bloom: 'false',
 				start_s: '75',
-				cumulative_g: '250'
+				cumulative_g: '250',
+				planned_start_s: '',
+				planned_cumulative_g: '',
+				duration_s: ''
 			}
 		]);
+	});
+
+	it('exports what a scale measured alongside the plan (D51)', async () => {
+		const refs = await setupBrewer(db);
+		const { id: scaleId } = await createScale(db, refs.userId, { name: 'Ultra' });
+		await createBrew(
+			db,
+			refs.userId,
+			brewInput(refs, {
+				scaleId,
+				details: {
+					filterType: null,
+					pours: [
+						{
+							volumeG: 46.2,
+							intervalS: 0,
+							bloom: true,
+							plannedCumulativeG: 45,
+							plannedStartS: 0,
+							durationS: 3.5
+						}
+					]
+				}
+			})
+		);
+		expect(parseCsv(await poursCsv(db, refs.userId))[0]).toMatchObject({
+			cumulative_g: '46.2',
+			planned_start_s: '0',
+			planned_cumulative_g: '45',
+			duration_s: '3.5'
+		});
+		expect(parseCsv(await brewsCsv(db, refs.userId))[0]).toMatchObject({
+			scale_id: scaleId,
+			scale_name: 'Ultra'
+		});
 	});
 
 	it('only exports the requesting user’s data', async () => {

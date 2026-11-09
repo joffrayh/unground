@@ -1,5 +1,71 @@
 import { describe, expect, it } from 'vitest';
-import { entriesToPours, formatDuration, parseDuration, poursToEntries, totalWater } from './pours';
+import {
+	entriesToPours,
+	formatDuration,
+	parseDuration,
+	plannedPours,
+	poursToEntries,
+	totalWater
+} from './pours';
+
+describe('plannedPours', () => {
+	it('gives the pours as planned, without the measurements', () => {
+		expect(
+			plannedPours([
+				{
+					volumeG: 46.2,
+					intervalS: 0,
+					bloom: true,
+					plannedCumulativeG: 45,
+					plannedStartS: 0,
+					durationS: 3.5
+				},
+				{
+					volumeG: 107.3,
+					intervalS: 47,
+					bloom: false,
+					plannedCumulativeG: 150,
+					plannedStartS: 45,
+					durationS: 4
+				}
+			])
+		).toEqual([
+			{ volumeG: 45, intervalS: 0, bloom: true },
+			{ volumeG: 105, intervalS: 45, bloom: false }
+		]);
+	});
+
+	it('leaves pours with no plan as they were logged', () => {
+		const pours = [
+			{ volumeG: 50, intervalS: 0, bloom: true },
+			{ volumeG: 100, intervalS: 45, bloom: false }
+		];
+		expect(plannedPours(pours)).toEqual(pours);
+	});
+
+	it('mixes planned and unplanned pours, for a brew measured part of the way', () => {
+		expect(
+			plannedPours([
+				{ volumeG: 46, intervalS: 0, bloom: false, plannedCumulativeG: 45, plannedStartS: 0 },
+				{ volumeG: 104, intervalS: 45, bloom: false }
+			])
+		).toEqual([
+			{ volumeG: 45, intervalS: 0, bloom: false },
+			{ volumeG: 105, intervalS: 45, bloom: false }
+		]);
+	});
+
+	it('falls back to what was logged if the plan makes no sense', () => {
+		const pours = [
+			{ volumeG: 50, intervalS: 0, bloom: false, plannedCumulativeG: 100, plannedStartS: 0 },
+			{ volumeG: 50, intervalS: 45, bloom: false, plannedCumulativeG: 60, plannedStartS: 45 }
+		];
+		expect(plannedPours(pours)).toEqual([
+			{ volumeG: 50, intervalS: 0, bloom: false },
+			{ volumeG: 50, intervalS: 45, bloom: false }
+		]);
+	});
+});
 
 describe('parseDuration', () => {
 	it.each([

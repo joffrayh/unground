@@ -35,12 +35,13 @@ Sign up at `/signup`. By default this needs the `INVITE_CODE` from `.env`.
 
 ### Environment
 
-| Variable       | Meaning                                                                                                                                                              |
-| -------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `DATABASE_URL` | Postgres connection string                                                                                                                                           |
-| `REGISTRATION` | `open`, `invite` (default; needs `INVITE_CODE`) or `closed`                                                                                                          |
-| `INVITE_CODE`  | Code required to sign up in `invite` mode                                                                                                                            |
-| `ORIGIN`       | **Build time.** The public URL, e.g. `https://coffee.example.com`, used for CSRF checks. If it's unset, the app derives it from the `Host` header and assumes https. |
+| Variable               | Meaning                                                                                                                                                              |
+| ---------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `DATABASE_URL`         | Postgres connection string                                                                                                                                           |
+| `REGISTRATION`         | `open`, `invite` (default; needs `INVITE_CODE`) or `closed`                                                                                                          |
+| `INVITE_CODE`          | Code required to sign up in `invite` mode                                                                                                                            |
+| `ORIGIN`               | **Build time.** The public URL, e.g. `https://coffee.example.com`, used for CSRF checks. If it's unset, the app derives it from the `Host` header and assumes https. |
+| `SCALE_RECORDINGS_DIR` | Folder where `/dev/scale` saves recordings. Unset: saving is off.                                                                                                    |
 
 ## Scripts
 
@@ -96,8 +97,8 @@ migrations and refreshes the flavour vocabulary when it starts. Back up nightly 
 
 Go to **Settings → Export**, or fetch the files directly while signed in:
 
-- `/export/brews.csv` has one row per brew: bean (with bag weight and price), grinder, dripper, recipe (incl. `agitation`), method-specific columns (`pour_count`, `bloom_pours`, `bloom_g`, `bloom_time_s`, …), rating (`rating_acidity` … `rating_clarity`, plus the legacy `rating_aftertaste`), the next-time plan (`next_*`, blank = keep as it was), and derived values (`ratio`, `roast_age_days`, `brewed_local_date`, …).
-- `/export/pours.csv` has one row per pour (`brew_id`, `idx` from 1, `pour_number` from 0 as the app shows it, `volume_g`, `interval_s`, `bloom`, plus derived `start_s` and `cumulative_g`).
+- `/export/brews.csv` has one row per brew: bean (with bag weight and price), grinder, dripper, scale, recipe (incl. `agitation`), method-specific columns (`pour_count`, `bloom_pours`, `bloom_g`, `bloom_time_s`, …), rating (`rating_acidity` … `rating_clarity`, plus the legacy `rating_aftertaste`), the next-time plan (`next_*`, blank = keep as it was), and derived values (`ratio`, `roast_age_days`, `brewed_local_date`, …).
+- `/export/pours.csv` has one row per pour (`brew_id`, `idx` from 1, `pour_number` from 0 as the app shows it, `volume_g`, `interval_s`, `bloom`, plus derived `start_s` and `cumulative_g`, and for pours a scale measured, `planned_start_s`, `planned_cumulative_g` and `duration_s`).
 
 Flavour tags are `;`-separated wheel paths such as `fruity.berry.blueberry`, so you can roll them up with a prefix match. Blank cells mean "not recorded", never zero.
 
@@ -126,6 +127,7 @@ src/
       methods/               brew-method registry (V60 today)
       auth/                  passwords, sessions, rate limiting
       http.ts                helpers for actions and loads
+    scale/                   Bookoo Bluetooth protocol and the link to the scale
     components/              shared Svelte components (TagPicker, ScoreInput, …)
     ui/                      formatting and form-state helpers
   routes/                    pages and endpoints

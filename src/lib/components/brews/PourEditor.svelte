@@ -19,21 +19,25 @@
 	import FieldError from '#lib/components/FieldError.svelte';
 	import { suggestPours } from '#lib/domain/plan.ts';
 	import { formatDuration, parseDuration, poursToEntries } from '#lib/domain/pours.ts';
+	import type { MeasuredPour } from '#lib/scale/brew-guide.ts';
 	import { ratioText } from '#lib/ui/format.ts';
 	import type { BrewSuggestions } from './brew-values.ts';
 	import { focusNextField } from './enter-nav.ts';
 	import {
 		FIRST_POUR_TIME,
+		applyMeasuredPours,
 		blankRow,
 		errorRowIndex,
 		isBlank,
 		parseGrams,
+		pourTargets,
 		rowLabel,
 		summarizePours,
 		trimSpareRows,
 		withSpareRows,
 		type PourRow,
-		type PourStats
+		type PourStats,
+		type PourTarget
 	} from './pour-rows.ts';
 
 	let {
@@ -41,7 +45,8 @@
 		dose,
 		error,
 		suggestion = null,
-		stats = $bindable()
+		stats = $bindable(),
+		targets = $bindable()
 	}: {
 		initial: readonly PourRow[];
 		/** The dose that counts (typed, else its placeholder), for the ratio. */
@@ -51,6 +56,8 @@
 		suggestion?: BrewSuggestions | null;
 		/** Live totals, for the rest of the form (the next-time card). */
 		stats?: PourStats;
+		/** Live pour targets, for the scale card. */
+		targets?: PourTarget[];
 	} = $props();
 
 	const uid = $props.id();
@@ -74,6 +81,11 @@
 		return rows.map((r) => r.defaultTime);
 	}
 
+	/** Writes in what a scale measured, keeping the plan each row followed (D51). */
+	export function applyMeasured(measured: readonly MeasuredPour[]) {
+		rows = applyMeasuredPours(rows, measured);
+	}
+
 	let list = $state<HTMLOListElement>();
 	let addButton = $state<HTMLButtonElement>();
 	let planBox = $state<HTMLDivElement>();
@@ -84,6 +96,7 @@
 
 	$effect(() => {
 		stats = { count: summary.count, totalG: summary.totalG, ratio: summary.ratio };
+		targets = pourTargets(summary);
 	});
 
 	// --- the plan's suggestion ------------------------------------------------------------------
@@ -317,6 +330,9 @@
 					</div>
 				</div>
 				<input type="hidden" name="pourScaleDefault" value={row.defaultScale} />
+				<input type="hidden" name="pourPlannedG" value={row.plannedG ?? ''} />
+				<input type="hidden" name="pourPlannedStart" value={row.plannedStart ?? ''} />
+				<input type="hidden" name="pourDuration" value={row.duration ?? ''} />
 
 				<label class="bloom" title="Bloom">
 					<input type="checkbox" name="pourBloom" value={id} bind:checked={row.bloom} />

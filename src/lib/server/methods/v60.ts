@@ -1,5 +1,5 @@
 import { asc, eq, inArray } from 'drizzle-orm';
-import { roundTenth, totalWater } from '../../domain/pours';
+import { pourMeasurement, roundTenth, totalWater } from '../../domain/pours';
 import type { V60Details } from '../../domain/schemas';
 import type { FilterType } from '../../domain/vocab';
 import { brewV60, pours } from '../db/schema';
@@ -55,7 +55,10 @@ export const v60: MethodModule<V60Details> = {
 				idx: i + 1,
 				volumeG: p.volumeG,
 				intervalS: p.intervalS,
-				bloom: p.bloom
+				bloom: p.bloom,
+				plannedCumulativeG: p.plannedCumulativeG ?? null,
+				plannedStartS: p.plannedStartS ?? null,
+				durationS: p.durationS ?? null
 			}))
 		);
 	},
@@ -78,7 +81,12 @@ export const v60: MethodModule<V60Details> = {
 				details = { filterType: null, pours: [] };
 				result.set(p.brewId, details);
 			}
-			details.pours.push({ volumeG: p.volumeG, intervalS: p.intervalS, bloom: p.bloom });
+			details.pours.push({
+				volumeG: p.volumeG,
+				intervalS: p.intervalS,
+				bloom: p.bloom,
+				...pourMeasurement(p)
+			});
 		}
 		return result;
 	}

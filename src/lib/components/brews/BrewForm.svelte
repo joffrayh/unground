@@ -38,7 +38,17 @@
 		type GrinderOption
 	} from './brew-values.ts';
 	import { focusNextField, isTextLike } from './enter-nav.ts';
-	import { parseGrams, rowsFromValues, summarizePours, type PourStats } from './pour-rows.ts';
+	import {
+		measuredTotalS,
+		parseGrams,
+		rowsFromValues,
+		summarizePours,
+		type PourStats,
+		type PourTarget
+	} from './pour-rows.ts';
+	import ScaleCard from './ScaleCard.svelte';
+	import type { GuideState } from '#lib/scale/brew-guide.ts';
+	import type { ScaleOption } from '#lib/scale/scale-link.svelte.ts';
 
 	let {
 		form,
@@ -46,6 +56,7 @@
 		beans,
 		grinders,
 		drippers,
+		scales,
 		submitLabel = 'Save brew',
 		navSubmit = false,
 		catalogueLinks = false,
@@ -59,6 +70,8 @@
 		beans: BeanOption[];
 		grinders: GrinderOption[];
 		drippers: DripperOption[];
+		/** New brews: the user's scales, for the card that shows the paired one. */
+		scales?: ScaleOption[];
 		submitLabel?: string;
 		/** The nav's centre button saves this form, so it has no button of its own (D38). */
 		navSubmit?: boolean;
@@ -84,6 +97,7 @@
 		beanId: val(form, 'beanId', values.beanId),
 		grinderId: val(form, 'grinderId', values.grinderId),
 		dripperId: val(form, 'dripperId', values.dripperId),
+		scaleId: val(form, 'scaleId', values.scaleId),
 		filterType: val(form, 'filterType', values.filterType),
 		grindSetting: val(form, 'grindSetting', values.grindSetting),
 		doseG: val(form, 'doseG', values.doseG),
@@ -99,7 +113,10 @@
 					scaleDefaults: vals(form, 'pourScaleDefault'),
 					rowIds: vals(form, 'pourRow'),
 					bloom: vals(form, 'pourBloom'),
-					drop: vals(form, 'pourDrop')
+					drop: vals(form, 'pourDrop'),
+					plannedGs: vals(form, 'pourPlannedG'),
+					plannedStarts: vals(form, 'pourPlannedStart'),
+					durations: vals(form, 'pourDuration')
 				})
 			: values.pours
 	};
@@ -119,6 +136,7 @@
 	let beanId = $state(start.beanId);
 	let grinderId = $state(start.grinderId);
 	let dripperId = $state(start.dripperId);
+	let scaleId = $state(start.scaleId);
 	let filterType = $state(start.filterType);
 	let grindSetting = $state(start.grindSetting);
 	let doseG = $state(start.doseG);
@@ -137,6 +155,7 @@
 	// A re-shown failed submit keeps exactly what was sent; a draft only has it once it was edited.
 	// svelte-ignore state_referenced_locally
 	let brewedAtEdited = form?.values?.brewedAt !== undefined;
+	let targets = $state<PourTarget[]>([]);
 	let submitting = $state(false);
 	// Suggestion chips only do something with JavaScript; before that they are plain text.
 	let hydrated = $state(false);
@@ -288,6 +307,13 @@
 		};
 	}
 
+	/** A guided brew has finished: its measurements replace what was planned (D51). */
+	function recordMeasured(brew: GuideState, id: string) {
+		pourEditor?.applyMeasured(brew.pours);
+		totalTime = formatDuration(measuredTotalS(brew.pours, brew.elapsedMs));
+		scaleId = id;
+	}
+
 	function normalizeTotalTime() {
 		const s = parseDuration(totalTime);
 		if (s !== null) totalTime = formatDuration(s);
@@ -350,6 +376,7 @@
 >
 	<FormError {form} />
 	<input type="hidden" name="method" value="v60" />
+	<input type="hidden" name="scaleId" value={scaleId} />
 	{#if defaults}
 		<input type="hidden" name="grindSettingDefault" value={defaults.grindSetting} />
 		<input type="hidden" name="grindSettingDefaultFor" value={defaults.grindSettingFor} />
@@ -562,7 +589,12 @@
 		error={errors.pours}
 		suggestion={suggestions}
 		bind:stats={pourStats}
+		bind:targets
 	/>
+
+	{#if scales}
+		<ScaleCard {scales} {targets} onfinish={recordMeasured} />
+	{/if}
 
 	<fieldset class="section">
 		<legend>Timing</legend>

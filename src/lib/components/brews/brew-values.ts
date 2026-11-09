@@ -10,7 +10,13 @@
 import { FLAVOR_BY_ID } from '#lib/domain/flavors.ts';
 import { brewRatio } from '#lib/domain/derive.ts';
 import type { PlanInput, PlanParam } from '#lib/domain/plan.ts';
-import { formatDuration, poursToEntries, totalWater, type Pour } from '#lib/domain/pours.ts';
+import {
+	formatDuration,
+	plannedPours,
+	poursToEntries,
+	totalWater,
+	type Pour
+} from '#lib/domain/pours.ts';
 import { AGITATION_DEFAULT, RATING_DIMENSIONS, type RatingDimension } from '#lib/domain/vocab.ts';
 import { val, vals, type FormState } from '#lib/ui/forms.ts';
 import {
@@ -72,6 +78,8 @@ export interface BrewFormValues {
 	beanId: string;
 	grinderId: string;
 	dripperId: string;
+	/** The scale that measured it; '' when logged by hand. */
+	scaleId: string;
 	filterType: string;
 	grindSetting: string;
 	doseG: string;
@@ -102,6 +110,7 @@ export interface BrewLike {
 	beanId: string;
 	grinderId: string;
 	dripperId: string | null;
+	scaleId?: string | null;
 	grindSetting: number;
 	doseG: number;
 	waterTempC: number;
@@ -168,6 +177,7 @@ export function editValues(brew: BrewLike, brewedAt: string): BrewFormValues {
 		beanId: brew.beanId,
 		grinderId: brew.grinderId,
 		dripperId: brew.dripperId ?? '',
+		scaleId: brew.scaleId ?? '',
 		filterType: brew.details.filterType ?? '',
 		grindSetting: str(brew.grindSetting),
 		doseG: str(brew.doseG),
@@ -211,7 +221,7 @@ export function suggestionsFrom(template: BrewLike): BrewSuggestions | null {
 		pourCount:
 			plan.pourCount == null ? null : { from: template.details.pours.length, to: plan.pourCount },
 		notes: plan.notes,
-		pours: template.details.pours.map((p) => ({ ...p }))
+		pours: plannedPours(template.details.pours)
 	};
 }
 
@@ -239,6 +249,7 @@ function templateValues(template: BrewLike, brewedAt: string): BrewFormValues {
 		beanId: template.beanId,
 		grinderId: template.grinderId,
 		dripperId: template.dripperId ?? '',
+		scaleId: '',
 		filterType: template.details.filterType ?? '',
 		grindSetting: '',
 		doseG: '',
@@ -265,6 +276,7 @@ function blankValues(brewedAt: string): BrewFormValues {
 		beanId: '',
 		grinderId: '',
 		dripperId: '',
+		scaleId: '',
 		filterType: '',
 		grindSetting: '',
 		doseG: '',

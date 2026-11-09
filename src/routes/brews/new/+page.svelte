@@ -89,6 +89,7 @@
 			beans={data.beans}
 			grinders={data.grinders}
 			drippers={data.drippers}
+			scales={data.scales}
 			navSubmit
 			catalogueLinks
 			liveBrewedAtIn={data.user?.timezone}

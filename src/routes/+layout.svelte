@@ -12,10 +12,12 @@
 	import notch from '#lib/assets/nav/notch.svg';
 	import settings from '#lib/assets/nav/settings.svg';
 	import NavPrimary from '#lib/components/NavPrimary.svelte';
+	import { ScaleLink, setScaleLink } from '#lib/scale/scale-link.svelte.ts';
 	import { NavAction, setNavAction } from '#lib/ui/nav-action.svelte.ts';
 	import { animateDetails } from '#lib/ui/details-motion.ts';
 	import { changesPage, enterPage } from '#lib/ui/page-enter.ts';
 	import { type CollapseState, nextCollapse } from '#lib/ui/scroll-collapse.ts';
+	import { untrack } from 'svelte';
 	import { prefersReducedMotion } from 'svelte/motion';
 	import { afterNavigate } from '$app/navigation';
 	import { navigating, page } from '$app/state';
@@ -24,6 +26,17 @@
 	let { data, children }: LayoutProps = $props();
 
 	setNavAction(new NavAction());
+
+	const scaleLink = new ScaleLink();
+	setScaleLink(scaleLink);
+	// Derived, so reloading the page's data (every saved form) doesn't restart the connection.
+	const scaleOwner = $derived(data.user?.email);
+	$effect(() => {
+		const owner = scaleOwner;
+		if (!owner) return;
+		untrack(() => scaleLink.start(owner));
+		return () => scaleLink.stop();
+	});
 
 	let main = $state<HTMLElement>();
 	let endEnter: (() => void) | undefined;

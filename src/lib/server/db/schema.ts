@@ -154,6 +154,25 @@ export const drippers = pgTable(
 	]
 );
 
+/** A Bluetooth scale (D46). Which phone it's paired with is kept on the phone (D47). */
+export const scales = pgTable(
+	'scales',
+	{
+		id: uuid('id').primaryKey().defaultRandom(),
+		userId: uuid('user_id')
+			.notNull()
+			.references(() => users.id, { onDelete: 'cascade' }),
+		name: text('name').notNull(),
+		archivedAt: timestamp('archived_at', { withTimezone: true }),
+		...timestamps
+	},
+	(t) => [
+		unique('scales_id_user').on(t.id, t.userId),
+		uniqueIndex('scales_user_name').on(t.userId, sql`lower(${t.name})`),
+		check('scales_name_nonempty', sql`length(trim(${t.name})) > 0`)
+	]
+);
+
 export const flavors = pgTable(
 	'flavors',
 	{
@@ -252,6 +271,8 @@ export const brews = pgTable(
 		grinderId: uuid('grinder_id').notNull(),
 		/** Null on brews logged before drippers were tracked, or when not recorded (D23). */
 		dripperId: uuid('dripper_id'),
+		/** The scale it was measured on; null when logged by hand (D51). */
+		scaleId: uuid('scale_id'),
 		method: text('method').notNull(),
 		brewedAt: timestamp('brewed_at', { withTimezone: true }).notNull(),
 		/**
@@ -293,6 +314,11 @@ export const brews = pgTable(
 			name: 'brews_dripper_fk',
 			columns: [t.dripperId, t.userId],
 			foreignColumns: [drippers.id, drippers.userId]
+		}).onDelete('restrict'),
+		foreignKey({
+			name: 'brews_scale_fk',
+			columns: [t.scaleId, t.userId],
+			foreignColumns: [scales.id, scales.userId]
 		}).onDelete('restrict'),
 		index('brews_user_brewed_idx').on(t.userId, t.brewedAt.desc()),
 		index('brews_bean_idx').on(t.beanId),
@@ -345,12 +371,24 @@ export const pours = pgTable(
 		/** Seconds since the previous pour started; 0 for pour 1 (D12). */
 		intervalS: integer('interval_s').notNull(),
 		/** The brewer marked this pour as a bloom (D27). */
-		bloom: boolean('bloom').notNull().default(false)
+		bloom: boolean('bloom').notNull().default(false),
+		/** Set when a scale measured the pour (D51): the running total and start it was aiming for. */
+		plannedCumulativeG: numeric('planned_cumulative_g', {
+			precision: 6,
+			scale: 1,
+			mode: 'number'
+		}),
+		plannedStartS: integer('planned_start_s'),
+		/** How long the water ran, in seconds. */
+		durationS: numeric('duration_s', { precision: 5, scale: 1, mode: 'number' })
 	},
 	(t) => [
 		primaryKey({ columns: [t.brewId, t.idx] }),
 		check('pours_idx', sql`${t.idx} BETWEEN 1 AND 50`),
 		check('pours_volume', sql`${t.volumeG} > 0`),
+		check('pours_planned_g', sql`${t.plannedCumulativeG} IS NULL OR ${t.plannedCumulativeG} > 0`),
+		check('pours_planned_start', sql`${t.plannedStartS} IS NULL OR ${t.plannedStartS} >= 0`),
+		check('pours_duration', sql`${t.durationS} IS NULL OR ${t.durationS} > 0`),
 		check(
 			'pours_interval',
 			sql`(${t.idx} = 1 AND ${t.intervalS} = 0) OR (${t.idx} > 1 AND ${t.intervalS} > 0)`

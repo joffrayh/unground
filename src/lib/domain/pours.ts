@@ -8,7 +8,14 @@
  * Pours are shown and named from 0 ("Pour 0", "Pour 1", …); any of them can be ticked as a bloom (D27).
  */
 
-export interface PourEntry {
+/** Only on a pour measured by a scale (D51): the plan it followed, and how long it took. */
+export interface PourMeasurement {
+	plannedCumulativeG?: number | null;
+	plannedStartS?: number | null;
+	durationS?: number | null;
+}
+
+export interface PourEntry extends PourMeasurement {
 	/** Timer reading when this pour starts, in seconds from brew start. */
 	startS: number;
 	/** Scale reading (running total of water, g) after this pour. */
@@ -16,7 +23,7 @@ export interface PourEntry {
 	bloom: boolean;
 }
 
-export interface Pour {
+export interface Pour extends PourMeasurement {
 	volumeG: number;
 	intervalS: number;
 	bloom: boolean;
@@ -25,6 +32,15 @@ export interface Pour {
 /** "Pour 0", "Pour 1", …: pours are numbered from 0 everywhere they are shown (D27). */
 export function pourName(index: number): string {
 	return `Pour ${index}`;
+}
+
+/** Just the measurement fields that are set, so an unmeasured pour stays as it always was. */
+export function pourMeasurement(p: PourMeasurement): PourMeasurement {
+	const out: PourMeasurement = {};
+	if (p.plannedCumulativeG != null) out.plannedCumulativeG = p.plannedCumulativeG;
+	if (p.plannedStartS != null) out.plannedStartS = p.plannedStartS;
+	if (p.durationS != null) out.durationS = p.durationS;
+	return out;
 }
 
 export type PourResult = { ok: true; pours: Pour[] } | { ok: false; error: string };
@@ -79,7 +95,8 @@ export function entriesToPours(entries: PourEntry[]): PourResult {
 		pours.push({
 			volumeG: roundTenth(entry.cumulativeG - (prev?.cumulativeG ?? 0)),
 			intervalS: entry.startS - (prev?.startS ?? 0),
-			bloom: entry.bloom
+			bloom: entry.bloom,
+			...pourMeasurement(entry)
 		});
 		prev = entry;
 	}
@@ -92,8 +109,24 @@ export function poursToEntries(pours: Pour[]): PourEntry[] {
 	return pours.map((p) => {
 		startS += p.intervalS;
 		cumulativeG = roundTenth(cumulativeG + p.volumeG);
-		return { startS, cumulativeG, bloom: p.bloom };
+		return { startS, cumulativeG, bloom: p.bloom, ...pourMeasurement(p) };
 	});
+}
+
+/**
+ * The pours as they were meant to go, which is what the next brew starts from (D51): measured pours
+ * wander by a gram or a second, and repeating them would drift further each brew. A pour with no plan
+ * stands as it was logged.
+ */
+export function plannedPours(pours: readonly Pour[]): Pour[] {
+	const planned = poursToEntries([...pours]).map((e) => ({
+		startS: e.plannedStartS ?? e.startS,
+		cumulativeG: e.plannedCumulativeG ?? e.cumulativeG,
+		bloom: e.bloom
+	}));
+	const result = entriesToPours(planned);
+	if (result.ok) return result.pours;
+	return pours.map(({ volumeG, intervalS, bloom }) => ({ volumeG, intervalS, bloom }));
 }
 
 export function totalWater(pours: Pour[]): number {

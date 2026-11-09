@@ -21,6 +21,8 @@
 	--border: light-dark(#e3d9c8, #2a3240);
 	--accent: #faa956;
 	--accent-text: #101118;
+	/* Live scale actions (D48). */
+	--scale: #56abfa;
 	/* Amber for text and thin lines; plain amber is too pale on cream. */
 	--accent-ink: light-dark(#8a4f0a, #febd7b);
 	--accent-soft: light-dark(rgb(250 169 86 / 20%), rgb(250 169 86 / 10%));
@@ -363,6 +365,15 @@ input[type='radio'] {
 }
 .btn-primary:hover {
 	background: var(--accent);
+	filter: brightness(1.08);
+}
+.btn-scale {
+	background: var(--scale);
+	box-shadow: none;
+	color: var(--accent-text);
+}
+.btn-scale:hover {
+	background: var(--scale);
 	filter: brightness(1.08);
 }
 .btn-danger {
