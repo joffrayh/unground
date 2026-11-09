@@ -17,6 +17,7 @@
 	import { BREW_FORM_ID, getNavAction } from '#lib/ui/nav-action.svelte.ts';
 	import FieldError from '#lib/components/FieldError.svelte';
 	import FormError from '#lib/components/FormError.svelte';
+	import Slider from '#lib/components/Slider.svelte';
 	import type { PlanParam } from '#lib/domain/plan.ts';
 	import { formatDuration, parseDuration } from '#lib/domain/pours.ts';
 	import { AGITATION_MAX, AGITATION_MIN, FILTER_TYPES } from '#lib/domain/vocab.ts';
@@ -257,6 +258,7 @@
 		suggestions?.agitation && agitation !== suggestions.agitation.to ? suggestions.agitation : null
 	);
 
+	const agitationLevel = $derived(agitation === '' ? null : Number(agitation));
 	const agitationLevels = Array.from({ length: AGITATION_MAX - AGITATION_MIN + 1 }, (_, i) =>
 		String(AGITATION_MIN + i)
 	);
@@ -267,7 +269,7 @@
 		ratio: pourStats.ratio,
 		grindSetting: parseGrams(effective(grindSetting, grindPlaceholder)),
 		pourCount: pourStats.count > 0 ? pourStats.count : null,
-		agitation: agitation === '' ? null : Number(agitation)
+		agitation: agitationLevel
 	});
 
 	const rating = $derived(ratingFormValues(form, values.rating));
@@ -505,31 +507,51 @@
 				</div>
 			</div>
 
-			<div
-				class="agitation"
-				role="radiogroup"
-				aria-labelledby="{uid}-agitation-label"
-				aria-describedby="{uid}-agitation-hint{errors.agitation ? ` ${uid}-agitation-err` : ''}"
-			>
-				<span class="label" id="{uid}-agitation-label">Agitation</span>
-				<div class="levels">
-					{#each agitationLevels as level (level)}
-						{@const planned = agitationSuggestion?.to === level}
-						<label class="pill" class:planned>
-							<input
-								type="radio"
-								name="agitation"
-								value={level}
-								bind:group={agitation}
-								aria-label={planned ? `${level}, as planned last time` : undefined}
-							/>
-							<span>{level}</span>
-						</label>
-					{/each}
+			{#if hydrated}
+				<Slider
+					name="agitation"
+					label="Agitation"
+					min={AGITATION_MIN}
+					max={AGITATION_MAX}
+					value={agitationLevel}
+					marked={agitationSuggestion ? Number(agitationSuggestion.to) : undefined}
+					hint="0 none · 5 a lot"
+					error={errors.agitation}
+					onchange={(v) => (agitation = v == null ? '' : String(v))}
+				>
+					{#snippet aside()}
+						{#if agitationSuggestion}
+							{@render suggest(agitationSuggestion, () => (agitation = agitationSuggestion.to), '')}
+						{/if}
+					{/snippet}
+				</Slider>
+			{:else}
+				<div
+					class="agitation"
+					role="radiogroup"
+					aria-labelledby="{uid}-agitation-label"
+					aria-describedby="{uid}-agitation-hint{errors.agitation ? ` ${uid}-agitation-err` : ''}"
+				>
+					<span class="label" id="{uid}-agitation-label">Agitation</span>
+					<div class="levels">
+						{#each agitationLevels as level (level)}
+							{@const planned = agitationSuggestion?.to === level}
+							<label class="pill" class:planned>
+								<input
+									type="radio"
+									name="agitation"
+									value={level}
+									bind:group={agitation}
+									aria-label={planned ? `${level}, as planned last time` : undefined}
+								/>
+								<span>{level}</span>
+							</label>
+						{/each}
+					</div>
+					<span class="hint" id="{uid}-agitation-hint">0 none · 5 a lot</span>
+					<FieldError id="{uid}-agitation-err" message={errors.agitation} />
 				</div>
-				<span class="hint" id="{uid}-agitation-hint">0 none · 5 a lot</span>
-				<FieldError id="{uid}-agitation-err" message={errors.agitation} />
-			</div>
+			{/if}
 		</div>
 	</fieldset>
 

@@ -7,6 +7,7 @@
 	import FieldError from '#lib/components/FieldError.svelte';
 	import RadarChart from '#lib/components/RadarChart.svelte';
 	import ScoreInput from '#lib/components/ScoreInput.svelte';
+	import Slider from '#lib/components/Slider.svelte';
 	import TagPicker from '#lib/components/TagPicker.svelte';
 	import {
 		DIMENSION_HINTS,
@@ -16,7 +17,6 @@
 		label,
 		type RatingDimension
 	} from '#lib/domain/vocab.ts';
-	import { sliderPosition, sliderScore } from '#lib/components/radar.ts';
 	import type { RatingValues } from './brew-values.ts';
 
 	let { values, errors = {} }: { values: RatingValues; errors?: Record<string, string> } = $props();
@@ -29,7 +29,9 @@
 		return v.trim() !== '' && Number.isInteger(n) && n >= SCORE_MIN && n <= SCORE_MAX ? n : null;
 	}
 
-	// Seeded once; after that the radar owns the sub-scores (a failed submit re-sends what was set).
+	// Seeded once; after that the sliders and radar own the scores (a failed submit re-sends them).
+	// svelte-ignore state_referenced_locally
+	let overall = $state(score(values.overall));
 	let scores = $state(
 		Object.fromEntries(RATING_DIMENSIONS.map((d) => [d, score(values[d])])) as Record<
 			RatingDimension,
@@ -43,7 +45,7 @@
 		RATING_DIMENSIONS.filter((d) => errors[d]).map((d) => ({ d, message: errors[d] }))
 	);
 
-	// Without JavaScript the radio rows post the sub-scores; once it runs, the radar replaces them.
+	// Without JavaScript the radio rows post the scores; once it runs, the sliders and radar replace them.
 	let hydrated = $state(false);
 	onMount(() => {
 		hydrated = true;
@@ -56,7 +58,20 @@
 
 <div class="rating-fields">
 	<div class="overall">
-		<ScoreInput name="overall" label="Overall" value={values.overall} error={errors.overall} />
+		{#if hydrated}
+			<Slider
+				name="overall"
+				label="Overall"
+				min={0}
+				max={SCORE_MAX}
+				blankAt={0}
+				value={overall}
+				error={errors.overall}
+				onchange={(v) => (overall = v)}
+			/>
+		{:else}
+			<ScoreInput name="overall" label="Overall" value={values.overall} error={errors.overall} />
+		{/if}
 	</div>
 
 	<div class="intensity" role="group" aria-labelledby="{uid}-int">
@@ -76,27 +91,15 @@
 			{#each RATING_DIMENSIONS as d (d)}
 				<input type="hidden" name={d} value={scores[d] ?? ''} />
 			{/each}
-			<div class="fine">
-				<div class="fine-head">
-					{#key active}
-						<label class="fine-name" for="{uid}-fine">{label(active)}</label>
-					{/key}
-					<span class="fine-value" class:unset={scores[active] == null}
-						>{scores[active] ?? '–'}</span
-					>
-				</div>
-				<input
-					id="{uid}-fine"
-					class="fine-slider"
-					type="range"
-					min="0"
-					max={SCORE_MAX}
-					step="1"
-					value={sliderPosition(scores[active])}
-					aria-valuetext={scores[active] == null ? 'not rated' : `${scores[active]} of 10`}
-					oninput={(e) => (scores[active] = sliderScore(e.currentTarget.valueAsNumber))}
-				/>
-			</div>
+			<Slider
+				label={label(active)}
+				min={0}
+				max={SCORE_MAX}
+				blankAt={0}
+				linked
+				value={scores[active]}
+				onchange={(v) => (scores[active] = v)}
+			/>
 			<div class="how">
 				<span class="hint">Centre = not rated.</span>
 				{#if anyScored}
@@ -164,7 +167,9 @@
 		border-radius: var(--radius-sm);
 		background: var(--accent-soft);
 	}
-	.overall :global(legend) {
+	.overall :global(legend),
+	.overall :global(label:not(.pill)) {
+		font-family: var(--display);
 		font-size: 1rem;
 	}
 	.intensity {
@@ -173,73 +178,6 @@
 		gap: 0.9rem;
 		padding-top: 0.75rem;
 		border-top: 1px dashed var(--border);
-	}
-	.fine-head {
-		display: flex;
-		align-items: baseline;
-		justify-content: space-between;
-		gap: 0.75rem;
-	}
-	.fine-name {
-		font-weight: 700;
-		color: var(--accent-ink);
-	}
-	@media (prefers-reduced-motion: no-preference) {
-		.fine-name {
-			animation: fine-name-in 240ms cubic-bezier(0.16, 1, 0.3, 1);
-		}
-	}
-	@keyframes fine-name-in {
-		from {
-			opacity: 0;
-			transform: translateY(8px);
-		}
-	}
-	.fine-value {
-		font-weight: 700;
-		font-variant-numeric: tabular-nums;
-	}
-	.fine-value.unset {
-		color: var(--muted);
-		font-weight: 400;
-	}
-	/* The thumb's clear border makes it a 44px target around a 28px disc. */
-	.fine-slider {
-		-webkit-appearance: none;
-		appearance: none;
-		display: block;
-		width: 100%;
-		height: 44px;
-		margin: 0;
-		background: transparent;
-		cursor: pointer;
-	}
-	.fine-slider::-webkit-slider-runnable-track {
-		height: 6px;
-		border-radius: 999px;
-		background: var(--surface-2);
-	}
-	.fine-slider::-moz-range-track {
-		height: 6px;
-		border-radius: 999px;
-		background: var(--surface-2);
-	}
-	.fine-slider::-webkit-slider-thumb {
-		-webkit-appearance: none;
-		width: 44px;
-		height: 44px;
-		margin-top: -19px;
-		border: 8px solid transparent;
-		border-radius: 50%;
-		background: var(--accent) padding-box;
-	}
-	.fine-slider::-moz-range-thumb {
-		box-sizing: border-box;
-		width: 44px;
-		height: 44px;
-		border: 8px solid transparent;
-		border-radius: 50%;
-		background: var(--accent) padding-box;
 	}
 	.how {
 		display: flex;

@@ -72,7 +72,7 @@ _(extensible: decaf flag is included)_
 
 A **Brew** is a single brewing event. It references one **Bean**, one **Grinder** and (optionally) one **Dripper**, and records the parameters used. A brew can be logged before it is tasted; the rating is added later.
 
-**Logging a new brew (D26):** every field shows the previous brew's value as a grey placeholder; a field left blank saves its placeholder, and typing replaces it. What the previous brew's _next-time plan_ suggests is shown as a green "› 17" button inside the field and applied with a tap; a planned agitation level is highlighted green (D30). A blank pour time saves the time its box shows, whether copied from the previous brew or estimated from the pours above.
+**Logging a new brew (D26):** every field shows the previous brew's value as a grey placeholder; a field left blank saves its placeholder, and typing replaces it. What the previous brew's _next-time plan_ suggests is shown as a green "› 17" button inside the field and applied with a tap; a planned agitation level is a green dot on its slider, with the same button (D30). A blank pour time saves the time its box shows, whether copied from the previous brew or estimated from the pours above.
 
 **Common (method-agnostic) attributes:**
 
@@ -275,6 +275,7 @@ The substance of each decision lives in the section noted under _Where_; this ta
 | D42 | **The brew form's Rating section starts open.** An untouched one still saves no rating. | The rating is the Stage 2 target, so it shouldn't be hidden behind a tap. | [§4.3](#43-rating--tasting-the-target-variable) |
 | D43 | **A new brew in progress is kept as a draft** in the browser's local storage (one per account) when the form is left or hidden, and restored on return. Saving or **Cancel brew** (bottom of the form; asks first if anything was entered) clears it. Copying a different brew shows that copy instead; the draft is replaced only once the copy is edited. JavaScript only. | Checking another page mid-brew shouldn't cost the input. Unfinished brews stay out of the database, so Stage 2 never sees them. | [§4.2](#42-brew) |
 | D44 | **A card's toggle sits in its top right corner**, level with the heading; what it opens flows below. Covers the plan, the rating and each equipment row, and the Edit toggles read just "Edit". CSS only, so it works without JavaScript. | The action is where the eye lands and the card stays compact while closed. The heading already says what's being edited. | — |
+| D45 | **Overall, agitation and the radar's fine control are one stepped slider: a disc in a slot, a small dot at each step.** Scores start at the far left, "not rated", and a planned agitation is a larger green dot. Without JavaScript they stay radio pills. | One control, usable one-handed. Starting unset means no default biases the data (D7). | [§4.3](#43-rating--tasting-the-target-variable) |
 
 ## 9. Open questions / decisions to revisit
 

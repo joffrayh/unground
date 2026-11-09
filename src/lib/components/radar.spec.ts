@@ -6,8 +6,6 @@ import {
 	pointFor,
 	polygonPoints,
 	radiusToValue,
-	sliderPosition,
-	sliderScore,
 	stepSize,
 	valueAlongAxis,
 	valueFromPoint,
@@ -17,19 +15,6 @@ import {
 
 const g: RadarGeometry = { radius: 90, inner: 18 };
 const N = 6;
-
-describe('the fine-control slider', () => {
-	it('puts "not rated" at position 0', () => {
-		expect(sliderPosition(null)).toBe(0);
-		expect(sliderScore(0)).toBeNull();
-	});
-
-	it('maps positions 1 to 10 straight to scores', () => {
-		expect(sliderPosition(7)).toBe(7);
-		expect(sliderScore(1)).toBe(1);
-		expect(sliderScore(10)).toBe(10);
-	});
-});
 
 describe('pointFor', () => {
 	it('puts axis 0 straight up and goes clockwise (y points down)', () => {

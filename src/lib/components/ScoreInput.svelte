@@ -1,7 +1,7 @@
 <script lang="ts">
 	/**
-	 * A 1–10 score as a row of radio pills plus "not rated". Radios (not a slider) so an unset score is
-	 * possible and no default value biases the data (D7). Works without JavaScript.
+	 * A 1–10 score as a row of radio pills plus "not rated": the entry without JavaScript. With it, a
+	 * Slider takes over (D45). Either way a score starts unset, so no default biases the data (D7).
 	 */
 	import { SCORE_MAX, SCORE_MIN } from '#lib/domain/vocab.ts';
 
