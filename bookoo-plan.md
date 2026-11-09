@@ -61,6 +61,9 @@ Seven steps, ordered so the biggest unknowns get tested on the real scale first.
 ### 6. Guided pours
 
 - **Build:** the detector wired in, pours advancing one by one, the countdown running on the scale's timer, the screen kept awake, and a manual Next and Stop.
+- **Timer zero:** set 0:00 at the detected start of pour 0, because a bump can start the scale's timer early (0.9 s early in one recording).
+- **Top-ups:** the detector reports every physical pour, so water arriving well before the next pour's planned time counts as part of the pour before it.
+- **Lifts:** only a lift after the last pour ends the brew. A later `returned` event undoes it.
 - **Done when:** a real brew can be completed hands-free, then the thresholds tuned at the kettle.
 
 ### 7. Saving measured data
