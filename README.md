@@ -126,6 +126,7 @@ src/
       methods/               brew-method registry (V60 today)
       auth/                  passwords, sessions, rate limiting
       http.ts                helpers for actions and loads
+    scale/                   Bookoo Bluetooth protocol and the link to the scale
     components/              shared Svelte components (TagPicker, ScoreInput, …)
     ui/                      formatting and form-state helpers
   routes/                    pages and endpoints

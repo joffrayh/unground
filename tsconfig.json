@@ -2,7 +2,7 @@
 	"extends": "$app/tsconfig",
 	"compilerOptions": {
 		"strict": true,
-		"types": ["$app/types", "node"]
+		"types": ["$app/types", "node", "web-bluetooth"]
 	},
 	"include": [
 		"src",
