@@ -7,11 +7,9 @@ import {
 	editValues,
 	grinderOptions,
 	hasPlanValues,
-	hasRatingValues,
 	newBrewValues,
 	planFormValues,
 	planValues,
-	ratingValues,
 	type BrewLike
 } from './brew-values.ts';
 
@@ -123,7 +121,6 @@ describe('newBrewValues', () => {
 			['', '', false, '0:45', '150'],
 			['', '', false, '1:15', '250']
 		]);
-		expect(hasRatingValues(v.rating)).toBe(false);
 		expect(hasPlanValues(v.plan)).toBe(false);
 	});
 
@@ -191,17 +188,6 @@ describe('plan values', () => {
 			nextNotes: 'finer'
 		});
 		expect(hasPlanValues(planValues(plan))).toBe(true);
-	});
-});
-
-describe('hasRatingValues', () => {
-	it('is false for a blank rating and true once anything is set', () => {
-		const blank = ratingValues(null);
-		expect(hasRatingValues(blank)).toBe(false);
-		expect(hasRatingValues({ ...blank, body: '3' })).toBe(true);
-		expect(hasRatingValues({ ...blank, comment: ' ok ' })).toBe(true);
-		expect(hasRatingValues({ ...blank, perceivedNotes: ['sweet'] })).toBe(true);
-		expect(hasRatingValues({ ...blank, comment: '  ' })).toBe(false);
 	});
 });
 

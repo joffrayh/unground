@@ -47,8 +47,10 @@
 <style>
 	.score {
 		border: 0;
+		border-radius: 0;
 		padding: 0;
 		background: none;
+		box-shadow: none;
 	}
 	legend {
 		padding: 0;

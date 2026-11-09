@@ -25,9 +25,7 @@
 	import RatingFields from './RatingFields.svelte';
 	import {
 		PLAN_FORM_FIELDS,
-		RATING_FIELDS,
 		hasPlanValues,
-		hasRatingValues,
 		planFormValues,
 		ratingFormValues,
 		type BeanOption,
@@ -225,7 +223,6 @@
 	});
 
 	const rating = $derived(ratingFormValues(form, values.rating));
-	const ratingOpen = $derived(hasRatingValues(rating) || RATING_FIELDS.some((k) => errors[k]));
 	// svelte-ignore state_referenced_locally
 	const plan = planFormValues(form, values.plan);
 	const planOpen = $derived(hasPlanValues(plan) || PLAN_FORM_FIELDS.some((k) => errors[k]));
@@ -549,10 +546,8 @@
 		<FieldError id="{uid}-notes-err" message={errors.notes} />
 	</div>
 
-	<details class="section" open={ratingOpen}>
-		<summary>
-			<span>Rating <span class="muted small">(optional)</span></span>
-		</summary>
+	<details class="section" open>
+		<summary>Rating</summary>
 		<div class="details-body">
 			<RatingFields values={rating} {errors} />
 		</div>
@@ -560,7 +555,7 @@
 
 	<details class="section" open={planOpen}>
 		<summary>
-			<span>What to change next time <span class="muted small">(optional)</span></span>
+			<span>Adjustments <span class="muted small">(optional)</span></span>
 		</summary>
 		<div class="details-body">
 			<PlanFields values={plan} current={planCurrent} grindUnit={unit} {errors} />

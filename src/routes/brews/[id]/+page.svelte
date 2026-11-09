@@ -294,8 +294,8 @@
 		</section>
 	{/key}
 
-	<section class="card stack" id="next">
-		<h2>Next time</h2>
+	<section class="card stack next" id="next">
+		<h2 class:beside-toggle={!plan}>Next time</h2>
 		{#if plan}
 			{#if planChanges.length}
 				<ul class="plan-list">
@@ -312,7 +312,7 @@
 
 		<!-- Re-seeded when the saved plan changes (saved or removed), so the fields show it. -->
 		{#key JSON.stringify(plan)}
-			<details open={!plan || !!planForm?.errors}>
+			<details class:corner={!plan} open={!plan || !!planForm?.errors}>
 				<summary class="btn-toggle" class:edit={!!plan}
 					>{plan ? 'Edit plan' : 'Plan the next brew'}</summary
 				>
@@ -450,6 +450,28 @@
 		flex-direction: column;
 		gap: 1rem;
 		margin-top: 0.5rem;
+	}
+	.next {
+		position: relative;
+	}
+	.beside-toggle {
+		display: flex;
+		align-items: center;
+		min-height: 44px;
+		margin: 0;
+	}
+	.corner {
+		margin-top: 0;
+	}
+	.corner > summary {
+		position: absolute;
+		top: 1rem;
+		right: 1rem;
+		padding: 0.2rem 0.9rem 0.4rem;
+		font-size: 0.875rem;
+	}
+	.corner .plan-form {
+		margin-top: 1rem;
 	}
 	.notes-compare {
 		display: flex;

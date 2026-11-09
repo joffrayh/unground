@@ -158,6 +158,16 @@ export function keyValue(key: string, current: number | null): number | null | u
 	}
 }
 
+/** The fine-control slider's position for a score: 0 is "not rated", like the chart's centre. */
+export function sliderPosition(score: number | null): number {
+	return score ?? 0;
+}
+
+/** The score at a slider position. */
+export function sliderScore(position: number): number | null {
+	return position < SCORE_MIN ? null : clampScore(position);
+}
+
 function clampScore(v: number): number {
 	return Math.min(SCORE_MAX, Math.max(SCORE_MIN, Math.round(v)));
 }

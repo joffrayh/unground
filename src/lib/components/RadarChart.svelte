@@ -3,13 +3,16 @@
 	 * The taste sub-scores (D22) as a radar: one axis per dimension, clockwise from the top, intensity
 	 * 1 near the centre to 10 at the rim; the centre itself is "not rated". Read-only by default (SSR,
 	 * no JavaScript needed). `editable` adds tap-to-set, draggable handles and a keyboard slider per
-	 * axis; it reports changes through `onchange` and shows whatever `values` says (controlled).
+	 * axis; it reports changes through `onchange` and shows whatever `values` says (controlled). Touching
+	 * an axis (its handle, its label, or a tap along it) reports it through `onselect`; `selected` lights
+	 * that axis up.
 	 */
 	import { DIMENSION_HINTS, RATING_DIMENSIONS, label as vocabLabel } from '#lib/domain/vocab.ts';
 	import type { RatingDimension } from '#lib/domain/vocab.ts';
 	import {
 		keyValue,
 		labelPlacement,
+		nearestAxis,
 		pointFor,
 		polar,
 		polygonPoints,
@@ -22,12 +25,16 @@
 	let {
 		values,
 		editable = false,
+		selected,
 		onchange,
+		onselect,
 		label
 	}: {
 		values: Partial<Record<RatingDimension, number | null>>;
 		editable?: boolean;
+		selected?: RatingDimension;
 		onchange?: (dimension: RatingDimension, value: number | null) => void;
+		onselect?: (dimension: RatingDimension) => void;
 		label: string;
 	} = $props();
 
@@ -99,6 +106,10 @@
 		onchange?.(RATING_DIMENSIONS[axis], value);
 	}
 
+	function select(axis: number) {
+		onselect?.(RATING_DIMENSIONS[axis]);
+	}
+
 	/** Client (screen) coordinates → viewBox coordinates. */
 	function toChart(e: PointerEvent): { x: number; y: number } | null {
 		const ctm = svg?.getScreenCTM();
@@ -118,7 +129,10 @@
 		tap = null;
 		if (!t || t.id !== e.pointerId || Math.hypot(e.clientX - t.x, e.clientY - t.y) > 10) return;
 		const p = toChart(e);
-		const hit = p && valueFromPoint(p.x, p.y, N, G, REACH);
+		if (!p) return;
+		const hit = valueFromPoint(p.x, p.y, N, G, REACH);
+		// Past the rim (a label, say) only selects the axis.
+		select(hit?.axis ?? nearestAxis(p.x, p.y, N));
 		if (hit) set(hit.axis, hit.value);
 	}
 
@@ -129,6 +143,7 @@
 		e.preventDefault();
 		tap = null;
 		dragging = axis;
+		select(axis);
 		(e.currentTarget as Element).setPointerCapture(e.pointerId);
 		((e.currentTarget as Element).closest('[role="slider"]') as SVGGElement | null)?.focus({
 			preventScroll: true
@@ -148,6 +163,7 @@
 		const next = keyValue(e.key, current[axis]);
 		if (next === undefined) return;
 		e.preventDefault();
+		select(axis);
 		set(axis, next);
 	}
 </script>
@@ -219,6 +235,7 @@
 			{@const p = pointFor(a.i, v, N, G)}
 			<g
 				class="axis"
+				class:selected={selected === a.d}
 				role="slider"
 				tabindex="0"
 				aria-label="{a.name} intensity"
@@ -334,8 +351,14 @@
 		visibility: hidden;
 	}
 	.axis:focus-visible .focus-spoke,
-	.axis:focus-visible .focus-box {
+	.axis:focus-visible .focus-box,
+	.axis.selected .focus-spoke {
 		visibility: visible;
+	}
+	.axis.selected .name,
+	.axis.selected .value {
+		fill: var(--accent-ink);
+		font-weight: 700;
 	}
 	.handle {
 		cursor: grab;
@@ -356,6 +379,7 @@
 		transform-origin: center;
 	}
 	.handle.active .dot,
+	.axis.selected .dot,
 	.axis:focus-visible .dot {
 		transform: scale(1.35);
 	}

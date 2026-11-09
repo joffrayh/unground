@@ -206,7 +206,7 @@ legend + * {
 	padding: 0.6rem 0.8rem;
 }
 
-input:not([type='checkbox'], [type='radio']),
+input:not([type='checkbox'], [type='radio'], [type='range']),
 select,
 textarea {
 	width: 100%;
@@ -221,6 +221,25 @@ textarea {
 textarea {
 	min-height: 5rem;
 	resize: vertical;
+}
+/* Safari sizes native date inputs from their contents, past the width above. */
+input[type='date'],
+input[type='datetime-local'] {
+	-webkit-appearance: none;
+	appearance: none;
+	min-width: 0;
+	max-width: 100%;
+	overflow: hidden;
+}
+::-webkit-date-and-time-value {
+	min-width: 85px;
+	height: 1.5em;
+	margin: 0;
+	text-align: left;
+}
+::-webkit-datetime-edit {
+	display: block;
+	padding: 0;
 }
 /* The native arrow can't be positioned, so draw it: two 45° strokes meeting at the bottom. */
 select:not([multiple]) {
@@ -580,7 +599,7 @@ details > summary::after {
 	transform: translateY(-25%) rotate(45deg);
 	transition: transform 0.15s ease;
 }
-details[open] > summary::after {
+details[open]:not(.closing) > summary::after {
 	transform: translateY(25%) rotate(-135deg);
 }
 

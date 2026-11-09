@@ -144,6 +144,7 @@ test('log, rate, plan, repeat and export a brew', async ({ page }) => {
 	await expect(page.locator('input[name="pourBloom"]').first()).toBeChecked();
 	await expect(page.locator('input[name="agitation"][value="3"]')).toBeChecked();
 	await expect(page.getByText('What changed')).toHaveCount(0);
+	await expect(page.locator('input[name="overall"][value="8"]')).toBeVisible();
 
 	await logBrew(page);
 	const brewUrl = page.url();
@@ -156,8 +157,16 @@ test('log, rate, plan, repeat and export a brew', async ({ page }) => {
 	const acidity = page.getByRole('slider', { name: 'Acidity intensity' });
 	await acidity.focus();
 	await acidity.press('End');
-	for (let i = 0; i < 3; i++) await acidity.press('ArrowDown');
+	for (let i = 0; i < 2; i++) await acidity.press('ArrowDown');
+	await expect(acidity).toHaveAttribute('aria-valuenow', '8');
+	// The slider under the radar moves the axis last touched.
+	await page.getByRole('slider', { name: 'Acidity', exact: true }).fill('7');
 	await expect(acidity).toHaveAttribute('aria-valuenow', '7');
+	const sweetness = page.getByRole('slider', { name: 'Sweetness intensity' });
+	await sweetness.focus();
+	await sweetness.press('Home');
+	await expect(page.getByRole('slider', { name: 'Sweetness', exact: true })).toHaveValue('1');
+	await sweetness.press('Delete');
 	// Tasting notes are tags picked from a search; a tap on a match adds it.
 	await page.getByRole('combobox', { name: /tasting notes/i }).fill('blueb');
 	await page.getByRole('option', { name: /^Blueberry/ }).click();
@@ -166,8 +175,29 @@ test('log, rate, plan, repeat and export a brew', async ({ page }) => {
 	// (The edit form further down holds the same name, folded away.)
 	await expect(page.getByText('Blueberry', { exact: true }).first()).toBeVisible();
 
+	// Dropdowns slide: open at once, closed only when the slide ends.
+	const editRating = page.locator('#rate > details');
+	const sliding = () => editRating.evaluate((el) => el.getAnimations().length > 0);
+	expect(
+		await editRating.evaluate((el) => {
+			el.querySelector('summary')?.click();
+			return (el as HTMLDetailsElement).open && el.getAnimations().length > 0;
+		})
+	).toBe(true);
+	await expect.poll(sliding).toBe(false);
+	await editRating.getByText('Edit rating').click();
+	await expect(editRating).not.toHaveAttribute('open');
+
 	// Plan the next one: ratio 1:16.7 → 1:17, grind 24 → 25, 3 → 4 pours, agitation 3 → 4.
 	const next = page.locator('#next');
+	// With no plan yet, its toggle shares the heading's row.
+	const headingBox = await next.getByRole('heading', { name: 'Next time' }).boundingBox();
+	const toggleBox = await next.getByText('Plan the next brew').boundingBox();
+	expect(toggleBox!.y + toggleBox!.height / 2).toBeCloseTo(
+		headingBox!.y + headingBox!.height / 2,
+		-1
+	);
+	expect(toggleBox!.x).toBeGreaterThan(headingBox!.x);
 	await next.getByRole('button', { name: 'Raise ratio' }).click();
 	await expect(next.locator('[name="nextRatio"]')).toHaveValue('17');
 	await next.getByRole('button', { name: 'Raise grind setting' }).click();

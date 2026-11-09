@@ -4,7 +4,7 @@
  */
 
 /** Input types where Enter would otherwise trigger an implicit form submit. */
-const TEXT_LIKE = new Set(['text', 'number', 'date', 'datetime-local', 'time']);
+const TEXT_LIKE = new Set(['text', 'number', 'date', 'datetime-local', 'time', 'range']);
 
 export function isTextLike(el: EventTarget | null): el is HTMLInputElement {
 	return el instanceof HTMLInputElement && TEXT_LIKE.has(el.type);

@@ -46,7 +46,7 @@
 			Copied from your {data.copiedFrom.explicit ? '' : 'last '}brew on
 			<a href="/brews/{data.copiedFrom.id}"
 				>{formatDateTime(data.copiedFrom.brewedAt, data.copiedFrom.timezone)}</a
-			>. Grey values save unless you type over them.
+			>.
 			{#if data.copiedFrom.beanReset}
 				Its bean ({data.copiedFrom.beanName}) is archived: pick one.
 			{/if}

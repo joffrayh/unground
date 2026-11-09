@@ -13,6 +13,7 @@
 	import settings from '#lib/assets/nav/settings.svg';
 	import NavPrimary from '#lib/components/NavPrimary.svelte';
 	import { NavAction, setNavAction } from '#lib/ui/nav-action.svelte.ts';
+	import { animateDetails } from '#lib/ui/details-motion.ts';
 	import { changesPage, enterPage } from '#lib/ui/page-enter.ts';
 	import { type CollapseState, nextCollapse } from '#lib/ui/scroll-collapse.ts';
 	import { prefersReducedMotion } from 'svelte/motion';
@@ -100,7 +101,7 @@
 	<title>Unground</title>
 </svelte:head>
 
-<main class="container" class:leaving={changesPage(navigating)} bind:this={main}>
+<main class="container" class:leaving={changesPage(navigating)} bind:this={main} use:animateDetails>
 	{@render children()}
 </main>
 

@@ -6,16 +6,16 @@
 
 const CASCADE_STEP_MS = 24;
 const CASCADE_MAX_STEPS = 7;
-const BLOCK_MS = 280;
+export const BLOCK_MS = 280;
 const RISE = 'translateY(14px)';
-const EASE_OUT = 'cubic-bezier(0.16, 1, 0.3, 1)';
+export const EASE_OUT = 'cubic-bezier(0.16, 1, 0.3, 1)';
 
 const LETTER_STEP_MS = 28;
 const LETTER_SWEEP_MS = 180;
 const LETTER_MS = 240;
 
 /** Wrappers with no look of their own: their children are the blocks. */
-const WRAPPER = ':is(section, form, .stack):not(.card)';
+const WRAPPER = ':is(section, form, .stack, .details-body, .rating-fields):not(.card)';
 
 interface Navigation {
 	type: string | null;
@@ -37,7 +37,7 @@ export const cascadeDelay = (index: number) => Math.min(index, CASCADE_MAX_STEPS
 export const letterStep = (letters: number) =>
 	Math.min(LETTER_STEP_MS, LETTER_SWEEP_MS / Math.max(1, letters - 1));
 
-function collectBlocks(parent: Element, blocks: Element[] = []): Element[] {
+export function collectBlocks(parent: Element, blocks: Element[] = []): Element[] {
 	for (const child of parent.children) {
 		if (child.matches(WRAPPER)) {
 			collectBlocks(child, blocks);
@@ -50,9 +50,24 @@ function collectBlocks(parent: Element, blocks: Element[] = []): Element[] {
 	return blocks;
 }
 
-function isOnScreen(element: Element): boolean {
+export function isOnScreen(element: Element): boolean {
 	const { top, bottom, height } = element.getBoundingClientRect();
 	return height > 0 && top < window.innerHeight && bottom > 0;
+}
+
+/** Each block rises and fades in, a step behind the one before. */
+export function riseIn(blocks: Element[]): Animation[] {
+	return blocks.map((block, i) =>
+		block.animate(
+			block.matches('.list')
+				? [{ opacity: 0 }, { opacity: 1 }]
+				: [
+						{ opacity: 0, transform: RISE },
+						{ opacity: 1, transform: 'none' }
+					],
+			{ duration: BLOCK_MS, delay: cascadeDelay(i), easing: EASE_OUT, fill: 'backwards' }
+		)
+	);
 }
 
 /**
@@ -90,17 +105,7 @@ function spellOut(heading: Element, text: Text, delay: number): () => void {
 /** Plays the animation over the current page and returns a function that ends it early. */
 export function enterPage(main: Element): () => void {
 	const blocks = collectBlocks(main).filter(isOnScreen);
-	const animations = blocks.map((block, i) =>
-		block.animate(
-			block.matches('.list')
-				? [{ opacity: 0 }, { opacity: 1 }]
-				: [
-						{ opacity: 0, transform: RISE },
-						{ opacity: 1, transform: 'none' }
-					],
-			{ duration: BLOCK_MS, delay: cascadeDelay(i), easing: EASE_OUT, fill: 'backwards' }
-		)
-	);
+	const animations = riseIn(blocks);
 
 	const heading = main.querySelector('h1') ?? main.querySelector('h2');
 	const text = heading?.firstChild;
