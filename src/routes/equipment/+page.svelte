@@ -82,9 +82,9 @@
 								? `Setting in ${g.settingUnit}`
 								: 'No setting unit'}&ensp;·&ensp;{plural(g.brewCount, 'brew', 'brews')}
 						</div>
-						<details open={hasErrors(f)}>
+						<details class="corner" open={hasErrors(f)}>
 							<summary class="btn-toggle edit">Edit</summary>
-							<div class="stack panel">
+							<div class="stack">
 								<FormError form={f} />
 								<form
 									method="POST"
@@ -212,9 +212,9 @@
 								'brews'
 							)}
 						</div>
-						<details open={hasErrors(f)}>
+						<details class="corner" open={hasErrors(f)}>
 							<summary class="btn-toggle edit">Edit</summary>
-							<div class="stack panel">
+							<div class="stack">
 								<FormError form={f} />
 								<form
 									method="POST"
@@ -349,9 +349,9 @@
 								>&ensp;·&ensp;
 							{/if}{plural(r.beanCount, 'bean', 'beans')}
 						</div>
-						<details open={hasErrors(f)}>
+						<details class="corner" open={hasErrors(f)}>
 							<summary class="btn-toggle edit">Edit</summary>
-							<div class="stack panel">
+							<div class="stack">
 								<FormError form={f} />
 								<form
 									method="POST"
@@ -423,8 +423,15 @@
 
 <style>
 	.item {
-		padding: 0.75rem 1rem 0.25rem;
+		--corner-top: 0.75rem;
+		position: relative;
+		padding: 0.75rem 1rem;
 		overflow-wrap: anywhere;
+	}
+	/* Long names wrap before they reach the Edit button. */
+	.head,
+	.item > .small {
+		padding-right: 6.5rem;
 	}
 	.item.archived {
 		background: var(--surface-2);
@@ -445,14 +452,6 @@
 		font-size: 0.75rem;
 		background: var(--bg);
 		color: var(--muted);
-	}
-	summary {
-		font-size: 0.875rem;
-		color: var(--accent-ink);
-		width: fit-content;
-	}
-	.panel {
-		padding: 0.75rem 0;
 	}
 	.back {
 		margin: 0;

@@ -214,7 +214,7 @@
 	{/if}
 
 	{#key brew.id}
-		<section class="card stack" id="rate">
+		<section class="card stack corner-host" id="rate">
 			<div class="rating-head">
 				<h2>Rating</h2>
 				{#if rating}
@@ -266,8 +266,8 @@
 					</div>
 				{/if}
 
-				<details open={!!rateForm?.errors}>
-					<summary class="btn-toggle edit">Edit rating</summary>
+				<details class="corner" open={!!rateForm?.errors}>
+					<summary class="btn-toggle edit" aria-label="Edit rating">Edit</summary>
 					<form method="POST" action="?/rate" class="rate-form" use:enhance>
 						<FormError form={rateForm} />
 						<RatingFields values={formRating} errors={rateForm?.errors ?? {}} />
@@ -294,8 +294,8 @@
 		</section>
 	{/key}
 
-	<section class="card stack" id="next">
-		<h2>Next time</h2>
+	<section class="card stack corner-host" id="next">
+		<h2 class="corner-title">Next time</h2>
 		{#if plan}
 			{#if planChanges.length}
 				<ul class="plan-list">
@@ -312,9 +312,9 @@
 
 		<!-- Re-seeded when the saved plan changes (saved or removed), so the fields show it. -->
 		{#key JSON.stringify(plan)}
-			<details open={!plan || !!planForm?.errors}>
-				<summary class="btn-toggle" class:edit={!!plan}
-					>{plan ? 'Edit plan' : 'Plan the next brew'}</summary
+			<details class="corner" open={!plan || !!planForm?.errors}>
+				<summary class="btn-toggle" class:edit={!!plan} aria-label={plan ? 'Edit plan' : undefined}
+					>{plan ? 'Edit' : 'Plan the next brew'}</summary
 				>
 				<!-- The keydown listener only catches Enter bubbling up from the inputs (onPlanKeydown). -->
 				<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
@@ -394,8 +394,8 @@
 	.rating-head {
 		display: flex;
 		align-items: center;
-		justify-content: space-between;
 		gap: 0.75rem;
+		min-height: 44px;
 	}
 	.rating-head h2 {
 		margin: 0;

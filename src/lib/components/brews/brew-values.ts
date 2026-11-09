@@ -137,17 +137,6 @@ export function ratingFormValues(form: FormState, fallback: RatingValues): Ratin
 	return out;
 }
 
-export const RATING_FIELDS = ['overall', ...RATING_DIMENSIONS, 'comment', 'perceivedNotes'];
-
-export function hasRatingValues(r: RatingValues): boolean {
-	return (
-		r.overall.trim() !== '' ||
-		RATING_DIMENSIONS.some((d) => r[d].trim() !== '') ||
-		r.comment.trim() !== '' ||
-		r.perceivedNotes.length > 0
-	);
-}
-
 export function planValues(plan: PlanInput | null): PlanValues {
 	return {
 		nextWaterTempC: str(plan?.waterTempC),

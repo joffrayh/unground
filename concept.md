@@ -72,7 +72,7 @@ _(extensible: decaf flag is included)_
 
 A **Brew** is a single brewing event. It references one **Bean**, one **Grinder** and (optionally) one **Dripper**, and records the parameters used. A brew can be logged before it is tasted; the rating is added later.
 
-**Logging a new brew (D26):** every field shows the previous brew's value as a grey placeholder; a field left blank saves its placeholder, and typing replaces it. What the previous brew's _next-time plan_ suggests is shown as a green "› 17" button inside the field and applied with a tap; a planned agitation level is highlighted green (D30). A blank pour time saves the time its box shows, whether copied from the previous brew or estimated from the pours above.
+**Logging a new brew (D26):** every field shows the previous brew's value as a grey placeholder; a field left blank saves its placeholder, and typing replaces it. What the previous brew's _next-time plan_ suggests is shown as a green "› 17" button inside the field and applied with a tap; a planned agitation level is a green dot on its slider, with the same button (D30). A blank pour time saves the time its box shows, whether copied from the previous brew or estimated from the pours above.
 
 **Common (method-agnostic) attributes:**
 
@@ -85,7 +85,7 @@ A **Brew** is a single brewing event. It references one **Bean**, one **Grinder*
 - **Dose** — dry coffee weight (g).
 - **Water** — total water (g) and **water temperature** (°C). For V60 the total is _derived_ from the pours (see below) so it can never disagree with them.
 - **Ratio** — water:dose, always derived.
-- **Next time** — what the user means to change on the next brew (D25): temperature, ratio, grind, number of pours, agitation, plus free-text refinements. Each is set with −/+ buttons around the current value. Only values that differ from this brew's are stored. The next brew shows them as green suggestions (D30): a ratio change keeps the dose and changes the water; a pour-count change drops pours from (red) or appends pours to (green) the end; **Accept** spreads the water evenly over the non-bloom pours, blooms keeping their amount.
+- **Next time** ("Adjustments" on the brew form) — what the user means to change on the next brew (D25): temperature, ratio, grind, number of pours, agitation, plus free-text refinements. Each is set with −/+ buttons around the current value. Only values that differ from this brew's are stored. The next brew shows them as green suggestions (D30): a ratio change keeps the dose and changes the water; a pour-count change drops pours from (red) or appends pours to (green) the end; **Accept** spreads the water evenly over the non-bloom pours, blooms keeping their amount.
 - **What changed** _(legacy, D16 → D25)_ — no longer asked; brews that recorded it keep it and it is still exported.
 - **Notes** — free text about the brewing (e.g. "stalled drawdown").
 
@@ -114,7 +114,7 @@ This is **the most important data point** for Stage 2 — it is what every other
   - Astringency — higher = more drying
   - Clarity — higher = cleaner, more distinct flavours
   - _(set extensible; aftertaste was collected until D22 and is kept on old ratings)_
-- The sub-scores are entered and shown on a **radar chart** (one axis each); a point at the centre means "not rated".
+- The sub-scores are entered and shown on a **radar chart** (one axis each); a point at the centre means "not rated". A slider under it moves the axis last touched (D40).
 - **Tasting notes** — tags from the tasting-note vocabulary (D5, D29; any tier), picked by search, to compare against the roaster's claimed notes.
 - **Comment** — free text.
 
@@ -270,6 +270,12 @@ The substance of each decision lives in the section noted under _Where_; this ta
 | D37 | **Navigation** is one floating glass bar at every width, with a notch holding the Add Brew button; the current tab is tinted amber. | The bar sits under the thumb, and Add Brew is the app's main action. | — |
 | D38 | **On the new-brew form the nav's centre button is Save Brew.** The swirl unravels into the save icon. Scrolling down folds the rest of the nav away and the button stretches into a labelled pill; scrolling up brings the nav back. The form has no other save button. Editing a brew keeps its own. | One save control, always under the thumb, and no Add Brew button where it would do nothing. It's a real submit button tied to the form, so it works without JavaScript. | — |
 | D39 | **Page changes animate in:** visible blocks rise and fade in a short cascade, the first heading's letters fade up in turn, and the old page dims while a slow one loads. Going back, the first load, hash links and query-only changes don't animate; neither does reduced motion. Enter only, using the Web Animations API rather than View Transitions. | It starts once the page is in the DOM, so it adds no wait and never blocks a tap; View Transitions would, and would freeze the nav's morph. Phones already animate swiping back. Nothing is hidden without JavaScript. | — |
+| D40 | **A slider under the radar** moves the axis last touched (the first axis until then); its label follows that axis, and position 0 is "not rated". JavaScript only, like the radar. | Dragging a point on a phone is fiddly. The chart still picks the axis and shows the shape. | [§4.3](#43-rating--tasting-the-target-variable) |
+| D41 | **Dropdowns animate:** opening slides the height and brings the contents in with D39's rise and fade; closing only slides. One listener on the page covers every `<details>`. No JavaScript or reduced motion keeps the native toggle. | Matches the page transitions, and the content below no longer jumps. | — |
+| D42 | **The brew form's Rating section starts open.** An untouched one still saves no rating. | The rating is the Stage 2 target, so it shouldn't be hidden behind a tap. | [§4.3](#43-rating--tasting-the-target-variable) |
+| D43 | **A new brew in progress is kept as a draft** in the browser's local storage (one per account) when the form is left or hidden, and restored on return. Saving or **Cancel brew** (bottom of the form; asks first if anything was entered) clears it. Copying a different brew shows that copy instead; the draft is replaced only once the copy is edited. JavaScript only. | Checking another page mid-brew shouldn't cost the input. Unfinished brews stay out of the database, so Stage 2 never sees them. | [§4.2](#42-brew) |
+| D44 | **A card's toggle sits in its top right corner**, level with the heading; what it opens flows below. Covers the plan, the rating and each equipment row, and the Edit toggles read just "Edit". CSS only, so it works without JavaScript. | The action is where the eye lands and the card stays compact while closed. The heading already says what's being edited. | — |
+| D45 | **Overall, agitation and the radar's fine control are one stepped slider: a disc in a slot, a small dot at each step.** Scores start at the far left, "not rated", and a planned agitation is a larger green dot. Without JavaScript they stay radio pills. | One control, usable one-handed. Starting unset means no default biases the data (D7). | [§4.3](#43-rating--tasting-the-target-variable) |
 
 ## 9. Open questions / decisions to revisit
 

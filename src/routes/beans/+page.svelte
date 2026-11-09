@@ -15,7 +15,7 @@
 
 <div class="stack">
 	<div class="toolbar small">
-		<a href="/equipment">Equipment</a>
+		<a href="/equipment">Equipment <span aria-hidden="true">→</span></a>
 		{#if data.showArchived}
 			<a href="/beans">Hide archived</a>
 		{:else if data.archivedCount > 0}

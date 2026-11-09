@@ -7,6 +7,7 @@
 	import FieldError from '#lib/components/FieldError.svelte';
 	import RadarChart from '#lib/components/RadarChart.svelte';
 	import ScoreInput from '#lib/components/ScoreInput.svelte';
+	import Slider from '#lib/components/Slider.svelte';
 	import TagPicker from '#lib/components/TagPicker.svelte';
 	import {
 		DIMENSION_HINTS,
@@ -28,19 +29,23 @@
 		return v.trim() !== '' && Number.isInteger(n) && n >= SCORE_MIN && n <= SCORE_MAX ? n : null;
 	}
 
-	// Seeded once; after that the radar owns the sub-scores (a failed submit re-sends what was set).
+	// Seeded once; after that the sliders and radar own the scores (a failed submit re-sends them).
+	// svelte-ignore state_referenced_locally
+	let overall = $state(score(values.overall));
 	let scores = $state(
 		Object.fromEntries(RATING_DIMENSIONS.map((d) => [d, score(values[d])])) as Record<
 			RatingDimension,
 			number | null
 		>
 	);
+	/** The axis the slider under the radar moves: the last one touched. */
+	let active = $state<RatingDimension>(RATING_DIMENSIONS[0]);
 	const anyScored = $derived(RATING_DIMENSIONS.some((d) => scores[d] != null));
 	const dimensionErrors = $derived(
 		RATING_DIMENSIONS.filter((d) => errors[d]).map((d) => ({ d, message: errors[d] }))
 	);
 
-	// Without JavaScript the radio rows post the sub-scores; once it runs, the radar replaces them.
+	// Without JavaScript the radio rows post the scores; once it runs, the sliders and radar replace them.
 	let hydrated = $state(false);
 	onMount(() => {
 		hydrated = true;
@@ -53,13 +58,20 @@
 
 <div class="rating-fields">
 	<div class="overall">
-		<ScoreInput
-			name="overall"
-			label="Overall"
-			hint="Quality: 1 poor · 10 best cup"
-			value={values.overall}
-			error={errors.overall}
-		/>
+		{#if hydrated}
+			<Slider
+				name="overall"
+				label="Overall"
+				min={0}
+				max={SCORE_MAX}
+				blankAt={0}
+				value={overall}
+				error={errors.overall}
+				onchange={(v) => (overall = v)}
+			/>
+		{:else}
+			<ScoreInput name="overall" label="Overall" value={values.overall} error={errors.overall} />
+		{/if}
 	</div>
 
 	<div class="intensity" role="group" aria-labelledby="{uid}-int">
@@ -72,11 +84,22 @@
 				label="Taste profile"
 				values={scores}
 				editable
+				selected={active}
 				onchange={(d, v) => (scores[d] = v)}
+				onselect={(d) => (active = d)}
 			/>
 			{#each RATING_DIMENSIONS as d (d)}
 				<input type="hidden" name={d} value={scores[d] ?? ''} />
 			{/each}
+			<Slider
+				label={label(active)}
+				min={0}
+				max={SCORE_MAX}
+				blankAt={0}
+				linked
+				value={scores[active]}
+				onchange={(v) => (scores[active] = v)}
+			/>
 			<div class="how">
 				<span class="hint">Centre = not rated.</span>
 				{#if anyScored}
@@ -144,7 +167,9 @@
 		border-radius: var(--radius-sm);
 		background: var(--accent-soft);
 	}
-	.overall :global(legend) {
+	.overall :global(legend),
+	.overall :global(label:not(.pill)) {
+		font-family: var(--display);
 		font-size: 1rem;
 	}
 	.intensity {

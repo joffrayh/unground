@@ -10,24 +10,26 @@
 	 */
 	import { onMount, tick } from 'svelte';
 	import { enhance, type SubmitFunction } from '$app/forms';
+	import { beforeNavigate } from '$app/navigation';
 	import { page } from '$app/state';
+	import { BREW_MULTI } from '#lib/domain/brew-fields.ts';
 	import { utcToZonedLocal } from '#lib/domain/derive.ts';
 	import { BREW_FORM_ID, getNavAction } from '#lib/ui/nav-action.svelte.ts';
 	import FieldError from '#lib/components/FieldError.svelte';
 	import FormError from '#lib/components/FormError.svelte';
+	import Slider from '#lib/components/Slider.svelte';
 	import type { PlanParam } from '#lib/domain/plan.ts';
 	import { formatDuration, parseDuration } from '#lib/domain/pours.ts';
 	import { AGITATION_MAX, AGITATION_MIN, FILTER_TYPES } from '#lib/domain/vocab.ts';
 	import { options } from '#lib/ui/format.ts';
-	import { val, vals, type FormState } from '#lib/ui/forms.ts';
+	import { formValues, val, vals, type FormState } from '#lib/ui/forms.ts';
 	import PlanFields from './PlanFields.svelte';
 	import PourEditor from './PourEditor.svelte';
 	import RatingFields from './RatingFields.svelte';
+	import type { DraftFields } from './brew-draft.ts';
 	import {
 		PLAN_FORM_FIELDS,
-		RATING_FIELDS,
 		hasPlanValues,
-		hasRatingValues,
 		planFormValues,
 		ratingFormValues,
 		type BeanOption,
@@ -48,7 +50,8 @@
 		navSubmit = false,
 		catalogueLinks = false,
 		timezone,
-		liveBrewedAtIn
+		liveBrewedAtIn,
+		draft
 	}: {
 		form: FormState;
 		/** Starting values; a failed submit's values take precedence. */
@@ -68,6 +71,8 @@
 		 * left open or restored later doesn't save a stale time.
 		 */
 		liveBrewedAtIn?: string;
+		/** New brews: keeps the progress when leaving the form (D43), and adds Cancel brew. */
+		draft?: { save: (fields: DraftFields) => void; clear: () => void };
 	} = $props();
 
 	const uid = $props.id();
@@ -129,16 +134,63 @@
 		totalG: startSummary.totalG,
 		ratio: startSummary.ratio
 	});
-	// A re-shown failed submit keeps exactly what was sent.
+	// A re-shown failed submit keeps exactly what was sent; a draft only has it once it was edited.
 	// svelte-ignore state_referenced_locally
-	let brewedAtEdited = !!form?.values;
-	let dirty = false;
+	let brewedAtEdited = form?.values?.brewedAt !== undefined;
 	let submitting = $state(false);
 	// Suggestion chips only do something with JavaScript; before that they are plain text.
 	let hydrated = $state(false);
 	onMount(() => {
 		hydrated = true;
+		// After the children's first updates (spare rows, radar inputs), which aren't edits.
+		tick().then(() => {
+			if (formEl) lastKept = JSON.stringify(draftFields(formEl));
+		});
 	});
+
+	// --- the draft (D43) ---------------------------------------------------------------------------
+	// Read from the form on the way out, which also catches the buttons that set values without an
+	// input event (− / +, Accept, the radar, tags).
+
+	let formEl = $state<HTMLFormElement>();
+	let pourEditor = $state<ReturnType<typeof PourEditor>>();
+	let lastKept: string | undefined;
+	let kept = false;
+	/** Saved or cancelled, so leaving now mustn't bring the draft back. */
+	let finished = false;
+
+	function draftFields(el: HTMLFormElement): DraftFields {
+		const fields = formValues(new FormData(el), BREW_MULTI);
+		if (!brewedAtEdited) delete fields.brewedAt;
+		if (pourEditor) fields.pourTimeDefault = pourEditor.timeDefaults();
+		return fields;
+	}
+
+	function keepDraft() {
+		if (!draft || finished || !formEl || lastKept === undefined) return;
+		const fields = draftFields(formEl);
+		const snapshot = JSON.stringify(fields);
+		if (snapshot === lastKept) return;
+		draft.save(fields);
+		lastKept = snapshot;
+		kept = true;
+	}
+	beforeNavigate(keepDraft);
+
+	function endDraft() {
+		finished = true;
+		draft?.clear();
+	}
+
+	function cancelBrew(e: MouseEvent) {
+		const changed =
+			!!form?.values || kept || (!!formEl && JSON.stringify(draftFields(formEl)) !== lastKept);
+		if (changed && !confirm('Discard this brew?')) {
+			e.preventDefault();
+			return;
+		}
+		endDraft();
+	}
 
 	const navAction = getNavAction();
 	$effect(() => {
@@ -178,11 +230,6 @@
 		focusNextField(e.target);
 	}
 
-	function confirmLeave(e: MouseEvent) {
-		if (dirty && !confirm('Leave this brew? What you’ve typed here will be lost.'))
-			e.preventDefault();
-	}
-
 	const unit = $derived(grinders.find((g) => g.id === grinderId)?.unit ?? null);
 
 	// --- placeholders (D26) and the previous plan's suggestions (D25) ----------------------------
@@ -211,6 +258,7 @@
 		suggestions?.agitation && agitation !== suggestions.agitation.to ? suggestions.agitation : null
 	);
 
+	const agitationLevel = $derived(agitation === '' ? null : Number(agitation));
 	const agitationLevels = Array.from({ length: AGITATION_MAX - AGITATION_MIN + 1 }, (_, i) =>
 		String(AGITATION_MIN + i)
 	);
@@ -221,11 +269,10 @@
 		ratio: pourStats.ratio,
 		grindSetting: parseGrams(effective(grindSetting, grindPlaceholder)),
 		pourCount: pourStats.count > 0 ? pourStats.count : null,
-		agitation: agitation === '' ? null : Number(agitation)
+		agitation: agitationLevel
 	});
 
 	const rating = $derived(ratingFormValues(form, values.rating));
-	const ratingOpen = $derived(hasRatingValues(rating) || RATING_FIELDS.some((k) => errors[k]));
 	// svelte-ignore state_referenced_locally
 	const plan = planFormValues(form, values.plan);
 	const planOpen = $derived(hasPlanValues(plan) || PLAN_FORM_FIELDS.some((k) => errors[k]));
@@ -252,6 +299,7 @@
 		}
 		submitting = true;
 		return async ({ result, update, formElement }) => {
+			if (result.type === 'redirect') endDraft();
 			await update();
 			submitting = false;
 			if (result.type !== 'failure') return;
@@ -272,10 +320,7 @@
 		<button
 			type="button"
 			class="suggest"
-			onclick={() => {
-				apply();
-				dirty = true;
-			}}
+			onclick={apply}
 			aria-label="Use {change.to}{what ? ` ${what}` : ''}, as planned last time"
 			>› {change.to}</button
 		>
@@ -283,6 +328,14 @@
 		<span class="suggest" title="Planned last time">› {change.to}</span>
 	{/if}
 {/snippet}
+
+<!-- Tab-switching and closing leave no navigation to hook; a phone may discard a hidden tab. -->
+<svelte:window onpagehide={keepDraft} />
+<svelte:document
+	onvisibilitychange={() => {
+		if (document.visibilityState === 'hidden') keepDraft();
+	}}
+/>
 
 <!-- The keydown listener only catches Enter bubbling up from the form's own inputs (see onFormKeydown). -->
 <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
@@ -293,7 +346,7 @@
 	novalidate
 	use:enhance={submit}
 	onkeydown={onFormKeydown}
-	oninput={() => (dirty = true)}
+	bind:this={formEl}
 >
 	<FormError {form} />
 	<input type="hidden" name="method" value="v60" />
@@ -331,9 +384,7 @@
 				</select>
 				<FieldError id="{uid}-grinderId-err" message={errors.grinderId} />
 				{#if catalogueLinks}
-					<a class="small" href="/equipment?return={returnTo}" onclick={confirmLeave}
-						>+ Add a grinder</a
-					>
+					<a class="small" href="/equipment?return={returnTo}">+ Add a grinder</a>
 				{/if}
 			</div>
 			<div class="field">
@@ -351,11 +402,7 @@
 				</select>
 				<FieldError id="{uid}-dripperId-err" message={errors.dripperId} />
 				{#if catalogueLinks}
-					<a
-						class="small"
-						href="/equipment?return={returnTo}#drippers-heading"
-						onclick={confirmLeave}>+ Add a dripper</a
-					>
+					<a class="small" href="/equipment?return={returnTo}#drippers-heading">+ Add a dripper</a>
 				{/if}
 			</div>
 			<div class="field">
@@ -391,9 +438,7 @@
 				</select>
 				<FieldError id="{uid}-beanId-err" message={errors.beanId} />
 				{#if catalogueLinks}
-					<a class="small" href="/beans/new?return={returnTo}" onclick={confirmLeave}
-						>+ New bag of beans</a
-					>
+					<a class="small" href="/beans/new?return={returnTo}">+ New bag of beans</a>
 				{/if}
 			</div>
 
@@ -462,35 +507,56 @@
 				</div>
 			</div>
 
-			<div
-				class="agitation"
-				role="radiogroup"
-				aria-labelledby="{uid}-agitation-label"
-				aria-describedby="{uid}-agitation-hint{errors.agitation ? ` ${uid}-agitation-err` : ''}"
-			>
-				<span class="label" id="{uid}-agitation-label">Agitation</span>
-				<div class="levels">
-					{#each agitationLevels as level (level)}
-						{@const planned = agitationSuggestion?.to === level}
-						<label class="pill" class:planned>
-							<input
-								type="radio"
-								name="agitation"
-								value={level}
-								bind:group={agitation}
-								aria-label={planned ? `${level}, as planned last time` : undefined}
-							/>
-							<span>{level}</span>
-						</label>
-					{/each}
+			{#if hydrated}
+				<Slider
+					name="agitation"
+					label="Agitation"
+					min={AGITATION_MIN}
+					max={AGITATION_MAX}
+					value={agitationLevel}
+					marked={agitationSuggestion ? Number(agitationSuggestion.to) : undefined}
+					hint="0 none · 5 a lot"
+					error={errors.agitation}
+					onchange={(v) => (agitation = v == null ? '' : String(v))}
+				>
+					{#snippet aside()}
+						{#if agitationSuggestion}
+							{@render suggest(agitationSuggestion, () => (agitation = agitationSuggestion.to), '')}
+						{/if}
+					{/snippet}
+				</Slider>
+			{:else}
+				<div
+					class="agitation"
+					role="radiogroup"
+					aria-labelledby="{uid}-agitation-label"
+					aria-describedby="{uid}-agitation-hint{errors.agitation ? ` ${uid}-agitation-err` : ''}"
+				>
+					<span class="label" id="{uid}-agitation-label">Agitation</span>
+					<div class="levels">
+						{#each agitationLevels as level (level)}
+							{@const planned = agitationSuggestion?.to === level}
+							<label class="pill" class:planned>
+								<input
+									type="radio"
+									name="agitation"
+									value={level}
+									bind:group={agitation}
+									aria-label={planned ? `${level}, as planned last time` : undefined}
+								/>
+								<span>{level}</span>
+							</label>
+						{/each}
+					</div>
+					<span class="hint" id="{uid}-agitation-hint">0 none · 5 a lot</span>
+					<FieldError id="{uid}-agitation-err" message={errors.agitation} />
 				</div>
-				<span class="hint" id="{uid}-agitation-hint">0 none · 5 a lot</span>
-				<FieldError id="{uid}-agitation-err" message={errors.agitation} />
-			</div>
+			{/if}
 		</div>
 	</fieldset>
 
 	<PourEditor
+		bind:this={pourEditor}
 		initial={start.pours}
 		dose={effective(doseG, dosePlaceholder)}
 		error={errors.pours}
@@ -549,10 +615,8 @@
 		<FieldError id="{uid}-notes-err" message={errors.notes} />
 	</div>
 
-	<details class="section" open={ratingOpen}>
-		<summary>
-			<span>Rating <span class="muted small">(optional)</span></span>
-		</summary>
+	<details class="section" open>
+		<summary>Rating</summary>
 		<div class="details-body">
 			<RatingFields values={rating} {errors} />
 		</div>
@@ -560,7 +624,7 @@
 
 	<details class="section" open={planOpen}>
 		<summary>
-			<span>What to change next time <span class="muted small">(optional)</span></span>
+			<span>Adjustments <span class="muted small">(optional)</span></span>
 		</summary>
 		<div class="details-body">
 			<PlanFields values={plan} current={planCurrent} grindUnit={unit} {errors} />
@@ -573,6 +637,10 @@
 				{submitting ? 'Saving…' : submitLabel}
 			</button>
 		</div>
+	{/if}
+
+	{#if draft}
+		<a class="btn btn-danger btn-block" href="/" onclick={cancelBrew}>Cancel brew</a>
 	{/if}
 </form>
 
