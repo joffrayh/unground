@@ -283,18 +283,18 @@
 	.shape {
 		fill: var(--accent);
 		fill-opacity: 0.16;
-		stroke: var(--accent);
+		stroke: var(--accent-ink);
 		stroke-width: 2;
 		stroke-linejoin: round;
 	}
 	.dot {
-		fill: var(--accent);
+		fill: var(--accent-ink);
 		stroke: var(--surface);
 		stroke-width: 2;
 	}
 	.dot.hollow {
 		fill: var(--surface);
-		stroke: var(--accent);
+		stroke: var(--accent-ink);
 	}
 	.unrated {
 		fill: var(--surface);

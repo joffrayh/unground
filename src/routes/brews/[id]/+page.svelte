@@ -141,10 +141,6 @@
 				</dd>
 			</div>
 			<div>
-				<dt>Total time</dt>
-				<dd>{formatDuration(brew.totalTimeS)}</dd>
-			</div>
-			<div>
 				<dt>Roast age</dt>
 				<dd>
 					{roastAge == null ? '—' : `${roastAge} day${roastAge === 1 ? '' : 's'}`}
@@ -181,13 +177,12 @@
 
 	<section class="card">
 		<h2>Pours</h2>
-		<table>
+		<table class="pours">
 			<thead>
 				<tr>
 					<th scope="col">Pour</th>
-					<th scope="col">Starts at</th>
-					<th scope="col">Poured</th>
-					<th scope="col">Scale total</th>
+					<th scope="col">Scale</th>
+					<th scope="col" class="time">Time</th>
 				</tr>
 			</thead>
 			<tbody>
@@ -197,12 +192,17 @@
 							{pourName(i)}
 							{#if p.bloom}<span class="chip bloom">bloom</span>{/if}
 						</td>
-						<td>{formatDuration(p.startS)}</td>
-						<td>{grams(p.volumeG)}</td>
-						<td>{grams(p.cumulativeG)}</td>
+						<td>{i === 0 ? grams(p.cumulativeG) : p.cumulativeG}</td>
+						<td class="time">{formatDuration(p.startS)}</td>
 					</tr>
 				{/each}
 			</tbody>
+			<tfoot>
+				<tr>
+					<td colspan="2">Total draw</td>
+					<td class="time total">{formatDuration(brew.totalTimeS)}</td>
+				</tr>
+			</tfoot>
 		</table>
 	</section>
 
@@ -215,18 +215,15 @@
 
 	{#key brew.id}
 		<section class="card stack" id="rate">
-			<h2>Rating</h2>
-			{#if rating}
-				<div class="overall">
-					<span class="score-badge big" aria-label="Overall {rating.overall} of 10"
+			<div class="rating-head">
+				<h2>Rating</h2>
+				{#if rating}
+					<span class="score-badge" aria-label="Overall {rating.overall} of 10"
 						>{rating.overall}</span
 					>
-					<div>
-						<div class="title">Overall</div>
-						<div class="hint">Quality, out of 10</div>
-					</div>
-				</div>
-
+				{/if}
+			</div>
+			{#if rating}
 				<div>
 					<div class="label">
 						Taste profile <span class="hint">further out = more of it, not better</span>
@@ -364,7 +361,7 @@
 		min-height: 44px;
 		margin: -0.5rem 0 0 -0.25rem;
 		padding: 0 0.25rem;
-		font-weight: 600;
+		color: var(--text);
 		text-decoration: none;
 	}
 	.back span {
@@ -394,20 +391,32 @@
 		white-space: pre-wrap;
 		margin: 0;
 	}
-	.overall {
+	.rating-head {
 		display: flex;
 		align-items: center;
+		justify-content: space-between;
 		gap: 0.75rem;
 	}
-	.overall .title {
-		font-weight: 700;
+	.rating-head h2 {
+		margin: 0;
 	}
-	.score-badge.big {
-		min-width: 3.5rem;
-		height: 3.5rem;
-		font-size: 1.6rem;
-		background: var(--accent);
-		color: var(--accent-text);
+	.rating-head .score-badge {
+		min-width: 3.85rem;
+		height: 2.1rem;
+		font-size: 1.1rem;
+	}
+	.pours .time {
+		text-align: right;
+	}
+	.pours tbody tr:first-child td {
+		padding-top: 0.65rem;
+	}
+	.pours tfoot td {
+		padding-top: 0.75rem;
+		font-size: 1.1rem;
+	}
+	.pours .total {
+		font-weight: 700;
 	}
 	.radar {
 		max-width: 20rem;
@@ -415,7 +424,7 @@
 	}
 	.chip.bloom {
 		margin-left: 0.25rem;
-		padding: 0 0.45rem;
+		padding: 0 0.55rem;
 		font-size: 0.75rem;
 	}
 	.plan-list {

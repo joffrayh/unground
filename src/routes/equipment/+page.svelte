@@ -439,7 +439,7 @@
 		gap: 0.25rem 0.5rem;
 	}
 	.title {
-		font-weight: 600;
+		font-family: var(--display);
 	}
 	.badge {
 		font-size: 0.75rem;
@@ -448,7 +448,7 @@
 	}
 	summary {
 		font-size: 0.875rem;
-		color: var(--accent);
+		color: var(--accent-ink);
 		width: fit-content;
 	}
 	.panel {
