@@ -11,11 +11,47 @@
 	import menu from '#lib/assets/nav/menu.svg';
 	import notch from '#lib/assets/nav/notch.svg';
 	import settings from '#lib/assets/nav/settings.svg';
-	import spiral from '#lib/assets/nav/spiral.svg';
-	import { page } from '$app/state';
+	import NavPrimary from '#lib/components/NavPrimary.svelte';
+	import { NavAction, setNavAction } from '#lib/ui/nav-action.svelte.ts';
+	import { changesPage, enterPage } from '#lib/ui/page-enter.ts';
+	import { type CollapseState, nextCollapse } from '#lib/ui/scroll-collapse.ts';
+	import { prefersReducedMotion } from 'svelte/motion';
+	import { afterNavigate } from '$app/navigation';
+	import { navigating, page } from '$app/state';
 	import type { LayoutProps } from './$types';
 
 	let { data, children }: LayoutProps = $props();
+
+	setNavAction(new NavAction());
+
+	let main = $state<HTMLElement>();
+	let endEnter: (() => void) | undefined;
+	afterNavigate((navigation) => {
+		endEnter?.();
+		endEnter =
+			main && changesPage(navigation) && !prefersReducedMotion.current
+				? enterPage(main)
+				: undefined;
+	});
+
+	/** The brew form is showing, so the centre button saves it rather than opening it (D38). */
+	const saving = $derived(page.route.id === '/brews/new' && !page.data.setup);
+	let collapsed = $state(false);
+
+	$effect(() => {
+		if (!saving) {
+			collapsed = false;
+			return;
+		}
+		let state: CollapseState = { collapsed: false, anchor: window.scrollY };
+		const onScroll = () => {
+			const maxY = document.documentElement.scrollHeight - window.innerHeight;
+			state = nextCollapse(state, window.scrollY, maxY);
+			collapsed = state.collapsed;
+		};
+		window.addEventListener('scroll', onScroll, { passive: true });
+		return () => window.removeEventListener('scroll', onScroll);
+	});
 
 	// Browser chrome colours. An enhanced save doesn't re-render <html>, so sync it here.
 	const BAR_LIGHT = '#faf5ec';
@@ -24,11 +60,20 @@
 		document.documentElement.dataset.theme = data.theme;
 	});
 
-	/** `size` is the icon's width in em, matching its weight in the design. */
-	const NAV = [
+	interface Tab {
+		href: string;
+		label: string;
+		icon: string;
+		/** The icon's width in em, matching its weight in the design. */
+		size: number;
+		iconOnly?: boolean;
+	}
+	const ADD_BREW = '/brews/new';
+	const TABS_BEFORE: Tab[] = [
 		{ href: '/', label: 'Home', icon: home, size: 1.3, iconOnly: true },
-		{ href: '/brews', label: 'Brews', icon: menu, size: 0.95 },
-		{ href: '/brews/new', label: 'Add Brew', icon: spiral, size: 1.95, primary: true },
+		{ href: '/brews', label: 'Brews', icon: menu, size: 0.95 }
+	];
+	const TABS_AFTER: Tab[] = [
 		{ href: '/beans', label: 'Beans', icon: bean, size: 1.55 },
 		{ href: '/settings', label: 'Settings', icon: settings, size: 1.45, iconOnly: true }
 	];
@@ -55,12 +100,29 @@
 	<title>Unground</title>
 </svelte:head>
 
-<main class="container">
+<main class="container" class:leaving={changesPage(navigating)} bind:this={main}>
 	{@render children()}
 </main>
 
+{#snippet tab(item: Tab)}
+	<a
+		class="tab"
+		class:icon-only={item.iconOnly}
+		href={item.href}
+		aria-current={isActive(item.href) ? 'page' : undefined}
+	>
+		<span
+			class="icon"
+			style:--icon={cssUrl(item.icon)}
+			style:--size="{item.size}em"
+			aria-hidden="true"
+		></span>
+		<span class={item.iconOnly ? 'visually-hidden' : 'label'}>{item.label}</span>
+	</a>
+{/snippet}
+
 {#if data.user}
-	<nav class="navbar" aria-label="Main" style:--notch={cssUrl(notch)}>
+	<nav class="navbar" class:collapsed aria-label="Main" style:--notch={cssUrl(notch)}>
 		<div class="glass" aria-hidden="true"></div>
 		<div class="edge" aria-hidden="true"></div>
 		<svg class="notch-line" viewBox="490 0 480 240" preserveAspectRatio="none" aria-hidden="true">
@@ -68,32 +130,24 @@
 				d="M490 0H496.081C544.776 0 589.946 25.3957 615.25 67L617.421 70.5698C641.377 109.957 684.14 134 730.241 134C774.716 134 816.203 111.612 840.616 74.4368L845.5 67C872.962 25.1835 919.628 0 969.656 0H970"
 			/>
 		</svg>
-		{#each NAV as item (item.href)}
-			{@const icon = cssUrl(item.icon)}
-			{#if item.primary}
-				<a class="add" href={item.href} aria-current={isActive(item.href) ? 'page' : undefined}>
-					<span class="add-circle" aria-hidden="true">
-						<span class="icon" style:--icon={icon} style:--size="{item.size}em"></span>
-					</span>
-					<span class="add-label">{item.label}</span>
-				</a>
-			{:else}
-				<a
-					class="tab"
-					class:icon-only={item.iconOnly}
-					href={item.href}
-					aria-current={isActive(item.href) ? 'page' : undefined}
-				>
-					<span class="icon" style:--icon={icon} style:--size="{item.size}em" aria-hidden="true"
-					></span>
-					<span class={item.iconOnly ? 'visually-hidden' : 'label'}>{item.label}</span>
-				</a>
-			{/if}
+		{#each TABS_BEFORE as item (item.href)}
+			{@render tab(item)}
+		{/each}
+		<NavPrimary href={ADD_BREW} {saving} {collapsed} current={isActive(ADD_BREW)} />
+		{#each TABS_AFTER as item (item.href)}
+			{@render tab(item)}
 		{/each}
 	</nav>
 {/if}
 
 <style>
+	/* Answers the tap while a slow page loads; a cached one arrives before the delay is up (D39). */
+	@media (prefers-reduced-motion: no-preference) {
+		.leaving {
+			opacity: 0.6;
+			transition: opacity 0.16s ease-out 0.06s;
+		}
+	}
 	.navbar {
 		--end-radius: calc(var(--nav-h) / 2);
 		/* The two flat runs either side of the notch; 1px of overlap hides the join. */
@@ -193,36 +247,36 @@
 		background: color-mix(in srgb, var(--accent) 18%, var(--surface-2));
 		color: var(--accent-ink);
 	}
-	.add {
-		position: relative;
-		justify-self: center;
-		align-self: start;
-		display: flex;
-		flex-direction: column;
-		align-items: center;
-		gap: 8px;
-		margin-top: -24px;
-		text-decoration: none;
+	/* Everything but the centre button folds away (D38). */
+	.glass,
+	.edge,
+	.notch-line,
+	.tab {
+		transition:
+			opacity 0.18s ease,
+			translate 0.24s ease,
+			visibility 0s;
 	}
-	.add-circle {
-		display: grid;
-		place-items: center;
-		width: 52px;
-		height: 52px;
-		border-radius: 50%;
-		background: var(--accent);
-		color: var(--accent-text);
-		box-shadow: 0 2.5px 11.6px 1.25px rgb(250 169 86 / 8%);
-		font-size: 15px;
+	.navbar.collapsed {
+		pointer-events: none;
 	}
-	.add:hover .add-circle {
-		filter: brightness(1.06);
+	.navbar.collapsed :is(.glass, .edge, .notch-line, .tab) {
+		opacity: 0;
+		translate: 0 14px;
+		visibility: hidden;
+		transition:
+			opacity 0.18s ease,
+			translate 0.24s ease,
+			visibility 0s 0.24s;
 	}
-	.add-label {
-		color: var(--accent-ink);
-		font-size: 0.625rem;
-		line-height: 1;
-		white-space: nowrap;
+	@media (prefers-reduced-motion: reduce) {
+		.glass,
+		.edge,
+		.notch-line,
+		.tab,
+		.navbar.collapsed :is(.glass, .edge, .notch-line, .tab) {
+			transition: none;
+		}
 	}
 	/* A label beside an icon no longer fits on the narrowest phones. */
 	@media (max-width: 340px) {

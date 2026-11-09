@@ -62,7 +62,7 @@
 			beans={data.beans}
 			grinders={data.grinders}
 			drippers={data.drippers}
-			submitLabel="Save brew"
+			navSubmit
 			catalogueLinks
 			liveBrewedAtIn={data.user?.timezone}
 		/>

@@ -12,6 +12,7 @@
 	import { enhance, type SubmitFunction } from '$app/forms';
 	import { page } from '$app/state';
 	import { utcToZonedLocal } from '#lib/domain/derive.ts';
+	import { BREW_FORM_ID, getNavAction } from '#lib/ui/nav-action.svelte.ts';
 	import FieldError from '#lib/components/FieldError.svelte';
 	import FormError from '#lib/components/FormError.svelte';
 	import type { PlanParam } from '#lib/domain/plan.ts';
@@ -44,6 +45,7 @@
 		grinders,
 		drippers,
 		submitLabel = 'Save brew',
+		navSubmit = false,
 		catalogueLinks = false,
 		timezone,
 		liveBrewedAtIn
@@ -55,6 +57,8 @@
 		grinders: GrinderOption[];
 		drippers: DripperOption[];
 		submitLabel?: string;
+		/** The nav's centre button saves this form, so it has no button of its own (D38). */
+		navSubmit?: boolean;
 		/** Offer "new bean" / "add grinder" / "add dripper" links (the new-brew page). */
 		catalogueLinks?: boolean;
 		/** Shown when the brew's zone differs from the user's, so the brewed-at time is unambiguous. */
@@ -134,6 +138,15 @@
 	let hydrated = $state(false);
 	onMount(() => {
 		hydrated = true;
+	});
+
+	const navAction = getNavAction();
+	$effect(() => {
+		if (!navSubmit) return;
+		navAction.submitting = submitting;
+		return () => {
+			navAction.submitting = false;
+		};
 	});
 
 	// Return here (same template and choices) after adding a bean, grinder or dripper.
@@ -275,6 +288,7 @@
 <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
 <form
 	method="POST"
+	id={navSubmit ? BREW_FORM_ID : undefined}
 	class="brew-form"
 	novalidate
 	use:enhance={submit}
@@ -553,11 +567,13 @@
 		</div>
 	</details>
 
-	<div class="submit-bar">
-		<button class="btn btn-primary btn-block" disabled={submitting}>
-			{submitting ? 'Saving…' : submitLabel}
-		</button>
-	</div>
+	{#if !navSubmit}
+		<div class="submit-bar">
+			<button class="btn btn-primary btn-block" disabled={submitting}>
+				{submitting ? 'Saving…' : submitLabel}
+			</button>
+		</div>
+	{/if}
 </form>
 
 <style>
