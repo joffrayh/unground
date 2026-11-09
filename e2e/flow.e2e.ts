@@ -185,7 +185,7 @@ test('log, rate, plan, repeat and export a brew', async ({ page }) => {
 		})
 	).toBe(true);
 	await expect.poll(sliding).toBe(false);
-	await editRating.getByText('Edit rating').click();
+	await editRating.getByText('Edit', { exact: true }).click();
 	await expect(editRating).not.toHaveAttribute('open');
 
 	// Plan the next one: ratio 1:16.7 → 1:17, grind 24 → 25, 3 → 4 pours, agitation 3 → 4.
@@ -332,6 +332,7 @@ test('brew again survives a new-grinder detour, and never copies grind across gr
 	await expect(page.locator('[name="waterTempC"]')).toBeFocused();
 	expect(page.url()).toBe(copyUrl);
 
+	await page.locator('[name="waterTempC"]').fill('91');
 	await page.getByRole('main').getByRole('link', { name: '+ Add a grinder' }).click();
 	await page.locator('#new-grinder-name').fill('E2E Dial grinder');
 	await page.locator('#new-grinder-unit').fill('dial');
@@ -339,6 +340,7 @@ test('brew again survives a new-grinder detour, and never copies grind across gr
 
 	// Back on the same copy (from= kept), with the new grinder selected and no grind placeholder.
 	await expect(page).toHaveURL(/\/brews\/new\?from=[0-9a-f-]+&grinder=/);
+	await expect(page.locator('[name="waterTempC"]')).toHaveValue('91');
 	await expect(page.locator('[name="doseG"]')).toHaveAttribute('placeholder', '15');
 	await expect(page.locator('[name="grindSetting"]')).toHaveValue('');
 	await expect(page.locator('[name="grindSetting"]')).toHaveAttribute('placeholder', '');
@@ -369,6 +371,73 @@ test('a blank pour time saves the time it shows, and the brew page leads back to
 
 	await page.getByRole('main').getByRole('link', { name: 'Brews' }).click();
 	await expect(page).toHaveURL('/brews');
+
+	// An equipment row's Edit sits beside its name and opens the form under it.
+	await page.goto('/equipment');
+	const row = page.getByRole('listitem').filter({ hasText: 'E2E Comandante' });
+	const name = await row.getByText('E2E Comandante').boundingBox();
+	const edit = row.getByText('Edit', { exact: true });
+	const editBox = await edit.boundingBox();
+	expect(editBox!.y).toBeLessThan(name!.y + name!.height);
+	expect(editBox!.x).toBeGreaterThan(name!.x + name!.width);
+	await edit.click();
+	await expect(row.getByLabel('Setting unit')).toBeVisible();
+});
+
+test('a brew in progress survives leaving the form, until it is cancelled', async ({ page }) => {
+	await logIn(page, THEME_EMAIL);
+	const nav = page.getByRole('navigation', { name: 'Main' });
+	const addBrew = nav.getByRole('link', { name: 'Add Brew' });
+	const dose = page.locator('[name="doseG"]');
+	const notes = page.locator('[name="notes"]');
+	const lastAgitation = page.locator('input[name="agitation"][value="5"]');
+	const pours = page.locator('[name="pourScale"]');
+	await addBrew.click();
+	await expect(dose).toHaveAttribute('placeholder', '15');
+
+	// Buttons that set values without an input event are kept too.
+	await page.getByRole('button', { name: /add pour/i }).click();
+	const added = await pours.count();
+	await pours.last().fill('300');
+	await dose.fill('17');
+	await notes.fill('half done');
+	await lastAgitation.check();
+	await page.locator('[name="pourTime"]').nth(1).fill('0:50');
+
+	await nav.getByRole('link', { name: 'Beans' }).click();
+	await expect(page).toHaveURL('/beans');
+	await addBrew.click();
+	await expect(dose).toHaveValue('17');
+	await expect(notes).toHaveValue('half done');
+	await expect(lastAgitation).toBeChecked();
+	await expect(pours).toHaveCount(added);
+	await expect(page.locator('[name="pourTime"]').nth(1)).toHaveValue('0:50');
+
+	// It survives a reload too.
+	await page.reload();
+	await expect(dose).toHaveValue('17');
+
+	// Declining the prompt keeps it; accepting clears it and goes home.
+	const cancel = page.getByRole('link', { name: 'Cancel brew' });
+	page.once('dialog', (dialog) => dialog.dismiss());
+	await cancel.click();
+	await expect(page).toHaveURL('/brews/new');
+	await expect(dose).toHaveValue('17');
+
+	page.once('dialog', (dialog) => dialog.accept());
+	await cancel.click();
+	await expect(page).toHaveURL('/');
+	await addBrew.click();
+	await expect(dose).toHaveValue('');
+	await expect(notes).toHaveValue('');
+
+	// A saved brew doesn't come back.
+	await dose.fill('16');
+	await page.locator('[name="totalTime"]').fill('3:10');
+	await nav.getByRole('button', { name: 'Save brew' }).click();
+	await expect(page).toHaveURL(/\/brews\/[0-9a-f-]{36}$/);
+	await nav.getByRole('link', { name: 'Add Brew' }).click();
+	await expect(dose).toHaveValue('');
 });
 
 test('choosing a theme', async ({ page }) => {

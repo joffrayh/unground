@@ -69,6 +69,11 @@
 		hydrated = true;
 	});
 
+	/** Each row's placeholder time from the previous brew, without the estimates (which recalculate). */
+	export function timeDefaults(): string[] {
+		return rows.map((r) => r.defaultTime);
+	}
+
 	let list = $state<HTMLOListElement>();
 	let addButton = $state<HTMLButtonElement>();
 	let planBox = $state<HTMLDivElement>();

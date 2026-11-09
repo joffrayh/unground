@@ -5,6 +5,7 @@
  * `null` ("not recorded"), never 0 or "" (concept.md §5).
  */
 import { z } from 'zod';
+import { BREW_MULTI } from './brew-fields';
 import { zonedLocalToUtc } from './derive';
 import { isFlavorId } from './flavors';
 import { PLAN_STEPS, type PlanInput } from './plan';
@@ -329,17 +330,7 @@ const brewCommonSchema = z.object({
 	filterType: optEnum(FILTER_TYPES)
 });
 
-/** Brew-form fields that post several values; routes pass this to `formValues` too. */
-export const BREW_MULTI = [
-	'pourTime',
-	'pourScale',
-	'pourTimeDefault',
-	'pourScaleDefault',
-	'pourRow',
-	'pourBloom',
-	'pourDrop',
-	'perceivedNotes'
-] as const;
+export { BREW_MULTI };
 
 /**
  * D26: a new brew shows the previous brew's values as placeholders, and a field left blank saves its

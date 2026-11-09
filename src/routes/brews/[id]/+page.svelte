@@ -214,7 +214,7 @@
 	{/if}
 
 	{#key brew.id}
-		<section class="card stack" id="rate">
+		<section class="card stack corner-host" id="rate">
 			<div class="rating-head">
 				<h2>Rating</h2>
 				{#if rating}
@@ -266,8 +266,8 @@
 					</div>
 				{/if}
 
-				<details open={!!rateForm?.errors}>
-					<summary class="btn-toggle edit">Edit rating</summary>
+				<details class="corner" open={!!rateForm?.errors}>
+					<summary class="btn-toggle edit" aria-label="Edit rating">Edit</summary>
 					<form method="POST" action="?/rate" class="rate-form" use:enhance>
 						<FormError form={rateForm} />
 						<RatingFields values={formRating} errors={rateForm?.errors ?? {}} />
@@ -294,8 +294,8 @@
 		</section>
 	{/key}
 
-	<section class="card stack next" id="next">
-		<h2 class:beside-toggle={!plan}>Next time</h2>
+	<section class="card stack corner-host" id="next">
+		<h2 class="corner-title">Next time</h2>
 		{#if plan}
 			{#if planChanges.length}
 				<ul class="plan-list">
@@ -312,9 +312,9 @@
 
 		<!-- Re-seeded when the saved plan changes (saved or removed), so the fields show it. -->
 		{#key JSON.stringify(plan)}
-			<details class:corner={!plan} open={!plan || !!planForm?.errors}>
-				<summary class="btn-toggle" class:edit={!!plan}
-					>{plan ? 'Edit plan' : 'Plan the next brew'}</summary
+			<details class="corner" open={!plan || !!planForm?.errors}>
+				<summary class="btn-toggle" class:edit={!!plan} aria-label={plan ? 'Edit plan' : undefined}
+					>{plan ? 'Edit' : 'Plan the next brew'}</summary
 				>
 				<!-- The keydown listener only catches Enter bubbling up from the inputs (onPlanKeydown). -->
 				<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
@@ -394,8 +394,8 @@
 	.rating-head {
 		display: flex;
 		align-items: center;
-		justify-content: space-between;
 		gap: 0.75rem;
+		min-height: 44px;
 	}
 	.rating-head h2 {
 		margin: 0;
@@ -450,28 +450,6 @@
 		flex-direction: column;
 		gap: 1rem;
 		margin-top: 0.5rem;
-	}
-	.next {
-		position: relative;
-	}
-	.beside-toggle {
-		display: flex;
-		align-items: center;
-		min-height: 44px;
-		margin: 0;
-	}
-	.corner {
-		margin-top: 0;
-	}
-	.corner > summary {
-		position: absolute;
-		top: 1rem;
-		right: 1rem;
-		padding: 0.2rem 0.9rem 0.4rem;
-		font-size: 0.875rem;
-	}
-	.corner .plan-form {
-		margin-top: 1rem;
 	}
 	.notes-compare {
 		display: flex;

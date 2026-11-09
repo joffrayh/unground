@@ -45,8 +45,8 @@ function open(details: HTMLDetailsElement) {
 
 function close(details: HTMLDetailsElement, summary: Element) {
 	const box = details.getBoundingClientRect();
-	// Zero when the summary sits outside the flow, above its details.
-	const to = Math.max(0, summary.getBoundingClientRect().bottom - box.top);
+	// A corner toggle sits outside the flow, so nothing is left of a closed one.
+	const to = details.matches('.corner') ? 0 : summary.getBoundingClientRect().bottom - box.top;
 	details.classList.add('closing');
 	slide(details, box.height, to, CLOSE_MS, () => {
 		details.open = false;
