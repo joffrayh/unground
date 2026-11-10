@@ -64,6 +64,9 @@
 
 html {
 	-webkit-text-size-adjust: 100%;
+	/* WebKit pins fixed elements to a short document's end, which Bluefy's full-screen mode
+	   leaves above the screen's; filling the visible height keeps the nav at the bottom. */
+	min-height: max(100dvh, var(--viewport-h, 0px));
 }
 
 body {
