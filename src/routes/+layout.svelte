@@ -67,6 +67,20 @@
 		return () => window.removeEventListener('scroll', onScroll);
 	});
 
+	// The visible height, for browsers whose dvh misses a hidden toolbar (Bluefy full screen).
+	$effect(() => {
+		const vv = window.visualViewport;
+		if (!vv) return;
+		const root = document.documentElement;
+		const sync = () => root.style.setProperty('--viewport-h', `${vv.height}px`);
+		sync();
+		vv.addEventListener('resize', sync);
+		return () => {
+			vv.removeEventListener('resize', sync);
+			root.style.removeProperty('--viewport-h');
+		};
+	});
+
 	// Browser chrome colours. An enhanced save doesn't re-render <html>, so sync it here.
 	const BAR_LIGHT = '#faf5ec';
 	const BAR_DARK = '#101118';
