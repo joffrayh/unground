@@ -1,5 +1,6 @@
 <script lang="ts">
 	import BrewListItem from '#lib/components/brews/BrewListItem.svelte';
+	import Logo from '#lib/components/Logo.svelte';
 	import { formatDateTime } from '#lib/ui/format.ts';
 	import { brewsLeftText, gramsLeftText, leftFraction } from './beans/helpers.ts';
 	import type { PageProps } from './$types';
@@ -10,6 +11,8 @@
 </script>
 
 <svelte:head><title>Unground</title></svelte:head>
+
+<header class="brand"><Logo centered --logo-h="2.25rem" /></header>
 
 {#if data.total === 0 && !ready}
 	<section class="stack">
@@ -50,7 +53,6 @@
 	</section>
 {:else}
 	<div class="stack">
-		<a class="btn btn-primary btn-block log" href="/brews/new">+ Log a brew</a>
 		{#if !ready}
 			<p class="card small">
 				{#if !data.hasBean}
@@ -136,10 +138,8 @@
 {/if}
 
 <style>
-	.log {
-		min-height: 56px;
-		font-size: 1.1rem;
-		margin-top: 0.5rem;
+	.brand {
+		margin-bottom: 0.5rem;
 	}
 	.section-head {
 		display: flex;
