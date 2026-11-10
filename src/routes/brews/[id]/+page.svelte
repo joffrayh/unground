@@ -225,9 +225,7 @@
 			</div>
 			{#if rating}
 				<div>
-					<div class="label">
-						Taste profile
-					</div>
+					<div class="label">Taste profile</div>
 					{#if anyDimension}
 						<div class="radar"><RadarChart values={rating} label="Taste profile" /></div>
 					{:else}
