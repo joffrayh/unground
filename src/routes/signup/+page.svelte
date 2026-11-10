@@ -3,6 +3,7 @@
 	import { enhance } from '$app/forms';
 	import FieldError from '#lib/components/FieldError.svelte';
 	import FormError from '#lib/components/FormError.svelte';
+	import Logo from '#lib/components/Logo.svelte';
 	import { err, val } from '#lib/ui/forms.ts';
 	import type { PageProps } from './$types';
 
@@ -27,6 +28,7 @@
 </svelte:head>
 
 <div class="auth stack">
+	<Logo centered />
 	{#if data.registration === 'closed'}
 		<div class="card stack">
 			<h1>Sign-up is closed</h1>

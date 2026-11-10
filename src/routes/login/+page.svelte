@@ -2,6 +2,7 @@
 	import { enhance } from '$app/forms';
 	import FieldError from '#lib/components/FieldError.svelte';
 	import FormError from '#lib/components/FormError.svelte';
+	import Logo from '#lib/components/Logo.svelte';
 	import { err, val } from '#lib/ui/forms.ts';
 	import type { PageProps } from './$types';
 
@@ -20,6 +21,7 @@
 </svelte:head>
 
 <div class="auth stack">
+	<Logo centered />
 	<form
 		method="POST"
 		{action}

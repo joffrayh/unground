@@ -4,8 +4,8 @@
 	import '@fontsource/lato/400.css';
 	import '@fontsource/lato/700.css';
 	import '../app.css';
-	// Temporary logo (D35).
-	import favicon from '#lib/assets/unground-logo.svg';
+	import faviconDark from '#lib/assets/logo-square-dark.svg';
+	import faviconLight from '#lib/assets/logo-square-light.svg';
 	import bean from '#lib/assets/nav/bean.svg';
 	import home from '#lib/assets/nav/home.svg';
 	import menu from '#lib/assets/nav/menu.svg';
@@ -105,7 +105,10 @@
 </script>
 
 <svelte:head>
-	<link rel="icon" href={favicon} />
+	<!-- The tab follows the browser's theme, not the app's (D35). -->
+	<link rel="icon" href={faviconLight} media="(prefers-color-scheme: light)" />
+	<link rel="icon" href={faviconDark} media="(prefers-color-scheme: dark)" />
+	<link rel="apple-touch-icon" href="/apple-touch-icon.png" />
 	{#if data.theme === 'system'}
 		<meta name="theme-color" content={BAR_LIGHT} media="(prefers-color-scheme: light)" />
 		<meta name="theme-color" content={BAR_DARK} media="(prefers-color-scheme: dark)" />
