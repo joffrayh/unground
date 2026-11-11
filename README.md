@@ -126,6 +126,7 @@ src/
       services/              all data access; every function takes the user id
       methods/               brew-method registry (V60 today)
       auth/                  passwords, sessions, rate limiting
+      share/                 the shareable brew image (D54)
       http.ts                helpers for actions and loads
     scale/                   Bookoo Bluetooth protocol and the link to the scale
     components/              shared Svelte components (TagPicker, ScoreInput, …)

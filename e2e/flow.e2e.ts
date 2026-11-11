@@ -191,6 +191,18 @@ test('log, rate, plan, repeat and export a brew', async ({ page }) => {
 	// (The edit form further down holds the same name, folded away.)
 	await expect(page.getByText('Blueberry', { exact: true }).first()).toBeVisible();
 
+	// Rated, it can be shared as an image (D54), rendered on request; a matching ETag skips the render.
+	const share = page.getByRole('link', { name: 'Share', exact: true });
+	const card = await page.request.get((await share.getAttribute('href'))!);
+	expect(card.status()).toBe(200);
+	expect(card.headers()['content-type']).toBe('image/png');
+	expect((await card.body()).subarray(1, 4).toString()).toBe('PNG');
+	const etag = card.headers()['etag'];
+	const again = await page.request.get((await share.getAttribute('href'))!, {
+		headers: { 'if-none-match': etag }
+	});
+	expect(again.status()).toBe(304);
+
 	// Dropdowns slide: open at once, closed only when the slide ends.
 	const editRating = page.locator('#rate > details');
 	const sliding = () => editRating.evaluate((el) => el.getAnimations().length > 0);

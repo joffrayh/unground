@@ -79,6 +79,41 @@
 	);
 	const formPlan = $derived(planFormValues(planForm, planValues(plan)));
 
+	// --- share (D54) ----------------------------------------------------------------------------
+	const cardHref = $derived(`/brews/${brew.id}/card.png`);
+	/**
+	 * The card, fetched ahead: iOS only opens the share sheet straight from a tap, not after a fetch.
+	 * Null where files can't be shared; the link then just opens the image.
+	 */
+	let cardFile = $state<File | null>(null);
+	$effect(() => {
+		// Reruns whenever the page reloads the brew; the ETag makes an unchanged card a 304.
+		if (!brew.rating || !navigator.canShare) return;
+		const href = cardHref;
+		let stale = false;
+		(async () => {
+			const res = await fetch(href);
+			if (!res.ok) return;
+			const name = /filename="([^"]+)"/.exec(res.headers.get('content-disposition') ?? '')?.[1];
+			const file = new File([await res.blob()], name ?? 'unground.png', { type: 'image/png' });
+			if (!stale && navigator.canShare({ files: [file] })) cardFile = file;
+		})().catch(() => {});
+		return () => {
+			stale = true;
+			cardFile = null;
+		};
+	});
+
+	async function shareCard(e: MouseEvent) {
+		if (!cardFile) return;
+		e.preventDefault();
+		try {
+			await navigator.share({ files: [cardFile] });
+		} catch (err) {
+			if ((err as Error).name !== 'AbortError') location.href = cardHref;
+		}
+	}
+
 	/** Enter moves to the next box instead of saving the plan half-way. */
 	function onPlanKeydown(e: KeyboardEvent) {
 		if (e.key !== 'Enter' || e.defaultPrevented || !isTextLike(e.target)) return;
@@ -112,7 +147,11 @@
 	<div class="actions">
 		<a class="btn btn-primary" href="/brews/new?from={brew.id}">Brew again</a>
 		<a class="btn" href="/brews/{brew.id}/edit">Edit</a>
-		{#if !rating}<a class="btn" href="#rate">Rate</a>{/if}
+		{#if rating}
+			<a class="btn" href={cardHref} onclick={shareCard} data-sveltekit-reload>Share</a>
+		{:else}
+			<a class="btn" href="#rate">Rate</a>
+		{/if}
 	</div>
 </header>
 
