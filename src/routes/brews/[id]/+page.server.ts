@@ -6,6 +6,7 @@ import { getBean } from '#lib/server/services/beans.ts';
 import {
 	deleteBrew,
 	getBrew,
+	getPreviousRating,
 	savePlan,
 	saveRating,
 	type Brew
@@ -20,9 +21,13 @@ export const load: PageServerLoad = async (event) => {
 	} catch (e) {
 		notFound(e);
 	}
-	const bean = await getBean(db, user.id, brew.beanId);
+	const [bean, previousRating] = await Promise.all([
+		getBean(db, user.id, brew.beanId),
+		brew.rating ? null : getPreviousRating(db, user.id, brew)
+	]);
 	return {
 		brew,
+		previousRating,
 		claimed: { notes: bean.roasterNotes, raw: bean.roasterNotesRaw }
 	};
 };

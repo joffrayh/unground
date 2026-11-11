@@ -72,7 +72,7 @@ _(extensible: decaf flag is included)_
 
 A **Brew** is a single brewing event. It references one **Bean**, one **Grinder** and (optionally) one **Dripper**, and records the parameters used. A brew can be logged before it is tasted; the rating is added later.
 
-**Logging a new brew (D26):** every field shows the previous brew's value as a grey placeholder; a field left blank saves its placeholder, and typing replaces it. What the previous brew's _next-time plan_ suggests is shown as a green "› 17" button inside the field and applied with a tap; a planned agitation level is a green dot on its slider, with the same button (D30). A blank pour time saves the time its box shows, whether copied from the previous brew or estimated from the pours above.
+**Logging a new brew (D26):** every field shows the previous brew's value as a grey placeholder; a field left blank saves its placeholder, and typing replaces it. What the previous brew's _next-time plan_ suggests is shown as a green "› 17" button inside the field and applied with a tap; a planned agitation level is a green dot on its slider, with the same button (D30). A blank pour time saves the time its box shows, whether copied from the previous brew or estimated from the pours above. The taste profile carries over too, and the previous overall is a grey "Last 7" button (D52).
 
 **Common (method-agnostic) attributes:**
 
@@ -116,6 +116,7 @@ This is **the most important data point** for Stage 2 — it is what every other
   - Clarity — higher = cleaner, more distinct flavours
   - _(set extensible; aftertaste was collected until D22 and is kept on old ratings)_
 - The sub-scores are entered and shown on a **radar chart** (one axis each); a point at the centre means "not rated". A slider under it moves the axis last touched (D40).
+- A new rating, on a new brew or an unrated one, starts from the previous rating's profile; overall starts blank, with the previous one a tap away. A profile left as it was without an overall saves nothing, so a brew can still be rated later (D52).
 - **Tasting notes** — tags from the tasting-note vocabulary (D5, D29; any tier), picked by search, to compare against the roaster's claimed notes.
 - **Comment** — free text.
 
@@ -288,6 +289,7 @@ The substance of each decision lives in the section noted under _Where_; this ta
 | D49 | **The scale card guides the brew** one pour at a time: live reading against the running target, then a countdown to the next pour once the pour stops within 4 g under or anything over. Stopping further short waits for a top-up or Next. Water straight after a pour, or long before the next is due, tops it up. Over-pours keep the running targets. Lifting the brewer after the last pour ends the brew and putting it back undoes that. | The brewer's hands are full, so the scale drives. Keeping running targets means the total still lands on plan. | [§4.2](#42-brew) |
 | D50 | **Pour timing comes from the weight and starts at the first water.** A pour's stop time is when the weight levels off, confirmed by flow staying under 0.5 g/s. The clock follows the scale's timer while it's moving, else the time between readings. | Flow lags weight by about 0.5 s and never holds at exactly zero. The scale's timer can start early on a bump, or not at all in some modes. | [§4.2](#42-brew) |
 | D51 | **A measured brew saves what happened and keeps the plan beside it.** When a guided brew finishes, the scale's readings replace the pour rows and Total time, and each pour stores the running total and start it was planned for and how long the water ran. The next brew's placeholders and reshaped suggestions come from the plan. The adjustments use the measured ratio. Leaving with Exit discards the measurements. | Stage 2 needs what really went in the cup. Repeating measured pours would drift the recipe by a gram or a second each brew, so "same as last time" (D15) has to mean the plan. | [§4.2](#42-brew) |
+| D52 | **A new rating starts from the previous one's taste profile** (on a new brew: the template's; on an unrated brew: the latest rated brew before it). Overall starts blank, the previous overall a grey tap-to-use button. Without an overall, a profile left as carried over (posted as `<dimension>Default`) saves no rating. Tasting notes and comment start blank. Narrows D45's "scores start unset". | Adjusting a familiar profile is quicker than rebuilding it every cup. A blank overall keeps the quality target deliberate and "rate later" working. | [§4.3](#43-rating--tasting-the-target-variable) |
 
 ## 9. Open questions / decisions to revisit
 

@@ -9,6 +9,7 @@ import {
 	deleteBrew,
 	getBrew,
 	getLatestBrew,
+	getPreviousRating,
 	listBrews,
 	savePlan,
 	saveRating,
@@ -230,6 +231,25 @@ describe('brews', () => {
 		expect(third.brews.map((b) => b.id)).toEqual([ids[0]]);
 		expect(third.nextCursor).toBeNull();
 		expect((await getLatestBrew(db, refs.userId))?.id).toBe(ids[4]);
+	});
+
+	it('finds the latest rating before a brew (D52)', async () => {
+		const refs = await setupBrewer(db);
+		const at = (day: number) =>
+			brewInput(refs, { brewedAt: new Date(`2026-10-0${day}T08:00:00Z`) });
+		const one = await createBrew(db, refs.userId, at(1), ratingInput({ overall: 5 }));
+		const two = await createBrew(db, refs.userId, at(2), ratingInput({ overall: 6 }));
+		await createBrew(db, refs.userId, at(3));
+		const four = await createBrew(db, refs.userId, at(4));
+		await createBrew(db, refs.userId, at(5), ratingInput({ overall: 9 }));
+		const prev = (id: string) =>
+			getBrew(db, refs.userId, id).then((b) => getPreviousRating(db, refs.userId, b));
+		expect(await prev(four.id)).toMatchObject({ overall: 6 });
+		expect(await prev(two.id)).toMatchObject({ overall: 5 });
+		expect(await prev(one.id)).toBeNull();
+		expect(
+			await getPreviousRating(db, await createTestUser(db), { id: four.id, brewedAt: new Date() })
+		).toBeNull();
 	});
 
 	it('has no latest brew for a new user', async () => {

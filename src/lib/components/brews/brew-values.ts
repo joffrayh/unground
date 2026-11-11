@@ -5,7 +5,8 @@
  * - A new brew (D15, D26) shows the template brew's recipe as placeholders: blank inputs whose
  *   placeholder is saved when they are left blank. Choices (bean, grinder, dripper, filter, agitation,
  *   bloom ticks) are pre-selected instead. What was measured or felt on that day (total time, notes,
- *   rating) starts blank, and the template's next-time plan becomes green suggestions (D25, D30).
+ *   overall, tasting notes) starts blank; the taste profile carries over (D52), and the template's
+ *   next-time plan becomes green suggestions (D25, D30).
  */
 import { FLAVOR_BY_ID } from '#lib/domain/flavors.ts';
 import { brewRatio } from '#lib/domain/derive.ts';
@@ -31,6 +32,12 @@ export type RatingValues = {
 	comment: string;
 	perceivedNotes: string[];
 } & Record<RatingDimension, string>;
+
+/**
+ * The previous rating's scores a new rating starts from (D52). The profile is pre-set and posted again as
+ * `<dimension>Default`; left as it was without an overall, it saves no rating. Overall starts blank.
+ */
+export type RatingFrom = { overall: string } & Record<RatingDimension, string>;
 
 /** The next-time fields as the inputs hold them (D25); '' means "keep it as it was". */
 export interface PlanValues {
@@ -91,6 +98,8 @@ export interface BrewFormValues {
 	brewedAt: string;
 	notes: string;
 	rating: RatingValues;
+	/** New brews whose template was rated. */
+	ratingFrom: RatingFrom | null;
 	plan: PlanValues;
 	/** New brews only. */
 	defaults: BrewDefaults | null;
@@ -131,6 +140,20 @@ export function ratingValues(rating: RatingLike | null): RatingValues {
 		perceivedNotes: [...(rating?.perceivedNotes ?? [])]
 	} as RatingValues;
 	for (const d of RATING_DIMENSIONS) out[d] = str(rating?.[d]);
+	return out;
+}
+
+export function ratingFrom(rating: RatingLike | null): RatingFrom | null {
+	if (!rating) return null;
+	const out = { overall: str(rating.overall) } as RatingFrom;
+	for (const d of RATING_DIMENSIONS) out[d] = str(rating[d]);
+	return out;
+}
+
+/** A new rating's values: the previous profile, everything else blank (D52). */
+export function carriedRatingValues(from: RatingFrom | null): RatingValues {
+	const out = ratingValues(null);
+	if (from) for (const d of RATING_DIMENSIONS) out[d] = from[d];
 	return out;
 }
 
@@ -188,6 +211,7 @@ export function editValues(brew: BrewLike, brewedAt: string): BrewFormValues {
 		brewedAt,
 		notes: brew.notes ?? '',
 		rating: ratingValues(brew.rating),
+		ratingFrom: null,
 		plan: planValues(brew.plan),
 		defaults: null,
 		suggestions: null
@@ -259,7 +283,8 @@ function templateValues(template: BrewLike, brewedAt: string): BrewFormValues {
 		totalTime: '',
 		brewedAt,
 		notes: '',
-		rating: ratingValues(null),
+		rating: carriedRatingValues(ratingFrom(template.rating)),
+		ratingFrom: ratingFrom(template.rating),
 		plan: planValues(null),
 		defaults: {
 			grindSetting: str(template.grindSetting),
@@ -288,6 +313,7 @@ function blankValues(brewedAt: string): BrewFormValues {
 		brewedAt,
 		notes: '',
 		rating: ratingValues(null),
+		ratingFrom: null,
 		plan: planValues(null),
 		defaults: null,
 		suggestions: null

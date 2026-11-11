@@ -2,6 +2,9 @@
 	/**
 	 * The rating section (§4.3): overall is the one quality score; the sub-scores are intensity, higher =
 	 * more of it (D7). Shared by the brew form and the brew page's rate form.
+	 *
+	 * `from` is the previous rating (D52): its profile is pre-set in `values` and posted again as
+	 * `<dimension>Default`, and its overall is offered beside the overall slider.
 	 */
 	import { onMount } from 'svelte';
 	import FieldError from '#lib/components/FieldError.svelte';
@@ -17,9 +20,13 @@
 		label,
 		type RatingDimension
 	} from '#lib/domain/vocab.ts';
-	import type { RatingValues } from './brew-values.ts';
+	import type { RatingFrom, RatingValues } from './brew-values.ts';
 
-	let { values, errors = {} }: { values: RatingValues; errors?: Record<string, string> } = $props();
+	let {
+		values,
+		from = null,
+		errors = {}
+	}: { values: RatingValues; from?: RatingFrom | null; errors?: Record<string, string> } = $props();
 
 	const uid = $props.id();
 
@@ -40,6 +47,7 @@
 	);
 	/** The axis the slider under the radar moves: the last one touched. */
 	let active = $state<RatingDimension>(RATING_DIMENSIONS[0]);
+	const lastOverall = $derived(from ? score(from.overall) : null);
 	const anyScored = $derived(RATING_DIMENSIONS.some((d) => scores[d] != null));
 	const dimensionErrors = $derived(
 		RATING_DIMENSIONS.filter((d) => errors[d]).map((d) => ({ d, message: errors[d] }))
@@ -57,6 +65,11 @@
 </script>
 
 <div class="rating-fields">
+	{#if from}
+		{#each RATING_DIMENSIONS as d (d)}
+			<input type="hidden" name="{d}Default" value={from[d]} />
+		{/each}
+	{/if}
 	<div class="overall">
 		{#if hydrated}
 			<Slider
@@ -68,9 +81,26 @@
 				value={overall}
 				error={errors.overall}
 				onchange={(v) => (overall = v)}
-			/>
+			>
+				{#snippet aside()}
+					{#if lastOverall != null && overall == null}
+						<button
+							type="button"
+							class="last"
+							onclick={() => (overall = lastOverall)}
+							aria-label="Use {lastOverall}, as last time">Last {lastOverall}</button
+						>
+					{/if}
+				{/snippet}
+			</Slider>
 		{:else}
-			<ScoreInput name="overall" label="Overall" value={values.overall} error={errors.overall} />
+			<ScoreInput
+				name="overall"
+				label="Overall"
+				hint={lastOverall != null ? `Last ${lastOverall}` : undefined}
+				value={values.overall}
+				error={errors.overall}
+			/>
 		{/if}
 	</div>
 
@@ -171,6 +201,27 @@
 	.overall :global(label:not(.pill)) {
 		font-family: var(--display);
 		font-size: 1rem;
+	}
+	/* The previous overall, grey like a placeholder (D26); tapping it applies it. */
+	.last {
+		position: relative;
+		min-height: 32px;
+		padding: 0.05rem 0.55rem;
+		border: 1px solid var(--border);
+		border-radius: 999px;
+		background: var(--surface-2);
+		color: var(--muted);
+		font: inherit;
+		font-size: 0.8rem;
+		font-weight: 600;
+		font-variant-numeric: tabular-nums;
+		white-space: nowrap;
+		cursor: pointer;
+	}
+	.last::after {
+		content: '';
+		position: absolute;
+		inset: -6px -4px;
 	}
 	.intensity {
 		display: flex;

@@ -650,7 +650,7 @@
 	<details class="section" open>
 		<summary>Rating</summary>
 		<div class="details-body">
-			<RatingFields values={rating} {errors} />
+			<RatingFields values={rating} from={values.ratingFrom} {errors} />
 		</div>
 	</details>
 
