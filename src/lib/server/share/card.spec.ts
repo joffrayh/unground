@@ -48,7 +48,7 @@ function rated(overrides: Partial<RatedBrew> = {}): RatedBrew {
 			body: 2.5,
 			bitterness: 1,
 			astringency: null,
-			clarity: 4.75,
+			clarity: 4.5,
 			aftertaste: null,
 			perceivedNotes: [],
 			comment: null,

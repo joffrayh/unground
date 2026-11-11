@@ -1,7 +1,7 @@
 <script lang="ts">
 	/**
 	 * The taste sub-scores (D22) as a radar: one axis per dimension, clockwise from the top, intensity
-	 * 0.25 near the centre to 5 at the rim; the centre itself is "not rated". Read-only by default (SSR,
+	 * 0.5 near the centre to 5 at the rim; the centre itself is "not rated". Read-only by default (SSR,
 	 * no JavaScript needed). `editable` adds tap-to-set, draggable handles and a keyboard slider per
 	 * axis; it reports changes through `onchange` and shows whatever `values` says (controlled). Touching
 	 * an axis (its handle, its label, or a tap along it) reports it through `onselect`; `selected` lights
@@ -10,7 +10,7 @@
 	import {
 		DIMENSION_HINTS,
 		RATING_DIMENSIONS,
-		SCORE_MAX,
+		PROFILE_SCALE,
 		label as vocabLabel
 	} from '#lib/domain/vocab.ts';
 	import type { RatingDimension } from '#lib/domain/vocab.ts';
@@ -101,7 +101,7 @@
 	}
 
 	function valueText(v: number | null): string {
-		return v == null ? 'not rated' : `${v} of ${SCORE_MAX}`;
+		return v == null ? 'not rated' : `${v} of ${PROFILE_SCALE.max}`;
 	}
 
 	// --- Editing ------------------------------------------------------------------------------------
@@ -252,7 +252,7 @@
 				tabindex="0"
 				aria-label="{a.name} intensity"
 				aria-valuemin={0}
-				aria-valuemax={SCORE_MAX}
+				aria-valuemax={PROFILE_SCALE.max}
 				aria-valuenow={v ?? 0}
 				aria-valuetext={valueText(v)}
 				onkeydown={(e) => onKey(e, a.i)}

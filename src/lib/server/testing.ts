@@ -61,6 +61,7 @@ export function brewInput(
 		method: 'v60',
 		brewedAt: new Date('2026-11-03T08:00:00Z'),
 		grindSetting: 24,
+		slowFed: false,
 		doseG: 15,
 		waterTempC: 94,
 		agitation: 3,
@@ -86,7 +87,7 @@ export function ratingInput(overrides: Partial<RatingInput> = {}): RatingInput {
 		body: 2,
 		bitterness: 1,
 		astringency: 1.5,
-		clarity: 3.75,
+		clarity: 3.5,
 		comment: 'Lovely',
 		perceivedNotes: ['fruity.berry.blueberry'],
 		...overrides

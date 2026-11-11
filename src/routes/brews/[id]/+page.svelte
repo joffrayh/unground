@@ -203,7 +203,7 @@
 				<dt>Grind</dt>
 				<dd>
 					{brew.grindSetting}{brew.grinderSettingUnit ? ` ${brew.grinderSettingUnit}` : ''}
-					<span class="sub">{brew.grinderName}</span>
+					<span class="sub">{brew.grinderName}{brew.slowFed ? ' · slow fed' : ''}</span>
 				</dd>
 			</div>
 			<div>

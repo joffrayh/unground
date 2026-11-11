@@ -34,10 +34,10 @@ import {
 	DRIPPER_MATERIALS,
 	FILTER_TYPES,
 	PROCESSES,
+	OVERALL_SCALE,
+	PROFILE_SCALE,
 	ROAST_LEVELS,
-	SCORE_MAX,
-	SCORE_MIN,
-	SCORE_STEP
+	type ScoreScale
 } from '../../domain/vocab';
 
 /** `col IN ('a', 'b', …)` with inlined literals (DDL can't take bind parameters). Values are our own constants. */
@@ -53,16 +53,17 @@ function agitationRange(column: AnyPgColumn): SQL {
 	return sql`${column} IS NULL OR ${column} BETWEEN ${sql.raw(String(AGITATION_MIN))} AND ${sql.raw(String(AGITATION_MAX))}`;
 }
 
-/** In range and on a quarter step (D55). */
-function isScore(column: AnyPgColumn): SQL {
-	return sql`${column} BETWEEN ${sql.raw(String(SCORE_MIN))} AND ${sql.raw(String(SCORE_MAX))} AND mod(${column}, ${sql.raw(String(SCORE_STEP))}) = 0`;
+/** In range and on a step (D55). */
+function isScore(column: AnyPgColumn, s: ScoreScale): SQL {
+	const n = (x: number) => sql.raw(String(x));
+	return sql`${column} BETWEEN ${n(s.min)} AND ${n(s.max)} AND mod(${column}, ${n(s.step)}) = 0`;
 }
 
-function scoreRange(column: AnyPgColumn): SQL {
-	return sql`${column} IS NULL OR (${isScore(column)})`;
+function profileScore(column: AnyPgColumn): SQL {
+	return sql`${column} IS NULL OR (${isScore(column, PROFILE_SCALE)})`;
 }
 
-/** 0.25–5 in quarters (D55); migration 0005 halved the old 1–10 scores. */
+/** Overall in quarters, sub-scores in halves (D55); migration 0005 halved the old 1–10 scores. */
 const score = (name: string) => numeric(name, { precision: 3, scale: 2, mode: 'number' });
 
 const timestamps = {
@@ -290,6 +291,8 @@ export const brews = pgTable(
 		 */
 		timezone: text('timezone').notNull(),
 		grindSetting: numeric('grind_setting', { precision: 6, scale: 2, mode: 'number' }).notNull(),
+		/** The beans were fed into the grinder slowly (D56). Brews from before it was asked are false. */
+		slowFed: boolean('slow_fed').notNull().default(false),
 		doseG: numeric('dose_g', { precision: 5, scale: 1, mode: 'number' }).notNull(),
 		/** For pour-over methods this always equals the sum of the pours (set by the server). */
 		waterG: numeric('water_g', { precision: 6, scale: 1, mode: 'number' }).notNull(),
@@ -428,14 +431,14 @@ export const ratings = pgTable(
 		...timestamps
 	},
 	(t) => [
-		check('ratings_overall', isScore(t.overall)),
-		check('ratings_acidity', scoreRange(t.acidity)),
-		check('ratings_sweetness', scoreRange(t.sweetness)),
-		check('ratings_body', scoreRange(t.body)),
-		check('ratings_bitterness', scoreRange(t.bitterness)),
-		check('ratings_astringency', scoreRange(t.astringency)),
-		check('ratings_clarity', scoreRange(t.clarity)),
-		check('ratings_aftertaste', scoreRange(t.aftertaste))
+		check('ratings_overall', isScore(t.overall, OVERALL_SCALE)),
+		check('ratings_acidity', profileScore(t.acidity)),
+		check('ratings_sweetness', profileScore(t.sweetness)),
+		check('ratings_body', profileScore(t.body)),
+		check('ratings_bitterness', profileScore(t.bitterness)),
+		check('ratings_astringency', profileScore(t.astringency)),
+		check('ratings_clarity', profileScore(t.clarity)),
+		check('ratings_aftertaste', profileScore(t.aftertaste))
 	]
 );
 

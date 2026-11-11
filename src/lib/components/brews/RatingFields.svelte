@@ -15,11 +15,12 @@
 	import {
 		DIMENSION_HINTS,
 		RATING_DIMENSIONS,
-		SCORE_MAX,
-		SCORE_STEP,
+		OVERALL_SCALE,
+		PROFILE_SCALE,
 		isScore,
 		label,
-		type RatingDimension
+		type RatingDimension,
+		type ScoreScale
 	} from '#lib/domain/vocab.ts';
 	import type { RatingFrom, RatingValues } from './brew-values.ts';
 
@@ -31,17 +32,18 @@
 
 	const uid = $props.id();
 
-	/** '' or '0.25'…'5' → a score; anything else (a bad re-sent value) counts as not rated. */
-	function score(v: string): number | null {
+	/** '' or a score on the scale; anything else (a bad re-sent value) counts as not rated. */
+	function score(v: string, s: ScoreScale): number | null {
 		const n = Number(v.trim());
-		return v.trim() !== '' && isScore(n) ? n : null;
+		return v.trim() !== '' && isScore(n, s) ? n : null;
 	}
+	const profile = (v: string) => score(v, PROFILE_SCALE);
 
 	// Seeded once; after that the sliders and radar own the scores (a failed submit re-sends them).
 	// svelte-ignore state_referenced_locally
-	let overall = $state(score(values.overall));
+	let overall = $state(score(values.overall, OVERALL_SCALE));
 	let scores = $state(
-		Object.fromEntries(RATING_DIMENSIONS.map((d) => [d, score(values[d])])) as Record<
+		Object.fromEntries(RATING_DIMENSIONS.map((d) => [d, profile(values[d])])) as Record<
 			RatingDimension,
 			number | null
 		>
@@ -49,10 +51,10 @@
 	/** The axis the slider under the radar moves: the last one touched. */
 	let active = $state<RatingDimension>(RATING_DIMENSIONS[0]);
 	const anyScored = $derived(RATING_DIMENSIONS.some((d) => scores[d] != null));
-	const lastOverall = $derived(from ? score(from.overall) : null);
+	const lastOverall = $derived(from ? score(from.overall, OVERALL_SCALE) : null);
 	const lastScores = $derived(
 		from
-			? (Object.fromEntries(RATING_DIMENSIONS.map((d) => [d, score(from[d])])) as Record<
+			? (Object.fromEntries(RATING_DIMENSIONS.map((d) => [d, profile(from[d])])) as Record<
 					RatingDimension,
 					number | null
 				>)
@@ -87,8 +89,8 @@
 				name="overall"
 				label="Overall"
 				min={0}
-				max={SCORE_MAX}
-				step={SCORE_STEP}
+				max={OVERALL_SCALE.max}
+				step={OVERALL_SCALE.step}
 				blankAt={0}
 				value={overall}
 				ghost={lastOverall}
@@ -110,6 +112,7 @@
 			<ScoreInput
 				name="overall"
 				label="Overall"
+				scale={OVERALL_SCALE}
 				value={values.overall}
 				ghost={lastOverall}
 				error={errors.overall}
@@ -138,8 +141,8 @@
 			<Slider
 				label={label(active)}
 				min={0}
-				max={SCORE_MAX}
-				step={SCORE_STEP}
+				max={PROFILE_SCALE.max}
+				step={PROFILE_SCALE.step}
 				blankAt={0}
 				linked
 				value={scores[active]}
@@ -178,6 +181,7 @@
 					name={d}
 					label={label(d)}
 					hint={DIMENSION_HINTS[d]}
+					scale={PROFILE_SCALE}
 					value={values[d]}
 					ghost={lastScores?.[d]}
 					error={errors[d]}

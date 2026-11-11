@@ -63,7 +63,11 @@ describe('csv export', () => {
 		const { id } = await createBrew(
 			db,
 			refs.userId,
-			brewInput(refs, { dripperId: refs.dripperId, notes: 'Fast drawdown, "choked" a bit' }),
+			brewInput(refs, {
+				dripperId: refs.dripperId,
+				slowFed: true,
+				notes: 'Fast drawdown, "choked" a bit'
+			}),
 			ratingInput({ perceivedNotes: ['fruity.berry.blueberry', 'sweet.brown_sugar.honey'] }),
 			{
 				waterTempC: 92,
@@ -97,6 +101,7 @@ describe('csv export', () => {
 			bag_weight_g: '250',
 			bag_price: '14.5',
 			grind_setting: '24',
+			slow_fed: 'true',
 			dripper_id: refs.dripperId,
 			dripper_name: 'Hario V60 02',
 			dripper_material: 'plastic',
@@ -116,7 +121,7 @@ describe('csv export', () => {
 			rating_overall: '4',
 			rating_acidity: '3.5',
 			rating_astringency: '1.5',
-			rating_clarity: '3.75',
+			rating_clarity: '3.5',
 			rating_aftertaste: '',
 			perceived_notes: 'fruity.berry.blueberry;sweet.brown_sugar.honey',
 			roaster_notes: 'floral.floral.jasmine;fruity.other_fruit.peach',

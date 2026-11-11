@@ -64,16 +64,20 @@ describe('database constraints', () => {
 		await expect(
 			db.insert(ratings).values({ brewId: id, overall: 3.5, body: 0 })
 		).rejects.toSatisfy(violates(CHECK_VIOLATION));
-		// Only quarter steps.
+		// Only on a step.
 		await expect(db.insert(ratings).values({ brewId: id, overall: 3.3 })).rejects.toSatisfy(
 			violates(CHECK_VIOLATION)
 		);
-		await db.insert(ratings).values({ brewId: id, overall: 3.75, body: 0.25 });
+		// Overall in quarters, the profile only in halves.
+		await expect(
+			db.insert(ratings).values({ brewId: id, overall: 3.75, body: 2.25 })
+		).rejects.toSatisfy(violates(CHECK_VIOLATION));
+		await db.insert(ratings).values({ brewId: id, overall: 3.75, body: 0.5 });
 		const [stored] = await db
 			.select()
 			.from(ratings)
 			.where(sql`${ratings.brewId} = ${id}`);
-		expect(stored).toMatchObject({ overall: 3.75, body: 0.25 });
+		expect(stored).toMatchObject({ overall: 3.75, body: 0.5 });
 		await expect(
 			db
 				.update(brews)

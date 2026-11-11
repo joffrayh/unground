@@ -101,7 +101,7 @@ describe('parseBrewForm, measured by a scale (D51)', () => {
 describe('parseBrewForm', () => {
 	it('parses a complete brew and converts pours, times and the local time zone', () => {
 		const result = parseBrewForm(
-			brewForm({ overall: '4', acidity: '2.75', perceivedNotes: ['fruity.berry'] }),
+			brewForm({ overall: '4', acidity: '2.5', perceivedNotes: ['fruity.berry'] }),
 			'Europe/London'
 		);
 		expect(result.ok).toBe(true);
@@ -110,6 +110,7 @@ describe('parseBrewForm', () => {
 		expect(brew).toMatchObject({
 			timezone: 'Europe/London',
 			grindSetting: 24,
+			slowFed: false,
 			doseG: 15,
 			waterTempC: 94,
 			agitation: 3,
@@ -129,7 +130,7 @@ describe('parseBrewForm', () => {
 		expect(brew.brewedAt.toISOString()).toBe('2026-11-03T08:15:00.000Z');
 		expect(rating).toMatchObject({
 			overall: 4,
-			acidity: 2.75,
+			acidity: 2.5,
 			sweetness: null,
 			perceivedNotes: ['fruity.berry']
 		});
@@ -148,6 +149,23 @@ describe('parseBrewForm', () => {
 		});
 	});
 
+	it('reads the slow-fed tick box (D56)', () => {
+		const result = parseBrewForm(brewForm({ slowFed: 'on' }), 'UTC');
+		expect(result.ok && result.data.brew.slowFed).toBe(true);
+	});
+
+	it('takes the split Cafec filters and refuses the old one (D56)', () => {
+		const filter = (filterType: string) => parseBrewForm(brewForm({ filterType }), 'UTC');
+		expect(filter('cafec_abaca')).toMatchObject({
+			ok: true,
+			data: { brew: { details: { filterType: 'cafec_abaca' } } }
+		});
+		expect(filter('cafec')).toMatchObject({
+			ok: false,
+			errors: { filterType: expect.any(String) }
+		});
+	});
+
 	it('treats a blank rating section as "rate later"', () => {
 		const result = parseBrewForm(brewForm(), 'UTC');
 		expect(result.ok && result.data.rating).toBeNull();
@@ -158,7 +176,7 @@ describe('parseBrewForm', () => {
 		expect(result).toMatchObject({ ok: false, errors: { overall: expect.any(String) } });
 	});
 
-	it('takes scores from 0.25 to 5 in quarter steps (D55)', () => {
+	it('takes overall from 0.25 to 5 in quarters and the profile in halves (D55)', () => {
 		const parse = (overall: string, acidity = '') =>
 			parseBrewForm(brewForm({ overall, acidity }), 'UTC');
 		expect(parse('0.25', '5')).toMatchObject({
@@ -172,7 +190,13 @@ describe('parseBrewForm', () => {
 			ok: false,
 			errors: { overall: 'Must be in steps of 0.25' }
 		});
-		expect(parse('4', '2.1')).toMatchObject({ ok: false, errors: { acidity: expect.any(String) } });
+		// The taste profile is coarser: 0.5–5 in halves.
+		expect(parse('4', '0.5')).toMatchObject({ ok: true, data: { rating: { acidity: 0.5 } } });
+		expect(parse('4', '0.25')).toMatchObject({ ok: false, errors: { acidity: 'Min 0.5' } });
+		expect(parse('4', '2.25')).toMatchObject({
+			ok: false,
+			errors: { acidity: 'Must be in steps of 0.5' }
+		});
 	});
 
 	it('reports missing and invalid fields by name', () => {

@@ -18,13 +18,14 @@ const brew: BrewLike = {
 	grinderId: 'grinder-1',
 	dripperId: 'dripper-1',
 	grindSetting: 24,
+	slowFed: true,
 	doseG: 15.5,
 	waterTempC: 94,
 	agitation: 2,
 	totalTimeS: 195,
 	notes: 'stalled drawdown',
 	details: {
-		filterType: 'cafec',
+		filterType: 'cafec_abaca',
 		pours: [
 			{ volumeG: 50, intervalS: 0, bloom: true },
 			{ volumeG: 100, intervalS: 45, bloom: false },
@@ -38,7 +39,7 @@ const brew: BrewLike = {
 		body: 2,
 		bitterness: null,
 		astringency: 1,
-		clarity: 3.75,
+		clarity: 3.5,
 		comment: 'juicy',
 		perceivedNotes: ['fruity.berry']
 	},
@@ -60,12 +61,13 @@ describe('editValues', () => {
 		expect(v).toMatchObject({
 			dripperId: 'dripper-1',
 			grindSetting: '24',
+			slowFed: true,
 			doseG: '15.5',
 			waterTempC: '94',
 			agitation: '2',
 			totalTime: '3:15',
 			brewedAt: '2026-11-03T08:15',
-			filterType: 'cafec',
+			filterType: 'cafec_abaca',
 			notes: 'stalled drawdown',
 			defaults: null,
 			suggestions: null
@@ -78,7 +80,7 @@ describe('editValues', () => {
 		expect(v.rating).toMatchObject({
 			overall: '4',
 			sweetness: '',
-			clarity: '3.75',
+			clarity: '3.5',
 			comment: 'juicy'
 		});
 		expect(v.rating.perceivedNotes).toEqual(['fruity.berry']);
@@ -100,8 +102,9 @@ describe('newBrewValues', () => {
 			beanId: 'bean-1',
 			grinderId: 'grinder-1',
 			dripperId: 'dripper-1',
-			filterType: 'cafec',
+			filterType: 'cafec_abaca',
 			grindSetting: '',
+			slowFed: true,
 			doseG: '',
 			waterTempC: '',
 			agitation: '2',

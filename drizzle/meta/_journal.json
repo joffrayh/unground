@@ -43,6 +43,13 @@
       "when": 1794406823297,
       "tag": "0005_rating_scale_quarters",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1794407787660,
+      "tag": "0006_profile_halves_slow_fed_cafec",
+      "breakpoints": true
     }
   ]
 }

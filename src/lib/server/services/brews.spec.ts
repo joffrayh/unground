@@ -139,14 +139,22 @@ describe('brews', () => {
 		expect((await getBrew(db, refs.userId, id)).changed).toEqual(['grind']);
 	});
 
+	it('stores whether the beans were slow fed (D56)', async () => {
+		const refs = await setupBrewer(db);
+		const { id } = await createBrew(db, refs.userId, brewInput(refs, { slowFed: true }));
+		expect((await getBrew(db, refs.userId, id)).slowFed).toBe(true);
+		await updateBrew(db, refs.userId, id, brewInput(refs), null, null);
+		expect((await getBrew(db, refs.userId, id)).slowFed).toBe(false);
+	});
+
 	it('never overwrites a legacy aftertaste score when a rating is saved', async () => {
 		const refs = await setupBrewer(db);
 		const { id } = await createBrew(db, refs.userId, brewInput(refs), ratingInput());
 		await db.update(ratings).set({ aftertaste: 3 }).where(eq(ratings.brewId, id));
-		await saveRating(db, refs.userId, id, ratingInput({ overall: 4.5, clarity: 4.75 }));
+		await saveRating(db, refs.userId, id, ratingInput({ overall: 4.5, clarity: 4.5 }));
 		expect((await getBrew(db, refs.userId, id)).rating).toMatchObject({
 			overall: 4.5,
-			clarity: 4.75,
+			clarity: 4.5,
 			astringency: 1.5,
 			aftertaste: 3
 		});

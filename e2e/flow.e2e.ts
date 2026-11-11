@@ -161,10 +161,12 @@ test('log, rate, plan, repeat and export a brew', async ({ page }) => {
 	await expect(page.getByRole('slider', { name: 'Agitation', exact: true })).toHaveValue('3');
 	await expect(page.getByText('What changed')).toHaveCount(0);
 	await expect(page.getByRole('slider', { name: 'Overall', exact: true })).toBeVisible();
+	await page.getByLabel('Slow fed').check();
 
 	await logBrew(page);
 	const brewUrl = page.url();
 	await expect(page.getByText('E2E Kochere').first()).toBeVisible();
+	await expect(page.getByText('· slow fed')).toBeVisible();
 	await expect(page.getByText('1:16.7')).toBeVisible();
 	await expect(page.getByText('250 g').first()).toBeVisible();
 
@@ -174,7 +176,7 @@ test('log, rate, plan, repeat and export a brew', async ({ page }) => {
 	await acidity.focus();
 	await acidity.press('End');
 	await acidity.press('PageDown');
-	for (let i = 0; i < 2; i++) await acidity.press('ArrowUp');
+	await acidity.press('ArrowUp');
 	await expect(acidity).toHaveAttribute('aria-valuenow', '4.5');
 	// The slider under the radar moves the axis last touched.
 	await page.getByRole('slider', { name: 'Acidity', exact: true }).fill('3.5');
@@ -182,7 +184,7 @@ test('log, rate, plan, repeat and export a brew', async ({ page }) => {
 	const sweetness = page.getByRole('slider', { name: 'Sweetness intensity' });
 	await sweetness.focus();
 	await sweetness.press('Home');
-	await expect(page.getByRole('slider', { name: 'Sweetness', exact: true })).toHaveValue('0.25');
+	await expect(page.getByRole('slider', { name: 'Sweetness', exact: true })).toHaveValue('0.5');
 	await sweetness.press('Delete');
 	// Tasting notes are tags picked from a search; a tap on a match adds it.
 	await page.getByRole('combobox', { name: /tasting notes/i }).fill('blueb');
@@ -265,6 +267,7 @@ test('log, rate, plan, repeat and export a brew', async ({ page }) => {
 	await expect(page.locator('[name="pourScale"]').nth(2)).toHaveAttribute('placeholder', '250');
 	await expect(page.locator('[name="totalTime"]')).toHaveValue('');
 	await expect(page.locator('[name="dripperId"] option:checked')).toHaveText('E2E V60 02');
+	await expect(page.getByLabel('Slow fed')).toBeChecked();
 	// The rating starts blank, last time's a tap away (D53).
 	await expect(page.locator('input[name="overall"]')).toHaveValue('');
 	await expect(page.getByRole('button', { name: 'Use 4, as last time' })).toBeVisible();
@@ -336,6 +339,7 @@ test('log, rate, plan, repeat and export a brew', async ({ page }) => {
 		bloom_pours: '1',
 		bloom_time_s: '45',
 		changed: '',
+		slow_fed: 'true',
 		rating_overall: '4',
 		rating_acidity: '3.5',
 		rating_sweetness: '',

@@ -3,15 +3,17 @@
  * y axis points down. Axis 0 points straight up and the rest follow clockwise.
  *
  * The scale is offset from the centre: the centre itself (and a small hole around it) means "not
- * rated", the lowest score (0.25) sits on the `inner` radius and 5 on the outer `radius`. That keeps
+ * rated", the lowest score (0.5) sits on the `inner` radius and 5 on the outer `radius`. That keeps
  * "not rated" and the lowest score apart, both on screen and when tapping.
  */
-import { SCORE_MAX, SCORE_MIN, SCORE_STEP } from '#lib/domain/vocab.ts';
+import { PROFILE_SCALE } from '#lib/domain/vocab.ts';
+
+const { min: SCORE_MIN, max: SCORE_MAX, step: SCORE_STEP } = PROFILE_SCALE;
 
 export interface RadarGeometry {
 	/** Radius of the top score (5). */
 	radius: number;
-	/** Radius of the lowest score (0.25). */
+	/** Radius of the lowest score (0.5). */
 	inner: number;
 }
 
@@ -61,7 +63,7 @@ export function pointFor(
 }
 
 /**
- * The score at a distance from the centre: the nearest step, clamped to 0.25…5. Anything closer to
+ * The score at a distance from the centre: the nearest step, clamped to 0.5…5. Anything closer to
  * the centre than half a step below the lowest score is "not rated" (null).
  */
 export function radiusToValue(r: number, g: RadarGeometry): number | null {
@@ -177,8 +179,8 @@ function step(current: number | null, by: number): number | null {
 
 /** The nearest score on the scale. */
 function clampScore(v: number): number {
-	const quarters = Math.round(v / SCORE_STEP) * SCORE_STEP;
-	return Math.min(SCORE_MAX, Math.max(SCORE_MIN, quarters));
+	const stepped = Math.round(v / SCORE_STEP) * SCORE_STEP;
+	return Math.min(SCORE_MAX, Math.max(SCORE_MIN, stepped));
 }
 
 function round2(n: number): number {
