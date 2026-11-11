@@ -6,7 +6,7 @@
 import type { BeanOption, BrewFormValues, DripperOption, GrinderOption } from './brew-values.ts';
 
 /** Bump when BrewDraft or BrewFormValues change shape; older drafts are then ignored. */
-const VERSION = 1;
+const VERSION = 2;
 
 export type DraftFields = Record<string, string | string[]>;
 

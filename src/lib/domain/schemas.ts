@@ -234,9 +234,23 @@ export type RatingInput = {
 	perceivedNotes: string[];
 } & Record<RatingDimension, number | null>;
 
+const trimmed = (v: unknown) => (typeof v === 'string' ? v.trim() : '');
+
+/**
+ * Without an overall, a profile left as it was carried over (posted as `<dimension>Default`, D52) is
+ * not a rating: the brew is rated later.
+ */
+function dropCarriedProfile(obj: Record<string, unknown>): Record<string, unknown> {
+	if (trimmed(obj.overall) !== '') return obj;
+	if (!RATING_DIMENSIONS.every((d) => trimmed(obj[d]) === trimmed(obj[`${d}Default`]))) return obj;
+	const out = { ...obj };
+	for (const d of RATING_DIMENSIONS) out[d] = '';
+	return out;
+}
+
 /** Returns `null` data when the rating section was left blank (rate later). */
 export function parseRatingFields(obj: Record<string, unknown>): ParseResult<RatingInput | null> {
-	const result = run(ratingSchema, obj);
+	const result = run(ratingSchema, dropCarriedProfile(obj));
 	if (!result.ok) return result;
 	const r = result.data;
 	if (r.overall == null) return { ok: true, data: null };

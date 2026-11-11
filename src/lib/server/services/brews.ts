@@ -212,6 +212,31 @@ export async function getLatestBrew(db: Db, userId: string): Promise<Brew | null
 	return row ? getBrew(db, userId, row.id) : null;
 }
 
+/** The rating of the user's latest rated brew before `brew`, which an unrated brew's rating starts from (D52). */
+export async function getPreviousRating(
+	db: Db,
+	userId: string,
+	brew: { id: string; brewedAt: Date }
+): Promise<Rating | null> {
+	const [row] = await db
+		.select({ id: brews.id })
+		.from(brews)
+		.innerJoin(ratings, eq(ratings.brewId, brews.id))
+		.where(
+			and(
+				eq(brews.userId, userId),
+				or(
+					lt(brews.brewedAt, brew.brewedAt),
+					and(eq(brews.brewedAt, brew.brewedAt), lt(brews.id, brew.id))
+				)
+			)
+		)
+		.orderBy(desc(brews.brewedAt), desc(brews.id))
+		.limit(1);
+	if (!row) return null;
+	return (await loadRatings(db, [row.id])).get(row.id) ?? null;
+}
+
 export async function loadRatings(q: Queryable, brewIds: string[]): Promise<Map<string, Rating>> {
 	const result = new Map<string, Rating>();
 	if (brewIds.length === 0) return result;

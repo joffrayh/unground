@@ -232,6 +232,12 @@ test('log, rate, plan, repeat and export a brew', async ({ page }) => {
 	await expect(page.locator('[name="totalTime"]')).toHaveValue('');
 	await expect(page.locator('input[name="overall"]')).toHaveValue('');
 	await expect(page.locator('[name="dripperId"] option:checked')).toHaveText('E2E V60 02');
+	// The taste profile carries over (D52); the previous overall is a tap away.
+	await expect(page.getByRole('slider', { name: 'Acidity intensity' })).toHaveAttribute(
+		'aria-valuenow',
+		'7'
+	);
+	await expect(page.getByRole('button', { name: 'Use 8, as last time' })).toBeVisible();
 
 	await page.getByRole('button', { name: 'Use 25 clicks, as planned last time' }).click();
 	await expect(page.locator('[name="grindSetting"]')).toHaveValue('25');
@@ -314,7 +320,10 @@ test('log, rate, plan, repeat and export a brew', async ({ page }) => {
 		ratio: '17',
 		pour_count: '4',
 		bloom_pours: '1',
-		dripper_name: 'E2E V60 02'
+		dripper_name: 'E2E V60 02',
+		// Untouched and without an overall, the carried profile isn't a rating.
+		rating_overall: '',
+		rating_acidity: ''
 	});
 	const pours = csvRows(await (await page.request.get('/export/pours.csv')).text());
 	const poursOf = (id: string | undefined) => pours.filter((p) => p.brew_id === id);

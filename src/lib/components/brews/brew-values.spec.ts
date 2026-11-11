@@ -94,7 +94,7 @@ describe('editValues', () => {
 });
 
 describe('newBrewValues', () => {
-	it('shows the recipe as placeholders, never the day’s measurements, notes or rating (D15, D26)', () => {
+	it('shows the recipe as placeholders, never the day’s measurements or notes (D15, D26)', () => {
 		const v = newBrewValues(brew, '2026-11-04T07:00');
 		expect(v).toMatchObject({
 			beanId: 'bean-1',
@@ -122,6 +122,21 @@ describe('newBrewValues', () => {
 			['', '', false, '1:15', '250']
 		]);
 		expect(hasPlanValues(v.plan)).toBe(false);
+	});
+
+	it('carries the rated profile over, leaving overall, notes and comment blank (D52)', () => {
+		const v = newBrewValues(brew, 'x');
+		expect(v.rating).toMatchObject({
+			overall: '',
+			acidity: '6',
+			sweetness: '',
+			clarity: '7',
+			comment: '',
+			perceivedNotes: []
+		});
+		expect(v.ratingFrom).toMatchObject({ overall: '8', acidity: '6', sweetness: '' });
+		expect(newBrewValues({ ...brew, rating: null }, 'x').ratingFrom).toBeNull();
+		expect(editValues(brew, 'x').ratingFrom).toBeNull();
 	});
 
 	it('starts agitation at 3 when the template recorded none', () => {

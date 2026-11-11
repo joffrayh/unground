@@ -4,6 +4,7 @@ import {
 	parseBrewForm,
 	parseDripperForm,
 	parsePlanForm,
+	parseRatingForm,
 	parseRoasterForm,
 	parseSignupForm
 } from './schemas';
@@ -477,6 +478,32 @@ describe('other forms', () => {
 			data: { material: null }
 		});
 		expect(parseDripperForm(form({ name: ' ', material: 'wood' })).ok).toBe(false);
+	});
+
+	describe('a carried-over profile (D52)', () => {
+		const carried = { acidity: '6', acidityDefault: '6', body: '4', bodyDefault: '4' };
+
+		it('saves no rating when left as it was without an overall', () => {
+			expect(parseRatingForm(form(carried))).toEqual({ ok: true, data: null });
+			expect(parseBrewForm(brewForm(carried), 'UTC')).toMatchObject({
+				ok: true,
+				data: { rating: null }
+			});
+		});
+
+		it('is saved with an overall', () => {
+			expect(parseRatingForm(form({ ...carried, overall: '7' }))).toMatchObject({
+				ok: true,
+				data: { overall: 7, acidity: 6, body: 4, sweetness: null }
+			});
+		});
+
+		it('needs an overall once changed', () => {
+			expect(parseRatingForm(form({ ...carried, acidity: '7' }))).toMatchObject({
+				ok: false,
+				errors: { overall: expect.any(String) }
+			});
+		});
 	});
 
 	it('reads a plan form, blank meaning no plan', () => {

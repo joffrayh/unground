@@ -8,10 +8,12 @@
 	import RatingFields from '#lib/components/brews/RatingFields.svelte';
 	import {
 		agreeingNotes,
+		carriedRatingValues,
 		flavorName,
 		planFormValues,
 		planValues,
 		ratingFormValues,
+		ratingFrom,
 		ratingValues
 	} from '#lib/components/brews/brew-values.ts';
 	import { focusNextField, isTextLike } from '#lib/components/brews/enter-nav.ts';
@@ -48,7 +50,11 @@
 		return brew.details.pours.map((p, i) => ({ ...p, ...entries[i] }));
 	});
 	const agreeing = $derived(rating ? agreeingNotes(rating.perceivedNotes, data.claimed.notes) : []);
-	const formRating = $derived(ratingFormValues(rateForm, ratingValues(rating)));
+	/** An unrated brew's rating starts from the previous one's (D52). */
+	const lastRating = $derived(rating ? null : ratingFrom(data.previousRating));
+	const formRating = $derived(
+		ratingFormValues(rateForm, rating ? ratingValues(rating) : carriedRatingValues(lastRating))
+	);
 	const anyDimension = $derived(rating ? RATING_DIMENSIONS.some((d) => rating[d] != null) : false);
 
 	// --- next time (D25) ----------------------------------------------------------------------
@@ -285,7 +291,7 @@
 				<p class="muted">Not rated yet.</p>
 				<form method="POST" action="?/rate" class="rate-form" use:enhance>
 					<FormError form={rateForm} />
-					<RatingFields values={formRating} errors={rateForm?.errors ?? {}} />
+					<RatingFields values={formRating} from={lastRating} errors={rateForm?.errors ?? {}} />
 					<button class="btn btn-primary btn-block">Save rating</button>
 				</form>
 			{/if}
