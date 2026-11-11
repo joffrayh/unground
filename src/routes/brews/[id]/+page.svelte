@@ -203,7 +203,7 @@
 				<dt>Grind</dt>
 				<dd>
 					{brew.grindSetting}{brew.grinderSettingUnit ? ` ${brew.grinderSettingUnit}` : ''}
-					<span class="sub">{brew.grinderName}</span>
+					<span class="sub">{brew.grinderName}{brew.slowFed ? ' · slow fed' : ''}</span>
 				</dd>
 			</div>
 			<div>
@@ -284,7 +284,7 @@
 			<div class="rating-head">
 				<h2>Rating</h2>
 				{#if rating}
-					<span class="score-badge" aria-label="Overall {rating.overall} of 10"
+					<span class="score-badge" aria-label="Overall {rating.overall} of 5"
 						>{rating.overall}</span
 					>
 				{/if}
@@ -465,7 +465,7 @@
 		margin: 0;
 	}
 	.rating-head .score-badge {
-		min-width: 3.85rem;
+		min-width: 4.25rem;
 		height: 2.1rem;
 		font-size: 1.1rem;
 	}

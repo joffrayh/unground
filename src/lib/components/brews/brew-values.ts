@@ -3,8 +3,8 @@
  *
  * - Editing shows everything that was saved.
  * - A new brew (D15, D26) shows the template brew's recipe as placeholders: blank inputs whose
- *   placeholder is saved when they are left blank. Choices (bean, grinder, dripper, filter, agitation,
- *   bloom ticks) are pre-selected instead. What was measured or felt on that day (total time, notes,
+ *   placeholder is saved when they are left blank. Choices (bean, grinder, slow feeding, dripper,
+ *   filter, agitation, bloom ticks) are pre-selected instead. What was measured or felt on that day (total time, notes,
  *   rating) starts blank, with the template's rating shown in grey to compare against (D53), and the
  *   template's next-time plan becomes green suggestions (D25, D30).
  */
@@ -87,6 +87,8 @@ export interface BrewFormValues {
 	scaleId: string;
 	filterType: string;
 	grindSetting: string;
+	/** The beans were fed into the grinder slowly (D56). */
+	slowFed: boolean;
 	doseG: string;
 	waterTempC: string;
 	/** '0'…'5', or '' when not recorded. */
@@ -119,6 +121,7 @@ export interface BrewLike {
 	dripperId: string | null;
 	scaleId?: string | null;
 	grindSetting: number;
+	slowFed: boolean;
 	doseG: number;
 	waterTempC: number;
 	agitation: number | null;
@@ -194,6 +197,7 @@ export function editValues(brew: BrewLike, brewedAt: string): BrewFormValues {
 		scaleId: brew.scaleId ?? '',
 		filterType: brew.details.filterType ?? '',
 		grindSetting: str(brew.grindSetting),
+		slowFed: brew.slowFed,
 		doseG: str(brew.doseG),
 		waterTempC: str(brew.waterTempC),
 		agitation: str(brew.agitation),
@@ -242,7 +246,7 @@ export function suggestionsFrom(template: BrewLike): BrewSuggestions | null {
 
 /**
  * A new brew's values: the template's recipe as placeholders (grind, dose, temperature, pours) and
- * pre-selected choices (bean, grinder, dripper, filter, agitation, blooms). `overrides` picks a bean,
+ * pre-selected choices (bean, grinder, slow feeding, dripper, filter, agitation, blooms). `overrides` picks a bean,
  * grinder or dripper.
  */
 export function newBrewValues(
@@ -267,6 +271,7 @@ function templateValues(template: BrewLike, brewedAt: string): BrewFormValues {
 		scaleId: '',
 		filterType: template.details.filterType ?? '',
 		grindSetting: '',
+		slowFed: template.slowFed,
 		doseG: '',
 		waterTempC: '',
 		agitation: String(template.agitation ?? AGITATION_DEFAULT),
@@ -295,6 +300,7 @@ function blankValues(brewedAt: string): BrewFormValues {
 		scaleId: '',
 		filterType: '',
 		grindSetting: '',
+		slowFed: false,
 		doseG: '',
 		waterTempC: '',
 		agitation: String(AGITATION_DEFAULT),

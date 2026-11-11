@@ -83,20 +83,20 @@ describe('brews', () => {
 		const { id } = await createBrew(db, refs.userId, brewInput(refs), ratingInput());
 		let brew = await getBrew(db, refs.userId, id);
 		expect(brew.rating).toMatchObject({
-			overall: 8,
-			acidity: 7,
+			overall: 4,
+			acidity: 3.5,
 			perceivedNotes: ['fruity.berry.blueberry']
 		});
-		expect(brew.overall).toBe(8);
+		expect(brew.overall).toBe(4);
 
 		await saveRating(
 			db,
 			refs.userId,
 			id,
-			ratingInput({ overall: 5, acidity: null, perceivedNotes: [] })
+			ratingInput({ overall: 2.5, acidity: null, perceivedNotes: [] })
 		);
 		brew = await getBrew(db, refs.userId, id);
-		expect(brew.rating).toMatchObject({ overall: 5, acidity: null, perceivedNotes: [] });
+		expect(brew.rating).toMatchObject({ overall: 2.5, acidity: null, perceivedNotes: [] });
 
 		await saveRating(db, refs.userId, id, null);
 		expect((await getBrew(db, refs.userId, id)).rating).toBeNull();
@@ -139,16 +139,24 @@ describe('brews', () => {
 		expect((await getBrew(db, refs.userId, id)).changed).toEqual(['grind']);
 	});
 
+	it('stores whether the beans were slow fed (D56)', async () => {
+		const refs = await setupBrewer(db);
+		const { id } = await createBrew(db, refs.userId, brewInput(refs, { slowFed: true }));
+		expect((await getBrew(db, refs.userId, id)).slowFed).toBe(true);
+		await updateBrew(db, refs.userId, id, brewInput(refs), null, null);
+		expect((await getBrew(db, refs.userId, id)).slowFed).toBe(false);
+	});
+
 	it('never overwrites a legacy aftertaste score when a rating is saved', async () => {
 		const refs = await setupBrewer(db);
 		const { id } = await createBrew(db, refs.userId, brewInput(refs), ratingInput());
-		await db.update(ratings).set({ aftertaste: 6 }).where(eq(ratings.brewId, id));
-		await saveRating(db, refs.userId, id, ratingInput({ overall: 9, clarity: 9 }));
+		await db.update(ratings).set({ aftertaste: 3 }).where(eq(ratings.brewId, id));
+		await saveRating(db, refs.userId, id, ratingInput({ overall: 4.5, clarity: 4.5 }));
 		expect((await getBrew(db, refs.userId, id)).rating).toMatchObject({
-			overall: 9,
-			clarity: 9,
-			astringency: 3,
-			aftertaste: 6
+			overall: 4.5,
+			clarity: 4.5,
+			astringency: 1.5,
+			aftertaste: 3
 		});
 	});
 
@@ -237,15 +245,15 @@ describe('brews', () => {
 		const refs = await setupBrewer(db);
 		const at = (day: number) =>
 			brewInput(refs, { brewedAt: new Date(`2026-10-0${day}T08:00:00Z`) });
-		const one = await createBrew(db, refs.userId, at(1), ratingInput({ overall: 5 }));
-		const two = await createBrew(db, refs.userId, at(2), ratingInput({ overall: 6 }));
+		const one = await createBrew(db, refs.userId, at(1), ratingInput({ overall: 2.5 }));
+		const two = await createBrew(db, refs.userId, at(2), ratingInput({ overall: 3 }));
 		await createBrew(db, refs.userId, at(3));
 		const four = await createBrew(db, refs.userId, at(4));
-		await createBrew(db, refs.userId, at(5), ratingInput({ overall: 9 }));
+		await createBrew(db, refs.userId, at(5), ratingInput({ overall: 4.5 }));
 		const prev = (id: string) =>
 			getBrew(db, refs.userId, id).then((b) => getPreviousRating(db, refs.userId, b));
-		expect(await prev(four.id)).toMatchObject({ overall: 6 });
-		expect(await prev(two.id)).toMatchObject({ overall: 5 });
+		expect(await prev(four.id)).toMatchObject({ overall: 3 });
+		expect(await prev(two.id)).toMatchObject({ overall: 2.5 });
 		expect(await prev(one.id)).toBeNull();
 		expect(
 			await getPreviousRating(db, await createTestUser(db), { id: four.id, brewedAt: new Date() })

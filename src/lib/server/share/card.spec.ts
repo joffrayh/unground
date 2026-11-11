@@ -23,7 +23,7 @@ function rated(overrides: Partial<RatedBrew> = {}): RatedBrew {
 		waterG: 250,
 		waterTempC: 94,
 		totalTimeS: 185,
-		overall: 8,
+		overall: 4,
 		grinderId: 'g',
 		dripperId: 'd',
 		dripperName: 'Hario V60 02',
@@ -42,13 +42,13 @@ function rated(overrides: Partial<RatedBrew> = {}): RatedBrew {
 			]
 		},
 		rating: {
-			overall: 8,
-			acidity: 7,
-			sweetness: 8,
-			body: 5,
-			bitterness: 2,
+			overall: 4,
+			acidity: 3.5,
+			sweetness: 4,
+			body: 2.5,
+			bitterness: 1,
 			astringency: null,
-			clarity: 9,
+			clarity: 4.5,
 			aftertaste: null,
 			perceivedNotes: [],
 			comment: null,
@@ -62,7 +62,7 @@ function rated(overrides: Partial<RatedBrew> = {}): RatedBrew {
 describe('brew card', () => {
 	it('sums up the recipe and leaves out roast age and filter', () => {
 		const card = brewCard(rated());
-		expect(card.overall).toBe(8);
+		expect(card.overall).toBe(4);
 		expect(card.brewedAt).toBe('Tue 3 Nov, 08:15');
 		expect(card.facts.map((f) => [f.name, f.value])).toEqual([
 			['Dose', '15 g'],

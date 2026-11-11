@@ -6,6 +6,7 @@
 import { createHash } from 'node:crypto';
 import logoSvg from '#lib/assets/logo-full-dark.svg?raw';
 import {
+	RINGS,
 	labelPlacement,
 	pointFor,
 	polar,
@@ -20,7 +21,7 @@ import type { Brew } from '#lib/server/services/brews.ts';
 import { formatDateTime, grams, ratioText } from '#lib/ui/format.ts';
 
 /** Bump when the layout changes, so browsers drop their cached copies. */
-const CARD_VERSION = 5;
+const CARD_VERSION = 6;
 
 export interface Card {
 	overall: number;
@@ -138,8 +139,8 @@ function scoreBadge(overall: number): Node {
 			alignItems: 'center',
 			justifyContent: 'center',
 			flexShrink: 0,
-			// Content-box, like everything in satori: 56 wide in all with the padding.
-			minWidth: 32,
+			// Content-box, like everything in satori: 68 wide in all with the padding, enough for "3.75".
+			minWidth: 44,
 			height: 40,
 			paddingLeft: 12,
 			paddingRight: 12,
@@ -181,9 +182,9 @@ const LABEL_W = 110;
 
 function radarSvg(values: (number | null)[]): string {
 	const n = values.length;
-	const rings = [2, 4, 6, 8, 10]
-		.map((v) => `<circle r="${valueRadius(v, G)}" fill="none" stroke="${C.border}"/>`)
-		.join('');
+	const rings = RINGS.map(
+		(v) => `<circle r="${valueRadius(v, G)}" fill="none" stroke="${C.border}"/>`
+	).join('');
 	const spokes = values
 		.map((_, i) => {
 			const e = polar(i, n, G.radius);

@@ -19,6 +19,8 @@
 	--cream: light-dark(#2b2419, #f4ebde);
 	--muted: light-dark(#5f6470, #b4bac6);
 	--border: light-dark(#e3d9c8, #2a3240);
+	/* A slider's steps between whole numbers: faint beside the whole-number dots. */
+	--tick-minor: light-dark(#d6ccba, #222633);
 	--accent: #faa956;
 	--accent-text: #101118;
 	/* Live scale actions (D48). */
@@ -537,7 +539,8 @@ a.list-item:hover {
 	display: inline-flex;
 	align-items: center;
 	justify-content: center;
-	min-width: 2.75rem;
+	/* Fits "3.75", so badges in a list line up. */
+	min-width: 3.5rem;
 	height: 2rem;
 	padding-inline: 0.5rem;
 	border: 1.25px solid var(--accent);

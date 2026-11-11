@@ -57,6 +57,8 @@ export interface Brew extends BrewSummary {
 	dripperName: string | null;
 	dripperMaterial: DripperMaterial | null;
 	scaleId: string | null;
+	/** The beans were fed into the grinder slowly (D56). */
+	slowFed: boolean;
 	agitation: number | null;
 	storedFrozen: boolean;
 	/** Legacy (D25): what the user said they changed, on brews logged before the plan replaced it. */
@@ -96,6 +98,7 @@ function baseQuery(q: Queryable) {
 			dripperName: drippers.name,
 			dripperMaterial: sql<DripperMaterial | null>`${drippers.material}`,
 			scaleId: brews.scaleId,
+			slowFed: brews.slowFed,
 			agitation: brews.agitation,
 			storedFrozen: beans.storedFrozen,
 			changed: sql<ChangedVariable[]>`${brews.changed}`,
@@ -320,6 +323,7 @@ function brewColumns(input: BrewInput) {
 		brewedAt: input.brewedAt,
 		timezone: input.timezone,
 		grindSetting: input.grindSetting,
+		slowFed: input.slowFed,
 		doseG: input.doseG,
 		// Derived from the method block so it can never disagree with the pours (D12).
 		waterG: METHODS[input.method].waterG(input.details),

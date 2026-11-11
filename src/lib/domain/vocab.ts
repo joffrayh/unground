@@ -3,7 +3,8 @@
  *
  * These arrays are the single source of truth: the database CHECK constraints,
  * the Zod validators and the form <select>s are all generated from them.
- * Append new values at the end; never rename or remove a stored value.
+ * Append new values at the end; never rename or remove a stored value (the one exception, Cafec's
+ * split in D56, migrated every stored row first).
  */
 
 export const BREW_METHODS = ['v60'] as const;
@@ -30,7 +31,10 @@ export type DripperMaterial = (typeof DRIPPER_MATERIALS)[number];
 export const FILTER_TYPES = [
 	'hario_tabbed',
 	'hario_tabless',
-	'cafec',
+	// 'cafec' was split by paper (D56); migration 0006 moved its brews to Cafec Abaca.
+	'cafec_t90',
+	'cafec_t92',
+	'cafec_abaca',
 	'sibarist',
 	'other'
 ] as const;
@@ -74,8 +78,31 @@ export type RatingDimension = (typeof RATING_DIMENSIONS)[number];
 export const LEGACY_RATING_DIMENSIONS = ['aftertaste'] as const;
 export type LegacyRatingDimension = (typeof LEGACY_RATING_DIMENSIONS)[number];
 
-export const SCORE_MIN = 1;
-export const SCORE_MAX = 10;
+/** A score's range and step. Blank is "not rated", so 0 is never a score (D55). */
+export interface ScoreScale {
+	min: number;
+	max: number;
+	step: number;
+}
+
+/** Overall: 0.25–5 in quarters (D55). */
+export const OVERALL_SCALE: ScoreScale = { min: 0.25, max: 5, step: 0.25 };
+/** The taste-profile sub-scores: 0.5–5 in halves (D55). */
+export const PROFILE_SCALE: ScoreScale = { min: 0.5, max: 5, step: 0.5 };
+
+/** Every score on a scale, lowest first. */
+export function scaleScores(s: ScoreScale): number[] {
+	return Array.from(
+		{ length: Math.round((s.max - s.min) / s.step) + 1 },
+		(_, i) => s.min + i * s.step
+	);
+}
+
+/** A score on the scale: in range and on a step. */
+export function isScore(n: number, s: ScoreScale): boolean {
+	// Quarters and halves are exact in binary, so no tolerance is needed.
+	return n >= s.min && n <= s.max && Number.isInteger(n / s.step);
+}
 
 /** Agitation (swirl / stir), unitless 0 none … 5 a lot (D24). New brews start at the default. */
 export const AGITATION_MIN = 0;
@@ -103,7 +130,9 @@ export const LABELS: Record<string, string> = {
 	metal: 'Metal',
 	hario_tabbed: 'Hario (tabbed)',
 	hario_tabless: 'Hario (tabless)',
-	cafec: 'Cafec',
+	cafec_t90: 'Cafec T90',
+	cafec_t92: 'Cafec T92',
+	cafec_abaca: 'Cafec Abaca',
 	sibarist: 'Sibarist',
 	nothing: 'Nothing (repeat)',
 	grind: 'Grind',
@@ -125,13 +154,13 @@ export const LABELS: Record<string, string> = {
 
 /** What a high sub-score means, shown next to each slider so the scale stays consistent over time. */
 export const DIMENSION_HINTS: Record<RatingDimension | LegacyRatingDimension, string> = {
-	acidity: '1 flat · 10 very bright',
-	sweetness: '1 none · 10 very sweet',
-	body: '1 thin · 10 heavy',
-	bitterness: '1 none · 10 very bitter',
-	astringency: '1 smooth · 10 very drying',
-	clarity: '1 muddy · 10 clean, distinct',
-	aftertaste: '1 short · 10 long, strong'
+	acidity: '0.5 flat · 5 very bright',
+	sweetness: '0.5 none · 5 very sweet',
+	body: '0.5 thin · 5 heavy',
+	bitterness: '0.5 none · 5 very bitter',
+	astringency: '0.5 smooth · 5 very drying',
+	clarity: '0.5 muddy · 5 clean, distinct',
+	aftertaste: '0.5 short · 5 long, strong'
 };
 
 export function label(value: string | null | undefined): string {
