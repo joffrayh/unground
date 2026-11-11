@@ -4,7 +4,6 @@ import {
 	parseBrewForm,
 	parseDripperForm,
 	parsePlanForm,
-	parseRatingForm,
 	parseRoasterForm,
 	parseSignupForm
 } from './schemas';
@@ -102,7 +101,7 @@ describe('parseBrewForm, measured by a scale (D51)', () => {
 describe('parseBrewForm', () => {
 	it('parses a complete brew and converts pours, times and the local time zone', () => {
 		const result = parseBrewForm(
-			brewForm({ overall: '8', acidity: '6', perceivedNotes: ['fruity.berry'] }),
+			brewForm({ overall: '4', acidity: '2.5', perceivedNotes: ['fruity.berry'] }),
 			'Europe/London'
 		);
 		expect(result.ok).toBe(true);
@@ -111,6 +110,7 @@ describe('parseBrewForm', () => {
 		expect(brew).toMatchObject({
 			timezone: 'Europe/London',
 			grindSetting: 24,
+			slowFed: false,
 			doseG: 15,
 			waterTempC: 94,
 			agitation: 3,
@@ -129,8 +129,8 @@ describe('parseBrewForm', () => {
 		expect(result.data.plan).toBeNull();
 		expect(brew.brewedAt.toISOString()).toBe('2026-11-03T08:15:00.000Z');
 		expect(rating).toMatchObject({
-			overall: 8,
-			acidity: 6,
+			overall: 4,
+			acidity: 2.5,
 			sweetness: null,
 			perceivedNotes: ['fruity.berry']
 		});
@@ -149,14 +149,54 @@ describe('parseBrewForm', () => {
 		});
 	});
 
+	it('reads the slow-fed tick box (D56)', () => {
+		const result = parseBrewForm(brewForm({ slowFed: 'on' }), 'UTC');
+		expect(result.ok && result.data.brew.slowFed).toBe(true);
+	});
+
+	it('takes the split Cafec filters and refuses the old one (D56)', () => {
+		const filter = (filterType: string) => parseBrewForm(brewForm({ filterType }), 'UTC');
+		expect(filter('cafec_abaca')).toMatchObject({
+			ok: true,
+			data: { brew: { details: { filterType: 'cafec_abaca' } } }
+		});
+		expect(filter('cafec')).toMatchObject({
+			ok: false,
+			errors: { filterType: expect.any(String) }
+		});
+	});
+
 	it('treats a blank rating section as "rate later"', () => {
 		const result = parseBrewForm(brewForm(), 'UTC');
 		expect(result.ok && result.data.rating).toBeNull();
 	});
 
 	it('requires an overall score when any other rating field is filled', () => {
-		const result = parseBrewForm(brewForm({ acidity: '7' }), 'UTC');
+		const result = parseBrewForm(brewForm({ acidity: '3.5' }), 'UTC');
 		expect(result).toMatchObject({ ok: false, errors: { overall: expect.any(String) } });
+	});
+
+	it('takes overall from 0.25 to 5 in quarters and the profile in halves (D55)', () => {
+		const parse = (overall: string, acidity = '') =>
+			parseBrewForm(brewForm({ overall, acidity }), 'UTC');
+		expect(parse('0.25', '5')).toMatchObject({
+			ok: true,
+			data: { rating: { overall: 0.25, acidity: 5 } }
+		});
+		expect(parse('3,75')).toMatchObject({ ok: true, data: { rating: { overall: 3.75 } } });
+		expect(parse('0')).toMatchObject({ ok: false, errors: { overall: 'Min 0.25' } });
+		expect(parse('5.25')).toMatchObject({ ok: false, errors: { overall: 'Max 5' } });
+		expect(parse('3.3')).toMatchObject({
+			ok: false,
+			errors: { overall: 'Must be in steps of 0.25' }
+		});
+		// The taste profile is coarser: 0.5–5 in halves.
+		expect(parse('4', '0.5')).toMatchObject({ ok: true, data: { rating: { acidity: 0.5 } } });
+		expect(parse('4', '0.25')).toMatchObject({ ok: false, errors: { acidity: 'Min 0.5' } });
+		expect(parse('4', '2.25')).toMatchObject({
+			ok: false,
+			errors: { acidity: 'Must be in steps of 0.5' }
+		});
 	});
 
 	it('reports missing and invalid fields by name', () => {
@@ -407,7 +447,7 @@ describe('parseBrewForm', () => {
 	});
 
 	it('rejects unknown flavor notes', () => {
-		expect(parseBrewForm(brewForm({ overall: '7', perceivedNotes: ['made.up'] }), 'UTC').ok).toBe(
+		expect(parseBrewForm(brewForm({ overall: '3.5', perceivedNotes: ['made.up'] }), 'UTC').ok).toBe(
 			false
 		);
 	});
@@ -478,32 +518,6 @@ describe('other forms', () => {
 			data: { material: null }
 		});
 		expect(parseDripperForm(form({ name: ' ', material: 'wood' })).ok).toBe(false);
-	});
-
-	describe('a carried-over profile (D52)', () => {
-		const carried = { acidity: '6', acidityDefault: '6', body: '4', bodyDefault: '4' };
-
-		it('saves no rating when left as it was without an overall', () => {
-			expect(parseRatingForm(form(carried))).toEqual({ ok: true, data: null });
-			expect(parseBrewForm(brewForm(carried), 'UTC')).toMatchObject({
-				ok: true,
-				data: { rating: null }
-			});
-		});
-
-		it('is saved with an overall', () => {
-			expect(parseRatingForm(form({ ...carried, overall: '7' }))).toMatchObject({
-				ok: true,
-				data: { overall: 7, acidity: 6, body: 4, sweetness: null }
-			});
-		});
-
-		it('needs an overall once changed', () => {
-			expect(parseRatingForm(form({ ...carried, acidity: '7' }))).toMatchObject({
-				ok: false,
-				errors: { overall: expect.any(String) }
-			});
-		});
 	});
 
 	it('reads a plan form, blank meaning no plan', () => {

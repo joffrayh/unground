@@ -2,7 +2,8 @@
 	/**
 	 * A disc in a slot, with a small dot at every step (D45). JavaScript only: without it, callers show radios.
 	 * `name` posts the value through a hidden input, blank when unset. `blankAt` is the position meaning
-	 * "not rated"; `marked` is a planned position, its dot green (D30). `linked` is for a slider that
+	 * "not rated"; `marked` is a planned position, its dot green (D30); `ghost` is last time's, a grey disc
+	 * under the thumb (D53). `step` sets the spacing of the positions. `linked` is for a slider that
 	 * follows a selection elsewhere: its label stands out and animates when it changes.
 	 */
 	import type { Snippet } from 'svelte';
@@ -12,11 +13,13 @@
 		label,
 		min,
 		max,
+		step = 1,
 		value,
 		onchange,
 		name,
 		blankAt,
 		marked,
+		ghost,
 		linked = false,
 		hint,
 		error,
@@ -25,11 +28,13 @@
 		label: string;
 		min: number;
 		max: number;
+		step?: number;
 		value: number | null;
 		onchange: (value: number | null) => void;
 		name?: string;
 		blankAt?: number;
 		marked?: number;
+		ghost?: number | null;
 		linked?: boolean;
 		hint?: string;
 		error?: string;
@@ -38,7 +43,9 @@
 	} = $props();
 
 	const uid = $props.id();
-	const positions = $derived(Array.from({ length: max - min + 1 }, (_, i) => min + i));
+	const positions = $derived(
+		Array.from({ length: Math.round((max - min) / step) + 1 }, (_, i) => min + i * step)
+	);
 	const describedBy = $derived(
 		[hint ? `${uid}-hint` : '', error ? `${uid}-err` : ''].filter(Boolean).join(' ') || undefined
 	);
@@ -57,8 +64,16 @@
 	<div class="rail">
 		<div class="ticks" aria-hidden="true">
 			{#each positions as p (p)}
-				<span class="tick" class:marked={p === marked} style:--at={(p - min) / (max - min)}></span>
+				<span
+					class="tick"
+					class:minor={!Number.isInteger(p)}
+					class:marked={p === marked}
+					style:--at={(p - min) / (max - min)}
+				></span>
 			{/each}
+			{#if ghost != null}
+				<span class="ghost" style:--at={(ghost - min) / (max - min)}></span>
+			{/if}
 		</div>
 		<input
 			id="{uid}-input"
@@ -66,7 +81,7 @@
 			type="range"
 			{min}
 			{max}
-			step="1"
+			{step}
 			value={value ?? blankAt ?? min}
 			aria-valuetext={value == null ? 'not set' : `${value} of ${max}`}
 			aria-invalid={error ? 'true' : undefined}
@@ -123,8 +138,11 @@
 		gap: 0.5rem;
 	}
 	.value {
+		/* Wide enough for "3.75", so a suggestion beside it doesn't shift as the value changes. */
+		min-width: 4ch;
 		font-weight: 700;
 		font-variant-numeric: tabular-nums;
+		text-align: end;
 	}
 	.value.unset {
 		color: var(--muted);
@@ -152,21 +170,41 @@
 		inset: 0;
 		pointer-events: none;
 	}
-	/* The thumb's centre travels from half a thumb in at each end. */
+	/*
+	 * The thumb's centre travels from half a thumb in at each end. Whole numbers are the larger dots, so
+	 * every 0–5 slider reads on the same scale whatever its step.
+	 */
 	.tick {
 		position: absolute;
 		top: 50%;
 		left: calc(var(--thumb) / 2 + (100% - var(--thumb)) * var(--at));
-		width: 4px;
-		height: 4px;
+		width: 6px;
+		height: 6px;
 		border-radius: 50%;
 		background: var(--muted);
 		transform: translate(-50%, -50%);
+	}
+	.tick.minor {
+		width: 4px;
+		height: 4px;
+		background: var(--tick-minor);
 	}
 	.tick.marked {
 		width: 10px;
 		height: 10px;
 		background: var(--plan);
+	}
+	/* Last time's value: a faded thumb, left in place to compare against. */
+	.ghost {
+		position: absolute;
+		top: 50%;
+		left: calc(var(--thumb) / 2 + (100% - var(--thumb)) * var(--at));
+		width: 24px;
+		height: 24px;
+		border: 2px solid var(--muted);
+		border-radius: 50%;
+		opacity: 0.45;
+		transform: translate(-50%, -50%);
 	}
 
 	input[type='range'] {

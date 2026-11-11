@@ -18,13 +18,14 @@ const brew: BrewLike = {
 	grinderId: 'grinder-1',
 	dripperId: 'dripper-1',
 	grindSetting: 24,
+	slowFed: true,
 	doseG: 15.5,
 	waterTempC: 94,
 	agitation: 2,
 	totalTimeS: 195,
 	notes: 'stalled drawdown',
 	details: {
-		filterType: 'cafec',
+		filterType: 'cafec_abaca',
 		pours: [
 			{ volumeG: 50, intervalS: 0, bloom: true },
 			{ volumeG: 100, intervalS: 45, bloom: false },
@@ -32,13 +33,13 @@ const brew: BrewLike = {
 		]
 	},
 	rating: {
-		overall: 8,
-		acidity: 6,
+		overall: 4,
+		acidity: 3,
 		sweetness: null,
-		body: 4,
+		body: 2,
 		bitterness: null,
-		astringency: 2,
-		clarity: 7,
+		astringency: 1,
+		clarity: 3.5,
 		comment: 'juicy',
 		perceivedNotes: ['fruity.berry']
 	},
@@ -60,12 +61,13 @@ describe('editValues', () => {
 		expect(v).toMatchObject({
 			dripperId: 'dripper-1',
 			grindSetting: '24',
+			slowFed: true,
 			doseG: '15.5',
 			waterTempC: '94',
 			agitation: '2',
 			totalTime: '3:15',
 			brewedAt: '2026-11-03T08:15',
-			filterType: 'cafec',
+			filterType: 'cafec_abaca',
 			notes: 'stalled drawdown',
 			defaults: null,
 			suggestions: null
@@ -76,9 +78,9 @@ describe('editValues', () => {
 			['1:15', '250', false, '']
 		]);
 		expect(v.rating).toMatchObject({
-			overall: '8',
+			overall: '4',
 			sweetness: '',
-			clarity: '7',
+			clarity: '3.5',
 			comment: 'juicy'
 		});
 		expect(v.rating.perceivedNotes).toEqual(['fruity.berry']);
@@ -100,8 +102,9 @@ describe('newBrewValues', () => {
 			beanId: 'bean-1',
 			grinderId: 'grinder-1',
 			dripperId: 'dripper-1',
-			filterType: 'cafec',
+			filterType: 'cafec_abaca',
 			grindSetting: '',
+			slowFed: true,
 			doseG: '',
 			waterTempC: '',
 			agitation: '2',
@@ -124,17 +127,16 @@ describe('newBrewValues', () => {
 		expect(hasPlanValues(v.plan)).toBe(false);
 	});
 
-	it('carries the rated profile over, leaving overall, notes and comment blank (D52)', () => {
+	it('starts the rating blank, keeping the template’s scores to compare against (D53)', () => {
 		const v = newBrewValues(brew, 'x');
 		expect(v.rating).toMatchObject({
 			overall: '',
-			acidity: '6',
-			sweetness: '',
-			clarity: '7',
+			acidity: '',
+			clarity: '',
 			comment: '',
 			perceivedNotes: []
 		});
-		expect(v.ratingFrom).toMatchObject({ overall: '8', acidity: '6', sweetness: '' });
+		expect(v.ratingFrom).toMatchObject({ overall: '4', acidity: '3', sweetness: '' });
 		expect(newBrewValues({ ...brew, rating: null }, 'x').ratingFrom).toBeNull();
 		expect(editValues(brew, 'x').ratingFrom).toBeNull();
 	});

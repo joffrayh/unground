@@ -72,7 +72,7 @@ _(extensible: decaf flag is included)_
 
 A **Brew** is a single brewing event. It references one **Bean**, one **Grinder** and (optionally) one **Dripper**, and records the parameters used. A brew can be logged before it is tasted; the rating is added later.
 
-**Logging a new brew (D26):** every field shows the previous brew's value as a grey placeholder; a field left blank saves its placeholder, and typing replaces it. What the previous brew's _next-time plan_ suggests is shown as a green "› 17" button inside the field and applied with a tap; a planned agitation level is a green dot on its slider, with the same button (D30). A blank pour time saves the time its box shows, whether copied from the previous brew or estimated from the pours above. The taste profile carries over too, and the previous overall is a grey "Last 7" button (D52).
+**Logging a new brew (D26):** every field shows the previous brew's value as a grey placeholder; a field left blank saves its placeholder, and typing replaces it. What the previous brew's _next-time plan_ suggests is shown as a green "› 17" button inside the field and applied with a tap; a planned agitation level is a green dot on its slider, with the same button (D30). A blank pour time saves the time its box shows, whether copied from the previous brew or estimated from the pours above. The previous rating stays in grey under the new one, its overall and profile each a tap away (D53).
 
 **Common (method-agnostic) attributes:**
 
@@ -80,6 +80,7 @@ A **Brew** is a single brewing event. It references one **Bean**, one **Grinder*
 - **Date / time** of the brew (timezone-aware; roast age uses the brewer's local date).
 - **Grinder** — a reusable **Grinder** entity. Grind settings are only meaningful relative to a specific grinder, so Stage 2 compares grind sizes **within each grinder**.
 - **Grind setting** — a **number** on that grinder's own scale (e.g. 24 clicks, 5.3 on a dial). Multi-ring grinders are entered as total clicks. The grinder records the unit label.
+- **Slow fed** — whether the beans were fed into the grinder slowly; a tick box beside the grinder (D56).
 - **Dripper** — a reusable **Dripper** entity (name + material), chosen and added like a grinder (D23). Optional: older brews have none.
 - **Agitation** — swirl / stir, unitless **0–5**; a new brew starts at the previous brew's value, else 3 (D24).
 - **Dose** — dry coffee weight (g).
@@ -91,7 +92,7 @@ A **Brew** is a single brewing event. It references one **Bean**, one **Grinder*
 
 **V60-specific attributes** (the method-specific block):
 
-- **Filter** (Hario tabbed, Hario tabless, Cafec, Sibarist, other) — optional. (The dripper's material now lives on the Dripper entity, D23.)
+- **Filter** (Hario tabbed, Hario tabless, Cafec T90, Cafec T92, Cafec Abaca, Sibarist, other) — optional. (The dripper's material now lives on the Dripper entity, D23.)
 - **Pours** — an ordered list, typed in or **measured by a connected scale** (D49, D51). Each pour stores:
   - **volume** (g) poured in that pour,
   - **interval** — seconds since the previous pour _started_. The first pour starts the brew, so its interval is **0** by definition.
@@ -107,8 +108,8 @@ A **Brew** is a single brewing event. It references one **Bean**, one **Grinder*
 
 This is **the most important data point** for Stage 2 — it is what every other variable will be correlated against. Each brew gets one rating:
 
-- **Overall score** — integer **1–10**, the headline _quality_ metric (higher = better). Required whenever a rating is saved.
-- **Sub-scores** — integer **1–10** each, measuring **intensity, not quality** (higher = _more_ of it). Optional individually so logging stays fast, but the UI prompts for all of them:
+- **Overall score** — **0.25–5 in quarter steps** (D55), the headline _quality_ metric (higher = better). Required whenever a rating is saved.
+- **Sub-scores** — **0.5–5 in half steps** each, measuring **intensity, not quality** (higher = _more_ of it). Optional individually so logging stays fast, but the UI prompts for all of them:
   - Acidity — higher = more acidic
   - Sweetness — higher = sweeter
   - Body — higher = heavier
@@ -117,7 +118,7 @@ This is **the most important data point** for Stage 2 — it is what every other
   - Clarity — higher = cleaner, more distinct flavours
   - _(set extensible; aftertaste was collected until D22 and is kept on old ratings)_
 - The sub-scores are entered and shown on a **radar chart** (one axis each); a point at the centre means "not rated". A slider under it moves the axis last touched (D40).
-- A new rating, on a new brew or an unrated one, starts from the previous rating's profile; overall starts blank, with the previous one a tap away. A profile left as it was without an overall saves nothing, so a brew can still be rated later (D52).
+- A new rating, on a new brew or an unrated one, starts blank with the previous rating in grey to compare against: a faded disc on the overall slider and a dashed shape on the radar. "Last 3.5" and "Last profile" apply them; the grey stays (D53).
 - **Tasting notes** — tags from the tasting-note vocabulary (D5, D29; any tier), picked by search, to compare against the roaster's claimed notes.
 - **Comment** — free text.
 
@@ -178,7 +179,7 @@ Brew
   method              # 'v60'
   brewed_at           # timestamptz
   timezone            # IANA zone it was logged in; local date & roast age use it (D20)
-  grind_setting, dose_g, water_g, water_temp_c, total_time_s
+  grind_setting, slow_fed, dose_g, water_g, water_temp_c, total_time_s
   agitation?          # 0–5
   changed[]           # legacy: what the user deliberately changed (no longer asked, D25)
   notes?
@@ -191,7 +192,7 @@ Pour
   planned_cumulative_g?, planned_start_s?, duration_s?   # set when a scale measured it (D51); planned_* also by tap to pour (D53)
 
 Rating  (1:1 with brew)
-  brew_id, overall (1-10), acidity?, sweetness?, body?, bitterness?, astringency?, clarity? (1-10 intensity),
+  brew_id, overall (0.25-5), acidity?, sweetness?, body?, bitterness?, astringency?, clarity? (0.5-5 intensity),
   aftertaste? (legacy), comment?
 
 BrewPlan  (1:1 with brew, only while something is planned)
@@ -290,8 +291,12 @@ The substance of each decision lives in the section noted under _Where_; this ta
 | D49 | **The scale card guides the brew** one pour at a time: live reading against the running target, then a countdown to the next pour once the pour stops within 4 g under or anything over. Stopping further short waits for a top-up or Next. Water straight after a pour, or long before the next is due, tops it up. Over-pours keep the running targets. Lifting the brewer after the last pour ends the brew and putting it back undoes that. | The brewer's hands are full, so the scale drives. Keeping running targets means the total still lands on plan. | [§4.2](#42-brew) |
 | D50 | **Pour timing comes from the weight and starts at the first water.** A pour's stop time is when the weight levels off, confirmed by flow staying under 0.5 g/s. The clock follows the scale's timer while it's moving, else the time between readings. | Flow lags weight by about 0.5 s and never holds at exactly zero. The scale's timer can start early on a bump, or not at all in some modes. | [§4.2](#42-brew) |
 | D51 | **A measured brew saves what happened and keeps the plan beside it.** When a guided brew finishes, the scale's readings replace the pour rows and Total time, and each pour stores the running total and start it was planned for and how long the water ran. The next brew's placeholders and reshaped suggestions come from the plan. The adjustments use the measured ratio. Leaving with Exit discards the measurements. | Stage 2 needs what really went in the cup. Repeating measured pours would drift the recipe by a gram or a second each brew, so "same as last time" (D15) has to mean the plan. | [§4.2](#42-brew) |
-| D52 | **A new rating starts from the previous one's taste profile** (on a new brew: the template's; on an unrated brew: the latest rated brew before it). Overall starts blank, the previous overall a grey tap-to-use button. Without an overall, a profile left as carried over (posted as `<dimension>Default`) saves no rating. Tasting notes and comment start blank. Narrows D45's "scores start unset". | Adjusting a familiar profile is quicker than rebuilding it every cup. A blank overall keeps the quality target deliberate and "rate later" working. | [§4.3](#43-rating--tasting-the-target-variable) |
-| D53 | **Tap to pour.** A new brew's Pours start with a Start button, with no switch between typing and tapping: Start at the first water, a big blue button as each later pour starts, Stop at the end of the drawdown. Each tap writes that pour's start time into its row (adding rows) and Stop fills Total time; Undo takes back the last tap, unless that field has been retyped since. Rows can't be removed, nor the plan accepted, while it times. It shows the clock, the pour's target and the countdown to the next planned pour (the row's time typed beforehand, or the previous brew's; not an estimate): a beep at each of the last 3 seconds, then a higher beep, a vibration and a pulsing "now" button until it's tapped. Scale readings are still typed. Each tapped pour keeps the start and running total it was planned for (D51's fields; duration stays empty), so the next brew starts from the plan. It steps aside while a scale guides the brew, and the scale card while it runs. JavaScript only. | Without a scale, timing is the part that's hard to type at the kettle; tapping is one thumb. Times are what the brewer would have typed, so they save as typed; keeping the plan stops them drifting the recipe, as with the scale. The cue is sound as well as sight because eyes are on the kettle; the tap on Start is what lets the browser play it. A switch only hid the Start button, and Undo back past Start already returns to typing. | [§4.2](#42-brew) |
+| D52 | ~~**A new rating starts from the previous one's taste profile** (on a new brew: the template's; on an unrated brew: the latest rated brew before it). Overall starts blank, the previous overall a grey tap-to-use button. Without an overall, a profile left as carried over (posted as `<dimension>Default`) saves no rating. Tasting notes and comment start blank. Narrows D45's "scores start unset".~~ Superseded by D53. | Adjusting a familiar profile is quicker than rebuilding it every cup. A blank overall keeps the quality target deliberate and "rate later" working. | [§4.3](#43-rating--tasting-the-target-variable) |
+| D53 | **A new rating suggests the previous one rather than starting from it** (on a new brew: the template's; on an unrated brew: the latest rated brew before it). Scores start blank. Last time's overall is a faded disc on the overall slider and a grey "Last 7" button; its profile is a dashed grey shape on the radar (and a faded disc on the axis slider) and a "Last profile" button. The grey stays after applying, to compare against. Without JavaScript, last time's pills are outlined. Tasting notes and comment start blank. | Seeing yesterday's cup beside today's makes small changes easy to judge ("a touch more body"). Nothing pre-set means nothing saved by accident, so "rate later" needs no special case. | [§4.3](#43-rating--tasting-the-target-variable) |
+| D54 | **A rated brew can be shared as an image** (Share, beside Edit): bean, roaster and time with the overall score top right; dose, water, ratio, temperature, grind, dripper, pour count, drawdown and agitation; the radar; the logo. Short enough that WhatsApp doesn't crop it in the chat. Dark palette, 2× a phone's width (WhatsApp shrinks anything bigger). The server renders it per request (satori + resvg) and never stores it; an ETag skips re-rendering an unchanged card. The page fetches it ahead so a tap opens the share sheet; a tap before it's loaded shows "Preparing…" and opens the sheet when it is (iOS may need a second tap). Where files can't be shared (no HTTPS, say), or without JavaScript, the link opens the image. | Friends can compare cups in WhatsApp before there's a social feature. Fetching ahead matters because iOS only opens the share sheet straight from a tap. Nothing stored keeps the free tier's storage untouched. | — |
+| D55 | **Scores run to 5: overall 0.25–5 in quarter steps, the sub-scores 0.5–5 in half steps.** Blank is still "not rated", so 0 is never a score. Stored as `numeric(3,2)` with CHECKs on range and step. Migration 0005 halved every 1–10 score (7 → 3.5), so overalls from before it sit on half points from 0.5 up; 0006 rounded any quarter sub-score up to a half. The radar keeps its lowest score on the inner ring with a ring per whole point; arrow keys move a step, Page Up/Down a point. On every slider the whole numbers are the larger dots and the steps between them are faint, so overall, the axis slider and agitation all read as 0–5. Without JavaScript a score is picked from a list, last time's marked "· last" (narrows D45 and D53). | A 5-point scale reads more naturally. Quarters separate close cups on the quality target, but are finer than intensity can be judged. Halving is exact and can be undone by doubling. Twenty pills don't fit a phone's width. | [§4.3](#43-rating--tasting-the-target-variable) |
+| D56 | **Slow feeding is recorded** as a tick box beside the grinder (Set-up becomes 2 × 2 when there's room), carried over by Brew again like the grinder. Brews from before it was asked read as not slow fed. **Cafec splits into Cafec T90, T92 and Abaca**; migration 0006 moved every Cafec brew to Abaca and removed `cafec`, an exception to "never remove a stored vocabulary id" since no row keeps it. | Slow feeding changes the grind distribution, so Stage 2 needs it beside the grind setting. The Cafec papers flow differently; every Cafec brew so far used Abaca. | [§4.2](#42-brew) |
+| D57 | **Tap to pour.** A new brew's Pours start with a Start button, with no switch between typing and tapping: Start at the first water, a big blue button as each later pour starts, Stop at the end of the drawdown. Each tap writes that pour's start time into its row (adding rows) and Stop fills Total time; Undo takes back the last tap, unless that field has been retyped since. Rows can't be removed, nor the plan accepted, while it times. It shows the clock, the pour's target and the countdown to the next planned pour (the row's time typed beforehand, or the previous brew's; not an estimate): a beep at each of the last 3 seconds, then a higher beep, a vibration and a pulsing "now" button until it's tapped. Scale readings are still typed. Each tapped pour keeps the start and running total it was planned for (D51's fields; duration stays empty), so the next brew starts from the plan. It steps aside while a scale guides the brew, and the scale card while it runs. JavaScript only. | Without a scale, timing is the part that's hard to type at the kettle; tapping is one thumb. Times are what the brewer would have typed, so they save as typed; keeping the plan stops them drifting the recipe, as with the scale. The cue is sound as well as sight because eyes are on the kettle; the tap on Start is what lets the browser play it. A switch only hid the Start button, and Undo back past Start already returns to typing. | [§4.2](#42-brew) |
 
 ## 9. Open questions / decisions to revisit
 

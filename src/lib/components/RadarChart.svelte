@@ -1,15 +1,21 @@
 <script lang="ts">
 	/**
 	 * The taste sub-scores (D22) as a radar: one axis per dimension, clockwise from the top, intensity
-	 * 1 near the centre to 10 at the rim; the centre itself is "not rated". Read-only by default (SSR,
+	 * 0.5 near the centre to 5 at the rim; the centre itself is "not rated". Read-only by default (SSR,
 	 * no JavaScript needed). `editable` adds tap-to-set, draggable handles and a keyboard slider per
 	 * axis; it reports changes through `onchange` and shows whatever `values` says (controlled). Touching
 	 * an axis (its handle, its label, or a tap along it) reports it through `onselect`; `selected` lights
-	 * that axis up.
+	 * that axis up. `ghost` is last time's profile, drawn in grey underneath to compare against (D53).
 	 */
-	import { DIMENSION_HINTS, RATING_DIMENSIONS, label as vocabLabel } from '#lib/domain/vocab.ts';
+	import {
+		DIMENSION_HINTS,
+		RATING_DIMENSIONS,
+		PROFILE_SCALE,
+		label as vocabLabel
+	} from '#lib/domain/vocab.ts';
 	import type { RatingDimension } from '#lib/domain/vocab.ts';
 	import {
+		RINGS,
 		keyValue,
 		labelPlacement,
 		nearestAxis,
@@ -28,9 +34,11 @@
 		selected,
 		onchange,
 		onselect,
-		label
+		label,
+		ghost
 	}: {
 		values: Partial<Record<RatingDimension, number | null>>;
+		ghost?: Partial<Record<RatingDimension, number | null>> | null;
 		editable?: boolean;
 		selected?: RatingDimension;
 		onchange?: (dimension: RatingDimension, value: number | null) => void;
@@ -46,12 +54,12 @@
 	const G: RadarGeometry = { radius: 90, inner: 19 };
 	const LABEL_AT = G.radius + 10;
 	const REACH = G.radius + 14;
-	const RINGS = [2, 4, 6, 8, 10];
 	const N = RATING_DIMENSIONS.length;
 	const VIEWBOX = '-170 -138 332 274';
 
 	const current = $derived(RATING_DIMENSIONS.map((d) => normalize(values[d])));
 	const anyRated = $derived(current.some((v) => v != null));
+	const ghostValues = $derived(ghost ? RATING_DIMENSIONS.map((d) => normalize(ghost[d])) : null);
 
 	const axes = RATING_DIMENSIONS.map((d, i) => {
 		const place = labelPlacement(i, N, LABEL_AT);
@@ -93,7 +101,7 @@
 	}
 
 	function valueText(v: number | null): string {
-		return v == null ? 'not rated' : `${v} of 10`;
+		return v == null ? 'not rated' : `${v} of ${PROFILE_SCALE.max}`;
 	}
 
 	// --- Editing ------------------------------------------------------------------------------------
@@ -195,6 +203,10 @@
 		{/each}
 	</g>
 
+	{#if ghostValues?.some((v) => v != null)}
+		<polygon class="ghost" points={polygonPoints(ghostValues, G)} aria-hidden="true" />
+	{/if}
+
 	{#if anyRated}
 		<polygon class="shape" points={polygonPoints(current, G)} aria-hidden="true" />
 	{/if}
@@ -240,7 +252,7 @@
 				tabindex="0"
 				aria-label="{a.name} intensity"
 				aria-valuemin={0}
-				aria-valuemax={10}
+				aria-valuemax={PROFILE_SCALE.max}
 				aria-valuenow={v ?? 0}
 				aria-valuetext={valueText(v)}
 				onkeydown={(e) => onKey(e, a.i)}
@@ -302,6 +314,14 @@
 		fill-opacity: 0.16;
 		stroke: var(--accent-ink);
 		stroke-width: 2;
+		stroke-linejoin: round;
+	}
+	.ghost {
+		fill: var(--muted);
+		fill-opacity: 0.12;
+		stroke: var(--muted);
+		stroke-width: 1.5;
+		stroke-dasharray: 4 3;
 		stroke-linejoin: round;
 	}
 	.dot {

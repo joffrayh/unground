@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
+import { PROFILE_SCALE, scaleScores } from '#lib/domain/vocab.ts';
 import {
+	RINGS,
 	keyValue,
 	labelPlacement,
 	nearestAxis,
@@ -13,36 +15,44 @@ import {
 	type RadarGeometry
 } from './radar.ts';
 
+// 9 steps of 8 from the inner radius (0.5) to the outer one (5).
 const g: RadarGeometry = { radius: 90, inner: 18 };
 const N = 6;
 
 describe('pointFor', () => {
 	it('puts axis 0 straight up and goes clockwise (y points down)', () => {
-		expect(pointFor(0, 10, N, g)).toEqual({ x: 0, y: -90 });
-		const right = pointFor(1, 10, N, g);
+		expect(pointFor(0, 5, N, g)).toEqual({ x: 0, y: -90 });
+		const right = pointFor(1, 5, N, g);
 		expect(right.x).toBeGreaterThan(0);
 		expect(right.y).toBeLessThan(0);
-		expect(pointFor(3, 10, N, g)).toEqual({ x: 0, y: 90 });
-		expect(pointFor(5, 10, N, g).x).toBeLessThan(0);
+		expect(pointFor(3, 5, N, g)).toEqual({ x: 0, y: 90 });
+		expect(pointFor(5, 5, N, g).x).toBeLessThan(0);
 	});
 
-	it('puts 1 on the inner radius, 10 on the outer and not rated at the centre', () => {
-		expect(valueRadius(1, g)).toBe(18);
-		expect(valueRadius(10, g)).toBe(90);
+	it('puts 0.5 on the inner radius, 5 on the outer and not rated at the centre', () => {
+		expect(stepSize(g)).toBe(8);
+		expect(valueRadius(0.5, g)).toBe(18);
+		expect(valueRadius(1, g)).toBe(26);
+		expect(valueRadius(5, g)).toBe(90);
 		expect(valueRadius(null, g)).toBe(0);
 		expect(pointFor(2, null, N, g)).toEqual({ x: 0, y: 0 });
 	});
 
-	it('clamps out-of-range scores', () => {
+	it('clamps out-of-range scores and rounds to half steps', () => {
 		expect(valueRadius(0, g)).toBe(18);
 		expect(valueRadius(14, g)).toBe(90);
+		expect(valueRadius(1.1, g)).toBe(26);
+	});
+
+	it('draws a ring at each whole score', () => {
+		expect(RINGS).toEqual([1, 2, 3, 4, 5]);
 	});
 });
 
 describe('valueFromPoint', () => {
 	it('round-trips every axis and score', () => {
 		for (let axis = 0; axis < N; axis++) {
-			for (let v = 1; v <= 10; v++) {
+			for (const v of scaleScores(PROFILE_SCALE)) {
 				const p = pointFor(axis, v, N, g);
 				expect(valueFromPoint(p.x, p.y, N, g)).toEqual({ axis, value: v });
 			}
@@ -51,20 +61,20 @@ describe('valueFromPoint', () => {
 
 	it('rounds to the nearest step', () => {
 		const step = stepSize(g);
-		expect(radiusToValue(valueRadius(6, g) + step * 0.4, g)).toBe(6);
-		expect(radiusToValue(valueRadius(6, g) + step * 0.6, g)).toBe(7);
+		expect(radiusToValue(valueRadius(3, g) + step * 0.4, g)).toBe(3);
+		expect(radiusToValue(valueRadius(3, g) + step * 0.6, g)).toBe(3.5);
 	});
 
-	it('clears at the centre, but keeps 1 just inside the inner radius', () => {
+	it('clears at the centre, but keeps 0.5 just inside the inner radius', () => {
 		const step = stepSize(g);
 		expect(valueFromPoint(0, 0, N, g)).toEqual({ axis: 0, value: null });
 		expect(radiusToValue(g.inner - step / 2 - 0.01, g)).toBeNull();
-		expect(radiusToValue(g.inner - step / 2 + 0.01, g)).toBe(1);
+		expect(radiusToValue(g.inner - step / 2 + 0.01, g)).toBe(0.5);
 		expect(valueFromPoint(0, -3, N, g)?.value).toBeNull();
 	});
 
-	it('clamps beyond 10 and ignores taps past the reach', () => {
-		expect(valueFromPoint(0, -100, N, g, 105)).toEqual({ axis: 0, value: 10 });
+	it('clamps beyond 5 and ignores taps past the reach', () => {
+		expect(valueFromPoint(0, -100, N, g, 105)).toEqual({ axis: 0, value: 5 });
 		expect(valueFromPoint(0, -110, N, g, 105)).toBeNull();
 	});
 
@@ -87,11 +97,11 @@ describe('valueFromPoint', () => {
 
 describe('valueAlongAxis', () => {
 	it('projects onto the dragged axis, ignoring sideways movement', () => {
-		const p = pointFor(1, 7, N, g);
+		const p = pointFor(1, 3.5, N, g);
 		// Nudge perpendicular to axis 1 (whose direction is -30°): perpendicular is (sin30, cos30).
 		const x = p.x + 10 * 0.5;
 		const y = p.y + 10 * Math.cos(Math.PI / 6);
-		expect(valueAlongAxis(x, y, 1, N, g)).toBe(7);
+		expect(valueAlongAxis(x, y, 1, N, g)).toBe(3.5);
 	});
 
 	it('clears when dragged to or behind the centre', () => {
@@ -100,13 +110,13 @@ describe('valueAlongAxis', () => {
 	});
 
 	it('clamps past the end', () => {
-		expect(valueAlongAxis(0, -200, 0, N, g)).toBe(10);
+		expect(valueAlongAxis(0, -200, 0, N, g)).toBe(5);
 	});
 });
 
 describe('polygonPoints', () => {
 	it('lists one vertex per axis with unrated ones at the centre', () => {
-		expect(polygonPoints([10, null, null, 1, null, null], g)).toBe('0,-90 0,0 0,0 0,18 0,0 0,0');
+		expect(polygonPoints([5, null, null, 1, null, null], g)).toBe('0,-90 0,0 0,0 0,26 0,0 0,0');
 	});
 });
 
@@ -122,24 +132,33 @@ describe('labelPlacement', () => {
 });
 
 describe('keyValue', () => {
-	it('steps up from not rated to 1 and stops at 10', () => {
-		expect(keyValue('ArrowUp', null)).toBe(1);
-		expect(keyValue('ArrowRight', 4)).toBe(5);
-		expect(keyValue('ArrowUp', 10)).toBe(10);
+	it('steps a half up from not rated to 0.5 and stops at 5', () => {
+		expect(keyValue('ArrowUp', null)).toBe(0.5);
+		expect(keyValue('ArrowRight', 4)).toBe(4.5);
+		expect(keyValue('ArrowUp', 5)).toBe(5);
 	});
 
-	it('steps down below 1 to not rated', () => {
-		expect(keyValue('ArrowDown', 5)).toBe(4);
-		expect(keyValue('ArrowLeft', 1)).toBeNull();
+	it('steps a half down, below 0.5 to not rated', () => {
+		expect(keyValue('ArrowDown', 2.5)).toBe(2);
+		expect(keyValue('ArrowLeft', 0.5)).toBeNull();
 		expect(keyValue('ArrowDown', null)).toBeNull();
 	});
 
+	it('moves a whole point with Page Up and Page Down', () => {
+		expect(keyValue('PageUp', null)).toBe(0.5);
+		expect(keyValue('PageUp', 2.5)).toBe(3.5);
+		expect(keyValue('PageUp', 4.5)).toBe(5);
+		expect(keyValue('PageDown', 3.5)).toBe(2.5);
+		expect(keyValue('PageDown', 1)).toBe(0.5);
+		expect(keyValue('PageDown', 0.5)).toBeNull();
+	});
+
 	it('handles Home, End, Delete and Backspace, and ignores other keys', () => {
-		expect(keyValue('Home', null)).toBe(1);
-		expect(keyValue('End', 3)).toBe(10);
-		expect(keyValue('Delete', 7)).toBeNull();
-		expect(keyValue('Backspace', 7)).toBeNull();
-		expect(keyValue('Tab', 7)).toBeUndefined();
-		expect(keyValue('a', 7)).toBeUndefined();
+		expect(keyValue('Home', null)).toBe(0.5);
+		expect(keyValue('End', 3)).toBe(5);
+		expect(keyValue('Delete', 3.5)).toBeNull();
+		expect(keyValue('Backspace', 3.5)).toBeNull();
+		expect(keyValue('Tab', 3.5)).toBeUndefined();
+		expect(keyValue('a', 3.5)).toBeUndefined();
 	});
 });

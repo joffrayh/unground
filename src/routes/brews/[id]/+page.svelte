@@ -8,7 +8,6 @@
 	import RatingFields from '#lib/components/brews/RatingFields.svelte';
 	import {
 		agreeingNotes,
-		carriedRatingValues,
 		flavorName,
 		planFormValues,
 		planValues,
@@ -50,11 +49,9 @@
 		return brew.details.pours.map((p, i) => ({ ...p, ...entries[i] }));
 	});
 	const agreeing = $derived(rating ? agreeingNotes(rating.perceivedNotes, data.claimed.notes) : []);
-	/** An unrated brew's rating starts from the previous one's (D52). */
+	/** An unrated brew's rate form shows the previous rating in grey (D53). */
 	const lastRating = $derived(rating ? null : ratingFrom(data.previousRating));
-	const formRating = $derived(
-		ratingFormValues(rateForm, rating ? ratingValues(rating) : carriedRatingValues(lastRating))
-	);
+	const formRating = $derived(ratingFormValues(rateForm, ratingValues(rating)));
 	const anyDimension = $derived(rating ? RATING_DIMENSIONS.some((d) => rating[d] != null) : false);
 
 	// --- next time (D25) ----------------------------------------------------------------------
@@ -81,6 +78,63 @@
 			: []
 	);
 	const formPlan = $derived(planFormValues(planForm, planValues(plan)));
+
+	// --- share (D54) ----------------------------------------------------------------------------
+	const cardHref = $derived(`/brews/${brew.id}/card.png`);
+	/**
+	 * The card, fetched as the page opens: iOS opens the share sheet only close to a tap, so it should
+	 * be ready by then. Resolves to null where files can't be shared (or the fetch failed). Only where
+	 * the share API exists (secure contexts); elsewhere the link just opens the image.
+	 */
+	let cardLoad: Promise<File | null> | null = null;
+	let cardFile = $state<File | null>(null);
+	let preparing = $state(false);
+	$effect(() => {
+		// Reruns whenever the page reloads the brew; the ETag makes an unchanged card a 304.
+		if (!brew.rating || !navigator.canShare) return;
+		const href = cardHref;
+		let stale = false;
+		const load = (async () => {
+			const res = await fetch(href);
+			if (!res.ok) return null;
+			const name = /filename="([^"]+)"/.exec(res.headers.get('content-disposition') ?? '')?.[1];
+			const file = new File([await res.blob()], name ?? 'unground.png', { type: 'image/png' });
+			return navigator.canShare({ files: [file] }) ? file : null;
+		})().catch(() => null);
+		cardLoad = load;
+		load.then((file) => {
+			if (!stale) cardFile = file;
+		});
+		return () => {
+			stale = true;
+			cardLoad = null;
+			cardFile = null;
+		};
+	});
+
+	async function shareCard(e: MouseEvent) {
+		if (!cardLoad) return;
+		e.preventDefault();
+		if (preparing) return;
+		let file = cardFile;
+		if (!file) {
+			preparing = true;
+			file = await cardLoad;
+			preparing = false;
+		}
+		if (!file) {
+			location.href = cardHref;
+			return;
+		}
+		try {
+			await navigator.share({ files: [file] });
+		} catch (err) {
+			// AbortError: the sheet was closed. NotAllowedError: the wait outlived the tap (iOS); the
+			// card is ready now, so the next tap opens the sheet straight away.
+			const name = (err as Error).name;
+			if (name !== 'AbortError' && name !== 'NotAllowedError') location.href = cardHref;
+		}
+	}
 
 	/** Enter moves to the next box instead of saving the plan half-way. */
 	function onPlanKeydown(e: KeyboardEvent) {
@@ -115,7 +169,13 @@
 	<div class="actions">
 		<a class="btn btn-primary" href="/brews/new?from={brew.id}">Brew again</a>
 		<a class="btn" href="/brews/{brew.id}/edit">Edit</a>
-		{#if !rating}<a class="btn" href="#rate">Rate</a>{/if}
+		{#if rating}
+			<a class="btn" href={cardHref} onclick={shareCard} aria-busy={preparing} data-sveltekit-reload
+				>{preparing ? 'Preparing…' : 'Share'}</a
+			>
+		{:else}
+			<a class="btn" href="#rate">Rate</a>
+		{/if}
 	</div>
 </header>
 
@@ -143,7 +203,7 @@
 				<dt>Grind</dt>
 				<dd>
 					{brew.grindSetting}{brew.grinderSettingUnit ? ` ${brew.grinderSettingUnit}` : ''}
-					<span class="sub">{brew.grinderName}</span>
+					<span class="sub">{brew.grinderName}{brew.slowFed ? ' · slow fed' : ''}</span>
 				</dd>
 			</div>
 			<div>
@@ -224,7 +284,7 @@
 			<div class="rating-head">
 				<h2>Rating</h2>
 				{#if rating}
-					<span class="score-badge" aria-label="Overall {rating.overall} of 10"
+					<span class="score-badge" aria-label="Overall {rating.overall} of 5"
 						>{rating.overall}</span
 					>
 				{/if}
@@ -405,7 +465,7 @@
 		margin: 0;
 	}
 	.rating-head .score-badge {
-		min-width: 3.85rem;
+		min-width: 4.25rem;
 		height: 2.1rem;
 		font-size: 1.1rem;
 	}

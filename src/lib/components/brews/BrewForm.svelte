@@ -22,7 +22,7 @@
 	import { formatDuration, parseDuration } from '#lib/domain/pours.ts';
 	import { AGITATION_MAX, AGITATION_MIN, FILTER_TYPES } from '#lib/domain/vocab.ts';
 	import { options } from '#lib/ui/format.ts';
-	import { formValues, val, vals, type FormState } from '#lib/ui/forms.ts';
+	import { checked, formValues, val, vals, type FormState } from '#lib/ui/forms.ts';
 	import PlanFields from './PlanFields.svelte';
 	import PourEditor from './PourEditor.svelte';
 	import RatingFields from './RatingFields.svelte';
@@ -99,6 +99,7 @@
 		dripperId: val(form, 'dripperId', values.dripperId),
 		scaleId: val(form, 'scaleId', values.scaleId),
 		filterType: val(form, 'filterType', values.filterType),
+		slowFed: checked(form, 'slowFed', values.slowFed),
 		grindSetting: val(form, 'grindSetting', values.grindSetting),
 		doseG: val(form, 'doseG', values.doseG),
 		waterTempC: val(form, 'waterTempC', values.waterTempC),
@@ -409,7 +410,7 @@
 
 	<fieldset class="section">
 		<legend>Set-up</legend>
-		<div class="pair">
+		<div class="setup">
 			<div class="field">
 				<label for="{uid}-grinderId">Grinder</label>
 				<select
@@ -429,6 +430,13 @@
 				{#if catalogueLinks}
 					<a class="small" href="/equipment?return={returnTo}">+ Add a grinder</a>
 				{/if}
+			</div>
+			<div class="field">
+				<span class="label" aria-hidden="true">Feed</span>
+				<label class="check boxed">
+					<input type="checkbox" name="slowFed" checked={start.slowFed} />
+					Slow fed
+				</label>
 			</div>
 			<div class="field">
 				<label for="{uid}-dripperId">Dripper</label>
@@ -722,10 +730,19 @@
 		flex-direction: column;
 		gap: 0.9rem;
 	}
-	.pair {
+	/* Grinder, feed, dripper and filter: stacked on a phone, 2 × 2 when there's room. */
+	.setup {
 		display: grid;
-		grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
+		grid-template-columns: repeat(auto-fit, minmax(max(10rem, calc((100% - 0.75rem) / 2)), 1fr));
 		gap: 0.75rem;
+	}
+	/* A checkbox drawn as a field, so it lines up with the selects beside it. */
+	.boxed {
+		padding-inline: 0.7rem;
+		border: 1px solid var(--border);
+		border-radius: var(--radius-sm);
+		background: var(--field);
+		cursor: pointer;
 	}
 	/* Grind and water can hold a "› 24.6" button beside the value; dose never does. */
 	.trio {

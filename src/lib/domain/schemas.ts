@@ -26,11 +26,12 @@ import {
 	DRIPPER_MATERIALS,
 	FILTER_TYPES,
 	PROCESSES,
+	OVERALL_SCALE,
+	PROFILE_SCALE,
 	RATING_DIMENSIONS,
 	ROAST_LEVELS,
-	SCORE_MAX,
-	SCORE_MIN,
 	type FilterType,
+	type ScoreScale,
 	type RatingDimension
 } from './vocab';
 
@@ -49,7 +50,8 @@ const reqText = (max: number) =>
 const optText = (max: number) =>
 	z.preprocess(blankToNull, z.string().trim().max(max, `At most ${max} characters`).nullable());
 
-type NumberOpts = { int?: boolean; decimals?: number };
+/** `step`: the value must be a multiple of it (e.g. quarters). */
+type NumberOpts = { int?: boolean; decimals?: number; step?: number };
 
 /** Rejects more decimals than the column stores, instead of letting the database round silently. */
 function hasAtMostDecimals(x: number, decimals: number): boolean {
@@ -63,6 +65,7 @@ const number = (min: number, max: number, opts: NumberOpts = {}) => {
 		.min(min, `Min ${min}`)
 		.max(max, `Max ${max}`);
 	if (opts.int) n = n.int('Must be a whole number');
+	if (opts.step !== undefined) n = n.multipleOf(opts.step, `Must be in steps of ${opts.step}`);
 	const { decimals } = opts;
 	if (decimals !== undefined) {
 		return n.refine(
@@ -200,16 +203,16 @@ export const parseBeanForm = (fd: FormData) => run(beanSchema, formObject(fd, ['
 
 // --- rating -----------------------------------------------------------------------------------
 
-const score = optNumber(SCORE_MIN, SCORE_MAX, { int: true });
+const score = (s: ScoreScale) => optNumber(s.min, s.max, { step: s.step });
+const profileScore = score(PROFILE_SCALE);
 
-const dimensionScores = Object.fromEntries(RATING_DIMENSIONS.map((d) => [d, score])) as Record<
-	RatingDimension,
-	typeof score
->;
+const dimensionScores = Object.fromEntries(
+	RATING_DIMENSIONS.map((d) => [d, profileScore])
+) as Record<RatingDimension, typeof profileScore>;
 
 export const ratingSchema = z
 	.object({
-		overall: score,
+		overall: score(OVERALL_SCALE),
 		...dimensionScores,
 		comment: optText(2000),
 		perceivedNotes: flavorIds
@@ -234,23 +237,9 @@ export type RatingInput = {
 	perceivedNotes: string[];
 } & Record<RatingDimension, number | null>;
 
-const trimmed = (v: unknown) => (typeof v === 'string' ? v.trim() : '');
-
-/**
- * Without an overall, a profile left as it was carried over (posted as `<dimension>Default`, D52) is
- * not a rating: the brew is rated later.
- */
-function dropCarriedProfile(obj: Record<string, unknown>): Record<string, unknown> {
-	if (trimmed(obj.overall) !== '') return obj;
-	if (!RATING_DIMENSIONS.every((d) => trimmed(obj[d]) === trimmed(obj[`${d}Default`]))) return obj;
-	const out = { ...obj };
-	for (const d of RATING_DIMENSIONS) out[d] = '';
-	return out;
-}
-
 /** Returns `null` data when the rating section was left blank (rate later). */
 export function parseRatingFields(obj: Record<string, unknown>): ParseResult<RatingInput | null> {
-	const result = run(ratingSchema, dropCarriedProfile(obj));
+	const result = run(ratingSchema, obj);
 	if (!result.ok) return result;
 	const r = result.data;
 	if (r.overall == null) return { ok: true, data: null };
@@ -327,6 +316,8 @@ export interface BrewInput {
 	method: 'v60';
 	brewedAt: Date;
 	grindSetting: number;
+	/** The beans were fed into the grinder slowly (D56). */
+	slowFed: boolean;
 	doseG: number;
 	waterTempC: number;
 	/** 0–5, null = not recorded (D24). */
@@ -345,6 +336,7 @@ const brewCommonSchema = z.object({
 	method: z.literal('v60', { error: 'Unsupported brew method' }),
 	brewedAt: reqText(20),
 	grindSetting: reqNumber(0, 9999, { decimals: 2 }),
+	slowFed: checkbox,
 	doseG: reqNumber(0.1, 200, { decimals: 1 }),
 	waterTempC: reqNumber(0, 100, { decimals: 1 }),
 	agitation: optNumber(AGITATION_MIN, AGITATION_MAX, { int: true }),
@@ -565,6 +557,7 @@ export function parseBrewForm(fd: FormData, timeZone: string): ParseResult<BrewF
 				method: c.method,
 				brewedAt: brewedAt!,
 				grindSetting: c.grindSetting,
+				slowFed: c.slowFed,
 				doseG: c.doseG,
 				waterTempC: c.waterTempC,
 				agitation: c.agitation,
