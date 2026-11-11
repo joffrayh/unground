@@ -3,8 +3,8 @@
 	 * The rating section (§4.3): overall is the one quality score; the sub-scores are intensity, higher =
 	 * more of it (D7). Shared by the brew form and the brew page's rate form.
 	 *
-	 * `from` is the previous rating (D52): its profile is pre-set in `values` and posted again as
-	 * `<dimension>Default`, and its overall is offered beside the overall slider.
+	 * `from` is the previous rating (D53): its scores stay in grey to compare against, and a tap applies
+	 * them. Nothing is pre-set, so a rating left blank is still "rate later".
 	 */
 	import { onMount } from 'svelte';
 	import FieldError from '#lib/components/FieldError.svelte';
@@ -47,8 +47,19 @@
 	);
 	/** The axis the slider under the radar moves: the last one touched. */
 	let active = $state<RatingDimension>(RATING_DIMENSIONS[0]);
-	const lastOverall = $derived(from ? score(from.overall) : null);
 	const anyScored = $derived(RATING_DIMENSIONS.some((d) => scores[d] != null));
+	const lastOverall = $derived(from ? score(from.overall) : null);
+	const lastScores = $derived(
+		from
+			? (Object.fromEntries(RATING_DIMENSIONS.map((d) => [d, score(from[d])])) as Record<
+					RatingDimension,
+					number | null
+				>)
+			: null
+	);
+	const lastProfile = $derived(
+		lastScores && RATING_DIMENSIONS.some((d) => lastScores[d] != null) ? lastScores : null
+	);
 	const dimensionErrors = $derived(
 		RATING_DIMENSIONS.filter((d) => errors[d]).map((d) => ({ d, message: errors[d] }))
 	);
@@ -62,14 +73,13 @@
 	function clearAll() {
 		for (const d of RATING_DIMENSIONS) scores[d] = null;
 	}
+
+	function useLastProfile() {
+		if (lastProfile) for (const d of RATING_DIMENSIONS) scores[d] = lastProfile[d];
+	}
 </script>
 
 <div class="rating-fields">
-	{#if from}
-		{#each RATING_DIMENSIONS as d (d)}
-			<input type="hidden" name="{d}Default" value={from[d]} />
-		{/each}
-	{/if}
 	<div class="overall">
 		{#if hydrated}
 			<Slider
@@ -79,6 +89,7 @@
 				max={SCORE_MAX}
 				blankAt={0}
 				value={overall}
+				ghost={lastOverall}
 				error={errors.overall}
 				onchange={(v) => (overall = v)}
 			>
@@ -97,8 +108,8 @@
 			<ScoreInput
 				name="overall"
 				label="Overall"
-				hint={lastOverall != null ? `Last ${lastOverall}` : undefined}
 				value={values.overall}
+				ghost={lastOverall}
 				error={errors.overall}
 			/>
 		{/if}
@@ -113,6 +124,7 @@
 			<RadarChart
 				label="Taste profile"
 				values={scores}
+				ghost={lastProfile}
 				editable
 				selected={active}
 				onchange={(d, v) => (scores[d] = v)}
@@ -128,12 +140,15 @@
 				blankAt={0}
 				linked
 				value={scores[active]}
+				ghost={lastProfile?.[active]}
 				onchange={(v) => (scores[active] = v)}
 			/>
 			<div class="how">
 				<span class="hint">Centre = not rated.</span>
 				{#if anyScored}
 					<button type="button" class="link-btn" onclick={clearAll}>Clear all</button>
+				{:else if lastProfile}
+					<button type="button" class="last" onclick={useLastProfile}>Last profile</button>
 				{/if}
 			</div>
 			{#if dimensionErrors.length}
@@ -161,6 +176,7 @@
 					label={label(d)}
 					hint={DIMENSION_HINTS[d]}
 					value={values[d]}
+					ghost={lastScores?.[d]}
 					error={errors[d]}
 				/>
 			{/each}
@@ -202,9 +218,10 @@
 		font-family: var(--display);
 		font-size: 1rem;
 	}
-	/* The previous overall, grey like a placeholder (D26); tapping it applies it. */
+	/* Last time's score or profile, grey like a placeholder (D26); tapping it applies it. */
 	.last {
 		position: relative;
+		flex-shrink: 0;
 		min-height: 32px;
 		padding: 0.05rem 0.55rem;
 		border: 1px solid var(--border);

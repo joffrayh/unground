@@ -5,7 +5,7 @@
 	 * no JavaScript needed). `editable` adds tap-to-set, draggable handles and a keyboard slider per
 	 * axis; it reports changes through `onchange` and shows whatever `values` says (controlled). Touching
 	 * an axis (its handle, its label, or a tap along it) reports it through `onselect`; `selected` lights
-	 * that axis up.
+	 * that axis up. `ghost` is last time's profile, drawn in grey underneath to compare against (D53).
 	 */
 	import { DIMENSION_HINTS, RATING_DIMENSIONS, label as vocabLabel } from '#lib/domain/vocab.ts';
 	import type { RatingDimension } from '#lib/domain/vocab.ts';
@@ -28,9 +28,11 @@
 		selected,
 		onchange,
 		onselect,
-		label
+		label,
+		ghost
 	}: {
 		values: Partial<Record<RatingDimension, number | null>>;
+		ghost?: Partial<Record<RatingDimension, number | null>> | null;
 		editable?: boolean;
 		selected?: RatingDimension;
 		onchange?: (dimension: RatingDimension, value: number | null) => void;
@@ -52,6 +54,7 @@
 
 	const current = $derived(RATING_DIMENSIONS.map((d) => normalize(values[d])));
 	const anyRated = $derived(current.some((v) => v != null));
+	const ghostValues = $derived(ghost ? RATING_DIMENSIONS.map((d) => normalize(ghost[d])) : null);
 
 	const axes = RATING_DIMENSIONS.map((d, i) => {
 		const place = labelPlacement(i, N, LABEL_AT);
@@ -195,6 +198,10 @@
 		{/each}
 	</g>
 
+	{#if ghostValues?.some((v) => v != null)}
+		<polygon class="ghost" points={polygonPoints(ghostValues, G)} aria-hidden="true" />
+	{/if}
+
 	{#if anyRated}
 		<polygon class="shape" points={polygonPoints(current, G)} aria-hidden="true" />
 	{/if}
@@ -302,6 +309,14 @@
 		fill-opacity: 0.16;
 		stroke: var(--accent-ink);
 		stroke-width: 2;
+		stroke-linejoin: round;
+	}
+	.ghost {
+		fill: var(--muted);
+		fill-opacity: 0.12;
+		stroke: var(--muted);
+		stroke-width: 1.5;
+		stroke-dasharray: 4 3;
 		stroke-linejoin: round;
 	}
 	.dot {

@@ -233,7 +233,7 @@ describe('brews', () => {
 		expect((await getLatestBrew(db, refs.userId))?.id).toBe(ids[4]);
 	});
 
-	it('finds the latest rating before a brew (D52)', async () => {
+	it('finds the latest rating before a brew (D53)', async () => {
 		const refs = await setupBrewer(db);
 		const at = (day: number) =>
 			brewInput(refs, { brewedAt: new Date(`2026-10-0${day}T08:00:00Z`) });

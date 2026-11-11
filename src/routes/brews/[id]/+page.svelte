@@ -8,7 +8,6 @@
 	import RatingFields from '#lib/components/brews/RatingFields.svelte';
 	import {
 		agreeingNotes,
-		carriedRatingValues,
 		flavorName,
 		planFormValues,
 		planValues,
@@ -50,11 +49,9 @@
 		return brew.details.pours.map((p, i) => ({ ...p, ...entries[i] }));
 	});
 	const agreeing = $derived(rating ? agreeingNotes(rating.perceivedNotes, data.claimed.notes) : []);
-	/** An unrated brew's rating starts from the previous one's (D52). */
+	/** An unrated brew's rate form shows the previous rating in grey (D53). */
 	const lastRating = $derived(rating ? null : ratingFrom(data.previousRating));
-	const formRating = $derived(
-		ratingFormValues(rateForm, rating ? ratingValues(rating) : carriedRatingValues(lastRating))
-	);
+	const formRating = $derived(ratingFormValues(rateForm, ratingValues(rating)));
 	const anyDimension = $derived(rating ? RATING_DIMENSIONS.some((d) => rating[d] != null) : false);
 
 	// --- next time (D25) ----------------------------------------------------------------------

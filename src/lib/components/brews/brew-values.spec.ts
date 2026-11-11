@@ -124,13 +124,12 @@ describe('newBrewValues', () => {
 		expect(hasPlanValues(v.plan)).toBe(false);
 	});
 
-	it('carries the rated profile over, leaving overall, notes and comment blank (D52)', () => {
+	it('starts the rating blank, keeping the template’s scores to compare against (D53)', () => {
 		const v = newBrewValues(brew, 'x');
 		expect(v.rating).toMatchObject({
 			overall: '',
-			acidity: '6',
-			sweetness: '',
-			clarity: '7',
+			acidity: '',
+			clarity: '',
 			comment: '',
 			perceivedNotes: []
 		});

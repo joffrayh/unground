@@ -212,7 +212,7 @@ export async function getLatestBrew(db: Db, userId: string): Promise<Brew | null
 	return row ? getBrew(db, userId, row.id) : null;
 }
 
-/** The rating of the user's latest rated brew before `brew`, which an unrated brew's rating starts from (D52). */
+/** The rating of the user's latest rated brew before `brew`, shown beside an unrated brew's rate form (D53). */
 export async function getPreviousRating(
 	db: Db,
 	userId: string,

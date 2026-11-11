@@ -230,14 +230,15 @@ test('log, rate, plan, repeat and export a brew', async ({ page }) => {
 	await expect(dose).toHaveAttribute('placeholder', '15');
 	await expect(page.locator('[name="pourScale"]').nth(2)).toHaveAttribute('placeholder', '250');
 	await expect(page.locator('[name="totalTime"]')).toHaveValue('');
-	await expect(page.locator('input[name="overall"]')).toHaveValue('');
 	await expect(page.locator('[name="dripperId"] option:checked')).toHaveText('E2E V60 02');
-	// The taste profile carries over (D52); the previous overall is a tap away.
-	await expect(page.getByRole('slider', { name: 'Acidity intensity' })).toHaveAttribute(
-		'aria-valuenow',
-		'7'
-	);
+	// The rating starts blank, last time's a tap away (D53).
+	await expect(page.locator('input[name="overall"]')).toHaveValue('');
 	await expect(page.getByRole('button', { name: 'Use 8, as last time' })).toBeVisible();
+	await expect(acidity).toHaveAttribute('aria-valuenow', '0');
+	await page.getByRole('button', { name: 'Last profile' }).click();
+	await expect(acidity).toHaveAttribute('aria-valuenow', '7');
+	await page.getByRole('button', { name: 'Clear all' }).click();
+	await expect(acidity).toHaveAttribute('aria-valuenow', '0');
 
 	await page.getByRole('button', { name: 'Use 25 clicks, as planned last time' }).click();
 	await expect(page.locator('[name="grindSetting"]')).toHaveValue('25');
@@ -321,7 +322,7 @@ test('log, rate, plan, repeat and export a brew', async ({ page }) => {
 		pour_count: '4',
 		bloom_pours: '1',
 		dripper_name: 'E2E V60 02',
-		// Untouched and without an overall, the carried profile isn't a rating.
+		// Left blank, the brew is rated later.
 		rating_overall: '',
 		rating_acidity: ''
 	});
