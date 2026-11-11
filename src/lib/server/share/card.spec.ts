@@ -60,25 +60,23 @@ function rated(overrides: Partial<RatedBrew> = {}): RatedBrew {
 }
 
 describe('brew card', () => {
-	it('keeps the shared fields and leaves out roast age, filter and agitation', () => {
+	it('sums up the recipe and leaves out roast age and filter', () => {
 		const card = brewCard(rated());
 		expect(card.overall).toBe(8);
 		expect(card.brewedAt).toBe('Tue 3 Nov, 08:15');
-		expect(card.facts.map((f) => f.name)).toEqual([
-			'Dose',
-			'Water',
-			'Ratio',
-			'Temperature',
-			'Grind',
-			'Dripper'
+		expect(card.facts.map((f) => [f.name, f.value])).toEqual([
+			['Dose', '15 g'],
+			['Water', '250 g'],
+			['Ratio', '1:16.7'],
+			['Temperature', '94 °C'],
+			['Grind', '24 clicks'],
+			['Dripper', 'Hario V60 02'],
+			['Pours', '3'],
+			['Drawdown', '3:05'],
+			['Agitation', '3 / 5']
 		]);
-		expect(card.facts[4]).toEqual({ name: 'Grind', value: '24 clicks', sub: 'Comandante C40' });
-		expect(card.pours.map((p) => [p.scale, p.time, p.bloom])).toEqual([
-			['45 g', '0:00', true],
-			['150', '0:45', false],
-			['250', '1:15', false]
-		]);
-		expect(card.totalTime).toBe('3:05');
+		expect(card.facts[4].sub).toBe('Comandante C40');
+		expect(brewCard(rated({ agitation: null })).facts[8].value).toBe('—');
 	});
 
 	it('tags the same values the same way', () => {

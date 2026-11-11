@@ -1,5 +1,5 @@
 /**
- * The shareable image of a rated brew (D54): rating, bean, recipe, pours and taste profile, drawn as a
+ * The shareable image of a rated brew (D54): rating, bean, recipe and taste profile, drawn as a
  * satori element tree. Pure: `brewCard` picks the values, `cardTree` lays them out; render.ts turns the
  * tree into a PNG.
  */
@@ -14,13 +14,13 @@ import {
 } from '#lib/components/radar.ts';
 import type { RadarGeometry } from '#lib/components/radar.ts';
 import { brewRatio } from '#lib/domain/derive.ts';
-import { formatDuration, pourName, poursToEntries } from '#lib/domain/pours.ts';
+import { formatDuration } from '#lib/domain/pours.ts';
 import { RATING_DIMENSIONS, label } from '#lib/domain/vocab.ts';
 import type { Brew } from '#lib/server/services/brews.ts';
 import { formatDateTime, grams, ratioText } from '#lib/ui/format.ts';
 
 /** Bump when the layout changes, so browsers drop their cached copies. */
-const CARD_VERSION = 4;
+const CARD_VERSION = 5;
 
 export interface Card {
 	overall: number;
@@ -28,14 +28,11 @@ export interface Card {
 	roaster: string;
 	brewedAt: string;
 	facts: { name: string; value: string; sub?: string }[];
-	pours: { name: string; bloom: boolean; scale: string; time: string }[];
-	totalTime: string;
 	profile: { name: string; value: number | null }[];
 }
 
 /** The card's values for a rated brew. */
 export function brewCard(brew: Brew & { rating: NonNullable<Brew['rating']> }): Card {
-	const entries = poursToEntries(brew.details.pours);
 	const unit = brew.grinderSettingUnit ? ` ${brew.grinderSettingUnit}` : '';
 	return {
 		overall: brew.rating.overall,
@@ -55,15 +52,11 @@ export function brewCard(brew: Brew & { rating: NonNullable<Brew['rating']> }): 
 				name: 'Dripper',
 				value: brew.dripperName ?? '—',
 				sub: brew.dripperMaterial ? label(brew.dripperMaterial) : undefined
-			}
+			},
+			{ name: 'Pours', value: String(brew.details.pours.length) },
+			{ name: 'Drawdown', value: formatDuration(brew.totalTimeS) },
+			{ name: 'Agitation', value: brew.agitation == null ? '—' : `${brew.agitation} / 5` }
 		],
-		pours: entries.map((p, i) => ({
-			name: pourName(i),
-			bloom: p.bloom,
-			scale: i === 0 ? grams(p.cumulativeG) : String(p.cumulativeG),
-			time: formatDuration(p.startS)
-		})),
-		totalTime: formatDuration(brew.totalTimeS),
 		profile: RATING_DIMENSIONS.map((d) => ({ name: label(d), value: brew.rating[d] ?? null }))
 	};
 }
@@ -107,7 +100,6 @@ function h(type: string, style: Style, ...children: (Child | null | false)[]): N
 const C = {
 	bg: '#101118',
 	surface: '#181c24',
-	surface2: '#2a3240',
 	text: '#ffffff',
 	cream: '#f4ebde',
 	muted: '#b4bac6',
@@ -178,60 +170,6 @@ function facts(items: Card['facts']): Node {
 				)
 			)
 		)
-	);
-}
-
-function pours(rows: Card['pours'], total: string): Node {
-	const row = (cells: [Child, Child, Child], style: Style = {}) =>
-		h(
-			'div',
-			{ alignItems: 'center', paddingTop: 4, paddingBottom: 4, ...style },
-			h('div', { flex: 1.4, alignItems: 'center' }, cells[0]),
-			h('div', { flex: 1 }, cells[1]),
-			h('div', { flex: 1, justifyContent: 'flex-end' }, cells[2])
-		);
-	return card(
-		heading('Pours'),
-		row(['Pour', 'Scale', 'Time'], {
-			fontSize: 13,
-			color: C.muted,
-			borderBottom: `1px solid ${C.border}`
-		}),
-		...rows.map((p, i) =>
-			row(
-				[
-					h(
-						'div',
-						{ alignItems: 'center' },
-						p.name,
-						p.bloom
-							? h(
-									'div',
-									{
-										marginLeft: 6,
-										paddingLeft: 8,
-										paddingRight: 8,
-										paddingBottom: 1,
-										borderRadius: 999,
-										background: C.surface2,
-										fontSize: 12
-									},
-									'bloom'
-								)
-							: null
-					),
-					p.scale,
-					p.time
-				],
-				{ fontSize: 15, paddingTop: i === 0 ? 8 : 4 }
-			)
-		),
-		row(['Total draw', '', h('div', { fontWeight: 700 }, total)], {
-			fontSize: 17,
-			paddingTop: 10,
-			borderTop: `1px solid ${C.border}`,
-			marginTop: 6
-		})
 	);
 }
 
@@ -349,7 +287,6 @@ export function cardTree(c: Card): Node {
 			scoreBadge(c.overall)
 		),
 		facts(c.facts),
-		pours(c.pours, c.totalTime),
 		radar(c.profile),
 		h(
 			'div',
