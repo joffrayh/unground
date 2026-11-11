@@ -64,7 +64,12 @@
 	<div class="rail">
 		<div class="ticks" aria-hidden="true">
 			{#each positions as p (p)}
-				<span class="tick" class:marked={p === marked} style:--at={(p - min) / (max - min)}></span>
+				<span
+					class="tick"
+					class:minor={!Number.isInteger(p)}
+					class:marked={p === marked}
+					style:--at={(p - min) / (max - min)}
+				></span>
 			{/each}
 			{#if ghost != null}
 				<span class="ghost" style:--at={(ghost - min) / (max - min)}></span>
@@ -165,16 +170,24 @@
 		inset: 0;
 		pointer-events: none;
 	}
-	/* The thumb's centre travels from half a thumb in at each end. */
+	/*
+	 * The thumb's centre travels from half a thumb in at each end. Whole numbers are the larger dots, so
+	 * every 0–5 slider reads on the same scale whatever its step.
+	 */
 	.tick {
 		position: absolute;
 		top: 50%;
 		left: calc(var(--thumb) / 2 + (100% - var(--thumb)) * var(--at));
-		width: 4px;
-		height: 4px;
+		width: 6px;
+		height: 6px;
 		border-radius: 50%;
 		background: var(--muted);
 		transform: translate(-50%, -50%);
+	}
+	.tick.minor {
+		width: 4px;
+		height: 4px;
+		background: var(--tick-minor);
 	}
 	.tick.marked {
 		width: 10px;
