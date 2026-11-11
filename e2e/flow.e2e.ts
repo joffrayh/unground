@@ -202,6 +202,27 @@ test('log, rate, plan, repeat and export a brew', async ({ page }) => {
 		headers: { 'if-none-match': etag }
 	});
 	expect(again.status()).toBe(304);
+	// Where files can be shared, a tap opens the share sheet with the card, even before it's loaded.
+	await page.addInitScript(() => {
+		const w = window as unknown as { shared: string[] };
+		w.shared = [];
+		Object.defineProperty(navigator, 'canShare', {
+			configurable: true,
+			value: (d?: ShareData) => !!d?.files?.length
+		});
+		Object.defineProperty(navigator, 'share', {
+			configurable: true,
+			value: async (d: ShareData) => {
+				w.shared.push(...(d.files ?? []).map((f) => `${f.type} ${f.size > 0}`));
+			}
+		});
+	});
+	await page.reload();
+	await share.click();
+	await expect
+		.poll(() => page.evaluate(() => (window as unknown as { shared: string[] }).shared))
+		.toEqual(['image/png true']);
+	expect(new URL(page.url()).pathname).toBe(new URL(brewUrl).pathname);
 
 	// Dropdowns slide: open at once, closed only when the slide ends.
 	const editRating = page.locator('#rate > details');

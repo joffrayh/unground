@@ -20,7 +20,7 @@ import type { Brew } from '#lib/server/services/brews.ts';
 import { formatDateTime, grams, ratioText } from '#lib/ui/format.ts';
 
 /** Bump when the layout changes, so browsers drop their cached copies. */
-const CARD_VERSION = 3;
+const CARD_VERSION = 4;
 
 export interface Card {
 	overall: number;

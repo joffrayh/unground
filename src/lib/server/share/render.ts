@@ -12,8 +12,11 @@ import latoExt from '@fontsource/lato/files/lato-latin-ext-400-normal.woff?inlin
 import latoBoldExt from '@fontsource/lato/files/lato-latin-ext-700-normal.woff?inline';
 import { CARD_WIDTH, cardTree, type Card } from './card.ts';
 
-/** Pixels per CSS pixel in the PNG: sharp on a phone opened full screen. */
-const SCALE = 3;
+/**
+ * Pixels per CSS pixel in the PNG. WhatsApp scales images down to about 1600 px on the long side, so
+ * more than 2× is lost there, and every extra pixel is render time on a slow free-tier CPU.
+ */
+const SCALE = 2;
 
 /** The fonts are inlined into the server bundle (base64), since @fontsource isn't deployed. */
 function font(name: string, weight: 400 | 700, dataUrl: string) {

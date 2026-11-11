@@ -82,35 +82,57 @@
 	// --- share (D54) ----------------------------------------------------------------------------
 	const cardHref = $derived(`/brews/${brew.id}/card.png`);
 	/**
-	 * The card, fetched ahead: iOS only opens the share sheet straight from a tap, not after a fetch.
-	 * Null where files can't be shared; the link then just opens the image.
+	 * The card, fetched as the page opens: iOS opens the share sheet only close to a tap, so it should
+	 * be ready by then. Resolves to null where files can't be shared (or the fetch failed). Only where
+	 * the share API exists (secure contexts); elsewhere the link just opens the image.
 	 */
+	let cardLoad: Promise<File | null> | null = null;
 	let cardFile = $state<File | null>(null);
+	let preparing = $state(false);
 	$effect(() => {
 		// Reruns whenever the page reloads the brew; the ETag makes an unchanged card a 304.
 		if (!brew.rating || !navigator.canShare) return;
 		const href = cardHref;
 		let stale = false;
-		(async () => {
+		const load = (async () => {
 			const res = await fetch(href);
-			if (!res.ok) return;
+			if (!res.ok) return null;
 			const name = /filename="([^"]+)"/.exec(res.headers.get('content-disposition') ?? '')?.[1];
 			const file = new File([await res.blob()], name ?? 'unground.png', { type: 'image/png' });
-			if (!stale && navigator.canShare({ files: [file] })) cardFile = file;
-		})().catch(() => {});
+			return navigator.canShare({ files: [file] }) ? file : null;
+		})().catch(() => null);
+		cardLoad = load;
+		load.then((file) => {
+			if (!stale) cardFile = file;
+		});
 		return () => {
 			stale = true;
+			cardLoad = null;
 			cardFile = null;
 		};
 	});
 
 	async function shareCard(e: MouseEvent) {
-		if (!cardFile) return;
+		if (!cardLoad) return;
 		e.preventDefault();
+		if (preparing) return;
+		let file = cardFile;
+		if (!file) {
+			preparing = true;
+			file = await cardLoad;
+			preparing = false;
+		}
+		if (!file) {
+			location.href = cardHref;
+			return;
+		}
 		try {
-			await navigator.share({ files: [cardFile] });
+			await navigator.share({ files: [file] });
 		} catch (err) {
-			if ((err as Error).name !== 'AbortError') location.href = cardHref;
+			// AbortError: the sheet was closed. NotAllowedError: the wait outlived the tap (iOS); the
+			// card is ready now, so the next tap opens the sheet straight away.
+			const name = (err as Error).name;
+			if (name !== 'AbortError' && name !== 'NotAllowedError') location.href = cardHref;
 		}
 	}
 
@@ -148,7 +170,9 @@
 		<a class="btn btn-primary" href="/brews/new?from={brew.id}">Brew again</a>
 		<a class="btn" href="/brews/{brew.id}/edit">Edit</a>
 		{#if rating}
-			<a class="btn" href={cardHref} onclick={shareCard} data-sveltekit-reload>Share</a>
+			<a class="btn" href={cardHref} onclick={shareCard} aria-busy={preparing} data-sveltekit-reload
+				>{preparing ? 'Preparing…' : 'Share'}</a
+			>
 		{:else}
 			<a class="btn" href="#rate">Rate</a>
 		{/if}
