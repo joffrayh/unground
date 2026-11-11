@@ -16,7 +16,8 @@
 		DIMENSION_HINTS,
 		RATING_DIMENSIONS,
 		SCORE_MAX,
-		SCORE_MIN,
+		SCORE_STEP,
+		isScore,
 		label,
 		type RatingDimension
 	} from '#lib/domain/vocab.ts';
@@ -30,10 +31,10 @@
 
 	const uid = $props.id();
 
-	/** '' or '1'…'10' → a score; anything else (a bad re-sent value) counts as not rated. */
+	/** '' or '0.25'…'5' → a score; anything else (a bad re-sent value) counts as not rated. */
 	function score(v: string): number | null {
 		const n = Number(v.trim());
-		return v.trim() !== '' && Number.isInteger(n) && n >= SCORE_MIN && n <= SCORE_MAX ? n : null;
+		return v.trim() !== '' && isScore(n) ? n : null;
 	}
 
 	// Seeded once; after that the sliders and radar own the scores (a failed submit re-sends them).
@@ -87,6 +88,7 @@
 				label="Overall"
 				min={0}
 				max={SCORE_MAX}
+				step={SCORE_STEP}
 				blankAt={0}
 				value={overall}
 				ghost={lastOverall}
@@ -137,6 +139,7 @@
 				label={label(active)}
 				min={0}
 				max={SCORE_MAX}
+				step={SCORE_STEP}
 				blankAt={0}
 				linked
 				value={scores[active]}

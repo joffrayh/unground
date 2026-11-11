@@ -54,12 +54,26 @@ describe('database constraints', () => {
 		await expect(
 			db.insert(pours).values({ brewId: id, idx: 9, volumeG: 10, intervalS: 0 })
 		).rejects.toSatisfy(violates(CHECK_VIOLATION));
-		await expect(db.insert(ratings).values({ brewId: id, overall: 11 })).rejects.toSatisfy(
+		await expect(db.insert(ratings).values({ brewId: id, overall: 5.25 })).rejects.toSatisfy(
 			violates(CHECK_VIOLATION)
 		);
-		await expect(db.insert(ratings).values({ brewId: id, overall: 7, body: 0 })).rejects.toSatisfy(
+		// 0 is never a score: blank means "not rated" (D55).
+		await expect(db.insert(ratings).values({ brewId: id, overall: 0 })).rejects.toSatisfy(
 			violates(CHECK_VIOLATION)
 		);
+		await expect(
+			db.insert(ratings).values({ brewId: id, overall: 3.5, body: 0 })
+		).rejects.toSatisfy(violates(CHECK_VIOLATION));
+		// Only quarter steps.
+		await expect(db.insert(ratings).values({ brewId: id, overall: 3.3 })).rejects.toSatisfy(
+			violates(CHECK_VIOLATION)
+		);
+		await db.insert(ratings).values({ brewId: id, overall: 3.75, body: 0.25 });
+		const [stored] = await db
+			.select()
+			.from(ratings)
+			.where(sql`${ratings.brewId} = ${id}`);
+		expect(stored).toMatchObject({ overall: 3.75, body: 0.25 });
 		await expect(
 			db
 				.update(brews)
@@ -92,7 +106,7 @@ describe('constraints added for the next-time plan, drippers and bags', () => {
 				.where(sql`${beans.id} = ${refs.beanId}`)
 		).rejects.toSatisfy(violates(CHECK_VIOLATION));
 		await expect(
-			db.insert(ratings).values({ brewId: id, overall: 7, astringency: 11 })
+			db.insert(ratings).values({ brewId: id, overall: 3.5, astringency: 5.5 })
 		).rejects.toSatisfy(violates(CHECK_VIOLATION));
 		await expect(
 			db

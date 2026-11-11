@@ -74,8 +74,22 @@ export type RatingDimension = (typeof RATING_DIMENSIONS)[number];
 export const LEGACY_RATING_DIMENSIONS = ['aftertaste'] as const;
 export type LegacyRatingDimension = (typeof LEGACY_RATING_DIMENSIONS)[number];
 
-export const SCORE_MIN = 1;
-export const SCORE_MAX = 10;
+/** Scores run 0.25–5 in quarter steps (D55); blank is "not rated", so 0 is never a score. */
+export const SCORE_MIN = 0.25;
+export const SCORE_MAX = 5;
+export const SCORE_STEP = 0.25;
+
+/** Every score, lowest first. */
+export const SCORES: readonly number[] = Array.from(
+	{ length: Math.round((SCORE_MAX - SCORE_MIN) / SCORE_STEP) + 1 },
+	(_, i) => SCORE_MIN + i * SCORE_STEP
+);
+
+/** A score on the scale: in range and on a quarter step. */
+export function isScore(n: number): boolean {
+	// Quarters are exact in binary, so no tolerance is needed.
+	return n >= SCORE_MIN && n <= SCORE_MAX && Number.isInteger(n / SCORE_STEP);
+}
 
 /** Agitation (swirl / stir), unitless 0 none … 5 a lot (D24). New brews start at the default. */
 export const AGITATION_MIN = 0;
@@ -125,13 +139,13 @@ export const LABELS: Record<string, string> = {
 
 /** What a high sub-score means, shown next to each slider so the scale stays consistent over time. */
 export const DIMENSION_HINTS: Record<RatingDimension | LegacyRatingDimension, string> = {
-	acidity: '1 flat · 10 very bright',
-	sweetness: '1 none · 10 very sweet',
-	body: '1 thin · 10 heavy',
-	bitterness: '1 none · 10 very bitter',
-	astringency: '1 smooth · 10 very drying',
-	clarity: '1 muddy · 10 clean, distinct',
-	aftertaste: '1 short · 10 long, strong'
+	acidity: '0.25 flat · 5 very bright',
+	sweetness: '0.25 none · 5 very sweet',
+	body: '0.25 thin · 5 heavy',
+	bitterness: '0.25 none · 5 very bitter',
+	astringency: '0.25 smooth · 5 very drying',
+	clarity: '0.25 muddy · 5 clean, distinct',
+	aftertaste: '0.25 short · 5 long, strong'
 };
 
 export function label(value: string | null | undefined): string {

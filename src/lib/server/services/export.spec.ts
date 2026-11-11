@@ -113,10 +113,10 @@ describe('csv export', () => {
 			filter_type: 'hario_tabbed',
 			changed: 'grind;dose',
 			brew_notes: 'Fast drawdown, "choked" a bit',
-			rating_overall: '8',
-			rating_acidity: '7',
-			rating_astringency: '3',
-			rating_clarity: '7',
+			rating_overall: '4',
+			rating_acidity: '3.5',
+			rating_astringency: '1.5',
+			rating_clarity: '3.75',
 			rating_aftertaste: '',
 			perceived_notes: 'fruity.berry.blueberry;sweet.brown_sugar.honey',
 			roaster_notes: 'floral.floral.jasmine;fruity.other_fruit.peach',
@@ -161,9 +161,9 @@ describe('csv export', () => {
 	it('still exports a legacy aftertaste score', async () => {
 		const refs = await setupBrewer(db);
 		const { id } = await createBrew(db, refs.userId, brewInput(refs), ratingInput());
-		await db.update(ratings).set({ aftertaste: 6 }).where(eq(ratings.brewId, id));
+		await db.update(ratings).set({ aftertaste: 3 }).where(eq(ratings.brewId, id));
 		const [row] = parseCsv(await brewsCsv(db, refs.userId));
-		expect(row.rating_aftertaste).toBe('6');
+		expect(row.rating_aftertaste).toBe('3');
 	});
 
 	it('leaves unrated brews blank, not zero', async () => {

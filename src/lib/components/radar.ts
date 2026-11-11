@@ -3,17 +3,23 @@
  * y axis points down. Axis 0 points straight up and the rest follow clockwise.
  *
  * The scale is offset from the centre: the centre itself (and a small hole around it) means "not
- * rated", score 1 sits on the `inner` radius and score 10 on the outer `radius`. That keeps "not
- * rated" and 1 apart, both on screen and when tapping.
+ * rated", the lowest score (0.25) sits on the `inner` radius and 5 on the outer `radius`. That keeps
+ * "not rated" and the lowest score apart, both on screen and when tapping.
  */
-import { SCORE_MAX, SCORE_MIN } from '#lib/domain/vocab.ts';
+import { SCORE_MAX, SCORE_MIN, SCORE_STEP } from '#lib/domain/vocab.ts';
 
 export interface RadarGeometry {
-	/** Radius of the top score (10). */
+	/** Radius of the top score (5). */
 	radius: number;
-	/** Radius of the lowest score (1). */
+	/** Radius of the lowest score (0.25). */
 	inner: number;
 }
+
+/** The whole-number rings drawn behind the shape. */
+export const RINGS: readonly number[] = Array.from({ length: SCORE_MAX }, (_, i) => i + 1);
+
+/** Steps between the lowest and the top score. */
+const STEPS = Math.round((SCORE_MAX - SCORE_MIN) / SCORE_STEP);
 
 export interface Point {
 	x: number;
@@ -22,7 +28,7 @@ export interface Point {
 
 /** Radius per score step. */
 export function stepSize(g: RadarGeometry): number {
-	return (g.radius - g.inner) / (SCORE_MAX - SCORE_MIN);
+	return (g.radius - g.inner) / STEPS;
 }
 
 /** The axis direction in radians, screen convention (0 = right, positive = clockwise). */
@@ -41,7 +47,7 @@ export function polar(axis: number, count: number, r: number): Point {
 export function valueRadius(value: number | null, g: RadarGeometry): number {
 	if (value == null) return 0;
 	const v = clampScore(value);
-	return g.inner + (v - SCORE_MIN) * stepSize(g);
+	return g.inner + ((v - SCORE_MIN) / SCORE_STEP) * stepSize(g);
 }
 
 /** Where a score sits on its axis. */
@@ -55,13 +61,13 @@ export function pointFor(
 }
 
 /**
- * The score at a distance from the centre: the nearest step, clamped to 1…10. Anything closer to the
- * centre than half a step below score 1 is "not rated" (null).
+ * The score at a distance from the centre: the nearest step, clamped to 0.25…5. Anything closer to
+ * the centre than half a step below the lowest score is "not rated" (null).
  */
 export function radiusToValue(r: number, g: RadarGeometry): number | null {
 	const step = stepSize(g);
 	if (r < g.inner - step / 2) return null;
-	return clampScore(Math.round((r - g.inner) / step) + SCORE_MIN);
+	return clampScore(Math.round((r - g.inner) / step) * SCORE_STEP + SCORE_MIN);
 }
 
 /** The axis whose direction is closest to the point's angle. The centre maps to axis 0. */
@@ -134,18 +140,22 @@ export function labelPlacement(
 }
 
 /**
- * A slider key press: the new score, or undefined when the key isn't handled. Up/Right +1 (from
- * "not rated" to 1), Down/Left −1 (below 1 back to "not rated"), Home 1, End 10, Delete/Backspace
- * "not rated".
+ * A slider key press: the new score, or undefined when the key isn't handled. Up/Right one step
+ * (from "not rated" to the lowest score), Down/Left one step (below the lowest back to "not rated"),
+ * Page Up/Down a whole point, Home the lowest score, End 5, Delete/Backspace "not rated".
  */
 export function keyValue(key: string, current: number | null): number | null | undefined {
 	switch (key) {
 		case 'ArrowUp':
 		case 'ArrowRight':
-			return current == null ? SCORE_MIN : clampScore(current + 1);
+			return step(current, SCORE_STEP);
+		case 'PageUp':
+			return step(current, 1);
 		case 'ArrowDown':
 		case 'ArrowLeft':
-			return current == null || current <= SCORE_MIN ? null : clampScore(current - 1);
+			return step(current, -SCORE_STEP);
+		case 'PageDown':
+			return step(current, -1);
 		case 'Home':
 			return SCORE_MIN;
 		case 'End':
@@ -158,8 +168,17 @@ export function keyValue(key: string, current: number | null): number | null | u
 	}
 }
 
+/** Up from "not rated" starts at the lowest score; down past the lowest is "not rated". */
+function step(current: number | null, by: number): number | null {
+	if (current == null) return by > 0 ? SCORE_MIN : null;
+	if (by < 0 && current <= SCORE_MIN) return null;
+	return clampScore(current + by);
+}
+
+/** The nearest score on the scale. */
 function clampScore(v: number): number {
-	return Math.min(SCORE_MAX, Math.max(SCORE_MIN, Math.round(v)));
+	const quarters = Math.round(v / SCORE_STEP) * SCORE_STEP;
+	return Math.min(SCORE_MAX, Math.max(SCORE_MIN, quarters));
 }
 
 function round2(n: number): number {

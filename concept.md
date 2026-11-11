@@ -106,8 +106,8 @@ A **Brew** is a single brewing event. It references one **Bean**, one **Grinder*
 
 This is **the most important data point** for Stage 2 — it is what every other variable will be correlated against. Each brew gets one rating:
 
-- **Overall score** — integer **1–10**, the headline _quality_ metric (higher = better). Required whenever a rating is saved.
-- **Sub-scores** — integer **1–10** each, measuring **intensity, not quality** (higher = _more_ of it). Optional individually so logging stays fast, but the UI prompts for all of them:
+- **Overall score** — **0.25–5 in quarter steps** (D55), the headline _quality_ metric (higher = better). Required whenever a rating is saved.
+- **Sub-scores** — **0.25–5 in quarter steps** each, measuring **intensity, not quality** (higher = _more_ of it). Optional individually so logging stays fast, but the UI prompts for all of them:
   - Acidity — higher = more acidic
   - Sweetness — higher = sweeter
   - Body — higher = heavier
@@ -116,7 +116,7 @@ This is **the most important data point** for Stage 2 — it is what every other
   - Clarity — higher = cleaner, more distinct flavours
   - _(set extensible; aftertaste was collected until D22 and is kept on old ratings)_
 - The sub-scores are entered and shown on a **radar chart** (one axis each); a point at the centre means "not rated". A slider under it moves the axis last touched (D40).
-- A new rating, on a new brew or an unrated one, starts blank with the previous rating in grey to compare against: a faded disc on the overall slider and a dashed shape on the radar. "Last 7" and "Last profile" apply them; the grey stays (D53).
+- A new rating, on a new brew or an unrated one, starts blank with the previous rating in grey to compare against: a faded disc on the overall slider and a dashed shape on the radar. "Last 3.5" and "Last profile" apply them; the grey stays (D53).
 - **Tasting notes** — tags from the tasting-note vocabulary (D5, D29; any tier), picked by search, to compare against the roaster's claimed notes.
 - **Comment** — free text.
 
@@ -190,7 +190,7 @@ Pour
   planned_cumulative_g?, planned_start_s?, duration_s?   # set when a scale measured it (D51)
 
 Rating  (1:1 with brew)
-  brew_id, overall (1-10), acidity?, sweetness?, body?, bitterness?, astringency?, clarity? (1-10 intensity),
+  brew_id, overall (0.25-5), acidity?, sweetness?, body?, bitterness?, astringency?, clarity? (0.25-5 intensity),
   aftertaste? (legacy), comment?
 
 BrewPlan  (1:1 with brew, only while something is planned)
@@ -292,6 +292,7 @@ The substance of each decision lives in the section noted under _Where_; this ta
 | D52 | ~~**A new rating starts from the previous one's taste profile** (on a new brew: the template's; on an unrated brew: the latest rated brew before it). Overall starts blank, the previous overall a grey tap-to-use button. Without an overall, a profile left as carried over (posted as `<dimension>Default`) saves no rating. Tasting notes and comment start blank. Narrows D45's "scores start unset".~~ Superseded by D53. | Adjusting a familiar profile is quicker than rebuilding it every cup. A blank overall keeps the quality target deliberate and "rate later" working. | [§4.3](#43-rating--tasting-the-target-variable) |
 | D53 | **A new rating suggests the previous one rather than starting from it** (on a new brew: the template's; on an unrated brew: the latest rated brew before it). Scores start blank. Last time's overall is a faded disc on the overall slider and a grey "Last 7" button; its profile is a dashed grey shape on the radar (and a faded disc on the axis slider) and a "Last profile" button. The grey stays after applying, to compare against. Without JavaScript, last time's pills are outlined. Tasting notes and comment start blank. | Seeing yesterday's cup beside today's makes small changes easy to judge ("a touch more body"). Nothing pre-set means nothing saved by accident, so "rate later" needs no special case. | [§4.3](#43-rating--tasting-the-target-variable) |
 | D54 | **A rated brew can be shared as an image** (Share, beside Edit): bean, roaster and time with the overall score top right; dose, water, ratio, temperature, grind, dripper, pour count, drawdown and agitation; the radar; the logo. Short enough that WhatsApp doesn't crop it in the chat. Dark palette, 2× a phone's width (WhatsApp shrinks anything bigger). The server renders it per request (satori + resvg) and never stores it; an ETag skips re-rendering an unchanged card. The page fetches it ahead so a tap opens the share sheet; a tap before it's loaded shows "Preparing…" and opens the sheet when it is (iOS may need a second tap). Where files can't be shared (no HTTPS, say), or without JavaScript, the link opens the image. | Friends can compare cups in WhatsApp before there's a social feature. Fetching ahead matters because iOS only opens the share sheet straight from a tap. Nothing stored keeps the free tier's storage untouched. | — |
+| D55 | **Scores run 0.25–5 in quarter steps**, overall and sub-scores alike; blank is still "not rated", so 0 is never a score. Stored as `numeric(3,2)` with a quarter-step CHECK. Migration 0005 halved every 1–10 score (7 → 3.5), so ratings from before it sit on half points from 0.5 up. The radar keeps 0.25 on its inner ring with a ring per whole point; arrow keys move a quarter, Page Up/Down a point. Without JavaScript a score is picked from a list, last time's marked "· last" (narrows D45 and D53). | A 5-point scale with quarters reads more naturally and still separates close cups. Halving is exact and can be undone by doubling. Twenty pills don't fit a phone's width. | [§4.3](#43-rating--tasting-the-target-variable) |
 
 ## 9. Open questions / decisions to revisit
 

@@ -36,7 +36,8 @@ import {
 	PROCESSES,
 	ROAST_LEVELS,
 	SCORE_MAX,
-	SCORE_MIN
+	SCORE_MIN,
+	SCORE_STEP
 } from '../../domain/vocab';
 
 /** `col IN ('a', 'b', …)` with inlined literals (DDL can't take bind parameters). Values are our own constants. */
@@ -52,9 +53,17 @@ function agitationRange(column: AnyPgColumn): SQL {
 	return sql`${column} IS NULL OR ${column} BETWEEN ${sql.raw(String(AGITATION_MIN))} AND ${sql.raw(String(AGITATION_MAX))}`;
 }
 
-function scoreRange(column: AnyPgColumn): SQL {
-	return sql`${column} IS NULL OR ${column} BETWEEN ${sql.raw(String(SCORE_MIN))} AND ${sql.raw(String(SCORE_MAX))}`;
+/** In range and on a quarter step (D55). */
+function isScore(column: AnyPgColumn): SQL {
+	return sql`${column} BETWEEN ${sql.raw(String(SCORE_MIN))} AND ${sql.raw(String(SCORE_MAX))} AND mod(${column}, ${sql.raw(String(SCORE_STEP))}) = 0`;
 }
+
+function scoreRange(column: AnyPgColumn): SQL {
+	return sql`${column} IS NULL OR (${isScore(column)})`;
+}
+
+/** 0.25–5 in quarters (D55); migration 0005 halved the old 1–10 scores. */
+const score = (name: string) => numeric(name, { precision: 3, scale: 2, mode: 'number' });
 
 const timestamps = {
 	createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
@@ -405,24 +414,21 @@ export const ratings = pgTable(
 			.primaryKey()
 			.references(() => brews.id, { onDelete: 'cascade' }),
 		/** Quality, higher = better. */
-		overall: smallint('overall').notNull(),
+		overall: score('overall').notNull(),
 		// Intensity sub-scores, higher = more of it (D7). Null = not recorded.
-		acidity: smallint('acidity'),
-		sweetness: smallint('sweetness'),
-		body: smallint('body'),
-		bitterness: smallint('bitterness'),
-		astringency: smallint('astringency'),
-		clarity: smallint('clarity'),
+		acidity: score('acidity'),
+		sweetness: score('sweetness'),
+		body: score('body'),
+		bitterness: score('bitterness'),
+		astringency: score('astringency'),
+		clarity: score('clarity'),
 		/** Legacy (D22): no longer collected; old ratings keep their value. */
-		aftertaste: smallint('aftertaste'),
+		aftertaste: score('aftertaste'),
 		comment: text('comment'),
 		...timestamps
 	},
 	(t) => [
-		check(
-			'ratings_overall',
-			sql`${t.overall} BETWEEN ${sql.raw(String(SCORE_MIN))} AND ${sql.raw(String(SCORE_MAX))}`
-		),
+		check('ratings_overall', isScore(t.overall)),
 		check('ratings_acidity', scoreRange(t.acidity)),
 		check('ratings_sweetness', scoreRange(t.sweetness)),
 		check('ratings_body', scoreRange(t.body)),

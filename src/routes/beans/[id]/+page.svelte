@@ -192,7 +192,7 @@
 								</div>
 							</div>
 							{#if brew.overall != null}
-								<span class="score-badge" aria-label="Overall {brew.overall} out of 10"
+								<span class="score-badge" aria-label="Overall {brew.overall} of 5"
 									>{brew.overall}</span
 								>
 							{:else}

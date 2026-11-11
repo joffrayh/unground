@@ -32,13 +32,13 @@ const brew: BrewLike = {
 		]
 	},
 	rating: {
-		overall: 8,
-		acidity: 6,
+		overall: 4,
+		acidity: 3,
 		sweetness: null,
-		body: 4,
+		body: 2,
 		bitterness: null,
-		astringency: 2,
-		clarity: 7,
+		astringency: 1,
+		clarity: 3.75,
 		comment: 'juicy',
 		perceivedNotes: ['fruity.berry']
 	},
@@ -76,9 +76,9 @@ describe('editValues', () => {
 			['1:15', '250', false, '']
 		]);
 		expect(v.rating).toMatchObject({
-			overall: '8',
+			overall: '4',
 			sweetness: '',
-			clarity: '7',
+			clarity: '3.75',
 			comment: 'juicy'
 		});
 		expect(v.rating.perceivedNotes).toEqual(['fruity.berry']);
@@ -133,7 +133,7 @@ describe('newBrewValues', () => {
 			comment: '',
 			perceivedNotes: []
 		});
-		expect(v.ratingFrom).toMatchObject({ overall: '8', acidity: '6', sweetness: '' });
+		expect(v.ratingFrom).toMatchObject({ overall: '4', acidity: '3', sweetness: '' });
 		expect(newBrewValues({ ...brew, rating: null }, 'x').ratingFrom).toBeNull();
 		expect(editValues(brew, 'x').ratingFrom).toBeNull();
 	});

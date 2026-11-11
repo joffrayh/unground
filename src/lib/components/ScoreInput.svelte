@@ -1,10 +1,10 @@
 <script lang="ts">
 	/**
-	 * A 1–10 score as a row of radio pills plus "not rated": the entry without JavaScript. With it, a
-	 * Slider takes over (D45). Either way a score starts unset, so no default biases the data (D7); last
-	 * time's score, `ghost`, is only outlined (D53).
+	 * A 0.25–5 score as a select with "not rated" first: the entry without JavaScript. With it, a Slider
+	 * takes over (D45). Either way a score starts unset, so no default biases the data (D7); last time's
+	 * score, `ghost`, is marked in the list (D53).
 	 */
-	import { SCORE_MAX, SCORE_MIN } from '#lib/domain/vocab.ts';
+	import { SCORES } from '#lib/domain/vocab.ts';
 
 	let {
 		name,
@@ -23,67 +23,25 @@
 	} = $props();
 
 	const uid = $props.id();
-	const scores = Array.from({ length: SCORE_MAX - SCORE_MIN + 1 }, (_, i) => SCORE_MIN + i);
 	const current = $derived(value == null || value === '' ? null : Number(value));
+	const describedBy = $derived(
+		[hint ? `${uid}-hint` : '', error ? `${uid}-err` : ''].filter(Boolean).join(' ') || undefined
+	);
 </script>
 
-<fieldset class="score" aria-describedby={error ? `${uid}-err` : hint ? `${uid}-hint` : undefined}>
-	<legend>
-		{label}
-		{#if hint}<span class="hint" id="{uid}-hint">{hint}</span>{/if}
-	</legend>
-	<div class="scale">
-		{#each scores as n (n)}
-			<label class="pill" class:ghost={ghost === n}>
-				<input
-					type="radio"
-					{name}
-					value={n}
-					checked={current === n}
-					aria-label={ghost === n ? `${n}, last time` : undefined}
-				/>
-				<span>{n}</span>
-			</label>
+<div class="field">
+	<label for="{uid}-select">{label}</label>
+	{#if hint}<span class="hint" id="{uid}-hint">{hint}</span>{/if}
+	<select
+		id="{uid}-select"
+		{name}
+		aria-invalid={error ? 'true' : undefined}
+		aria-describedby={describedBy}
+	>
+		<option value="" selected={current === null}>Not rated</option>
+		{#each SCORES as n (n)}
+			<option value={n} selected={current === n}>{n}{ghost === n ? ' · last' : ''}</option>
 		{/each}
-		<label class="pill clear" title="Not rated">
-			<input type="radio" {name} value="" checked={current === null} />
-			<span aria-label="Not rated">–</span>
-		</label>
-	</div>
+	</select>
 	{#if error}<span class="error" id="{uid}-err">{error}</span>{/if}
-</fieldset>
-
-<style>
-	.score {
-		border: 0;
-		border-radius: 0;
-		padding: 0;
-		background: none;
-		box-shadow: none;
-	}
-	legend {
-		padding: 0;
-		margin-bottom: 0.35rem;
-		font-size: 0.9rem;
-		display: flex;
-		flex-wrap: wrap;
-		gap: 0.25rem 0.5rem;
-		align-items: baseline;
-	}
-	.scale {
-		display: grid;
-		grid-template-columns: repeat(11, minmax(0, 1fr));
-		gap: 0.25rem;
-	}
-	.scale :global(.pill span) {
-		min-width: 0;
-		width: 100%;
-		padding: 0;
-	}
-	.clear span {
-		color: var(--muted);
-	}
-	.ghost > span {
-		border: 1px dashed var(--muted);
-	}
-</style>
+</div>

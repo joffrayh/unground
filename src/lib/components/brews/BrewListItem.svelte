@@ -24,7 +24,7 @@
 		<div class="small num">{recipe}</div>
 	</div>
 	{#if brew.overall != null}
-		<span class="score-badge" aria-label="Overall {brew.overall} of 10">{brew.overall}</span>
+		<span class="score-badge" aria-label="Overall {brew.overall} of 5">{brew.overall}</span>
 	{:else}
 		<span class="score-badge empty" aria-label="Not rated yet">rate</span>
 	{/if}

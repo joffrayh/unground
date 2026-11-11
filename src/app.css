@@ -537,7 +537,8 @@ a.list-item:hover {
 	display: inline-flex;
 	align-items: center;
 	justify-content: center;
-	min-width: 2.75rem;
+	/* Fits "3.75", so badges in a list line up. */
+	min-width: 3.5rem;
 	height: 2rem;
 	padding-inline: 0.5rem;
 	border: 1.25px solid var(--accent);

@@ -30,6 +30,7 @@ import {
 	ROAST_LEVELS,
 	SCORE_MAX,
 	SCORE_MIN,
+	SCORE_STEP,
 	type FilterType,
 	type RatingDimension
 } from './vocab';
@@ -49,7 +50,8 @@ const reqText = (max: number) =>
 const optText = (max: number) =>
 	z.preprocess(blankToNull, z.string().trim().max(max, `At most ${max} characters`).nullable());
 
-type NumberOpts = { int?: boolean; decimals?: number };
+/** `step`: the value must be a multiple of it (e.g. quarters). */
+type NumberOpts = { int?: boolean; decimals?: number; step?: number };
 
 /** Rejects more decimals than the column stores, instead of letting the database round silently. */
 function hasAtMostDecimals(x: number, decimals: number): boolean {
@@ -63,6 +65,7 @@ const number = (min: number, max: number, opts: NumberOpts = {}) => {
 		.min(min, `Min ${min}`)
 		.max(max, `Max ${max}`);
 	if (opts.int) n = n.int('Must be a whole number');
+	if (opts.step !== undefined) n = n.multipleOf(opts.step, `Must be in steps of ${opts.step}`);
 	const { decimals } = opts;
 	if (decimals !== undefined) {
 		return n.refine(
@@ -200,7 +203,7 @@ export const parseBeanForm = (fd: FormData) => run(beanSchema, formObject(fd, ['
 
 // --- rating -----------------------------------------------------------------------------------
 
-const score = optNumber(SCORE_MIN, SCORE_MAX, { int: true });
+const score = optNumber(SCORE_MIN, SCORE_MAX, { step: SCORE_STEP });
 
 const dimensionScores = Object.fromEntries(RATING_DIMENSIONS.map((d) => [d, score])) as Record<
 	RatingDimension,

@@ -169,25 +169,26 @@ test('log, rate, plan, repeat and export a brew', async ({ page }) => {
 	await expect(page.getByText('250 g').first()).toBeVisible();
 
 	// Rate it afterwards, the sub-scores on the radar.
-	await page.getByRole('slider', { name: 'Overall', exact: true }).fill('8');
+	await page.getByRole('slider', { name: 'Overall', exact: true }).fill('4');
 	const acidity = page.getByRole('slider', { name: 'Acidity intensity' });
 	await acidity.focus();
 	await acidity.press('End');
-	for (let i = 0; i < 2; i++) await acidity.press('ArrowDown');
-	await expect(acidity).toHaveAttribute('aria-valuenow', '8');
+	await acidity.press('PageDown');
+	for (let i = 0; i < 2; i++) await acidity.press('ArrowUp');
+	await expect(acidity).toHaveAttribute('aria-valuenow', '4.5');
 	// The slider under the radar moves the axis last touched.
-	await page.getByRole('slider', { name: 'Acidity', exact: true }).fill('7');
-	await expect(acidity).toHaveAttribute('aria-valuenow', '7');
+	await page.getByRole('slider', { name: 'Acidity', exact: true }).fill('3.5');
+	await expect(acidity).toHaveAttribute('aria-valuenow', '3.5');
 	const sweetness = page.getByRole('slider', { name: 'Sweetness intensity' });
 	await sweetness.focus();
 	await sweetness.press('Home');
-	await expect(page.getByRole('slider', { name: 'Sweetness', exact: true })).toHaveValue('1');
+	await expect(page.getByRole('slider', { name: 'Sweetness', exact: true })).toHaveValue('0.25');
 	await sweetness.press('Delete');
 	// Tasting notes are tags picked from a search; a tap on a match adds it.
 	await page.getByRole('combobox', { name: /tasting notes/i }).fill('blueb');
 	await page.getByRole('option', { name: /^Blueberry/ }).click();
 	await page.getByRole('button', { name: 'Save rating' }).first().click();
-	await expect(page.getByLabel('Overall 8 of 10')).toBeVisible();
+	await expect(page.getByLabel('Overall 4 of 5')).toBeVisible();
 	// (The edit form further down holds the same name, folded away.)
 	await expect(page.getByText('Blueberry', { exact: true }).first()).toBeVisible();
 
@@ -266,10 +267,10 @@ test('log, rate, plan, repeat and export a brew', async ({ page }) => {
 	await expect(page.locator('[name="dripperId"] option:checked')).toHaveText('E2E V60 02');
 	// The rating starts blank, last time's a tap away (D53).
 	await expect(page.locator('input[name="overall"]')).toHaveValue('');
-	await expect(page.getByRole('button', { name: 'Use 8, as last time' })).toBeVisible();
+	await expect(page.getByRole('button', { name: 'Use 4, as last time' })).toBeVisible();
 	await expect(acidity).toHaveAttribute('aria-valuenow', '0');
 	await page.getByRole('button', { name: 'Last profile' }).click();
-	await expect(acidity).toHaveAttribute('aria-valuenow', '7');
+	await expect(acidity).toHaveAttribute('aria-valuenow', '3.5');
 	await page.getByRole('button', { name: 'Clear all' }).click();
 	await expect(acidity).toHaveAttribute('aria-valuenow', '0');
 
@@ -335,8 +336,8 @@ test('log, rate, plan, repeat and export a brew', async ({ page }) => {
 		bloom_pours: '1',
 		bloom_time_s: '45',
 		changed: '',
-		rating_overall: '8',
-		rating_acidity: '7',
+		rating_overall: '4',
+		rating_acidity: '3.5',
 		rating_sweetness: '',
 		roaster_notes: 'fruity.other_fruit.peach',
 		next_ratio: '17',
@@ -813,8 +814,11 @@ test.describe('without JavaScript', () => {
 		await page.locator('[name="pourScale"]').nth(1).fill('150');
 		await page.locator('[name="pourScale"]').nth(2).fill('250');
 		await page.locator('[name="totalTime"]').fill('3:00');
+		// Without JavaScript a score is picked from a list (D55).
+		await page.locator('select[name="overall"]').selectOption('3.75');
 		await page.getByRole('button', { name: 'Save brew' }).click();
 		await expect(page).toHaveURL(/\/brews\/[0-9a-f-]{36}$/);
+		await expect(page.getByLabel('Overall 3.75 of 5')).toBeVisible();
 		await expect(page.getByRole('cell', { name: '0:45' })).toBeVisible();
 		await expect(page.getByRole('cell', { name: '1:30' })).toBeVisible();
 	});

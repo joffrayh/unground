@@ -1,0 +1,1652 @@
+{
+  "id": "682c2ce7-c8d4-47e3-8b93-7e4fceec34a1",
+  "prevId": "3eee00ca-9242-4841-9919-150604d0d14a",
+  "version": "7",
+  "dialect": "postgresql",
+  "tables": {
+    "public.bean_roaster_notes": {
+      "name": "bean_roaster_notes",
+      "schema": "",
+      "columns": {
+        "bean_id": {
+          "name": "bean_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "flavor_id": {
+          "name": "flavor_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "bean_roaster_notes_bean_id_beans_id_fk": {
+          "name": "bean_roaster_notes_bean_id_beans_id_fk",
+          "tableFrom": "bean_roaster_notes",
+          "tableTo": "beans",
+          "columnsFrom": [
+            "bean_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "bean_roaster_notes_flavor_id_flavors_id_fk": {
+          "name": "bean_roaster_notes_flavor_id_flavors_id_fk",
+          "tableFrom": "bean_roaster_notes",
+          "tableTo": "flavors",
+          "columnsFrom": [
+            "flavor_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "bean_roaster_notes_bean_id_flavor_id_pk": {
+          "name": "bean_roaster_notes_bean_id_flavor_id_pk",
+          "columns": [
+            "bean_id",
+            "flavor_id"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.beans": {
+      "name": "beans",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "user_id": {
+          "name": "user_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "roaster_id": {
+          "name": "roaster_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "country": {
+          "name": "country",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "farm": {
+          "name": "farm",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "altitude_min_m": {
+          "name": "altitude_min_m",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "altitude_max_m": {
+          "name": "altitude_max_m",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "process": {
+          "name": "process",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "roast_level": {
+          "name": "roast_level",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "roast_date": {
+          "name": "roast_date",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "decaf": {
+          "name": "decaf",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "stored_frozen": {
+          "name": "stored_frozen",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "roaster_notes_raw": {
+          "name": "roaster_notes_raw",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "bag_weight_g": {
+          "name": "bag_weight_g",
+          "type": "numeric(6, 1)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "bag_price": {
+          "name": "bag_price",
+          "type": "numeric(8, 2)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "archived_at": {
+          "name": "archived_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "beans_user_idx": {
+          "name": "beans_user_idx",
+          "columns": [
+            {
+              "expression": "user_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "beans_user_id_users_id_fk": {
+          "name": "beans_user_id_users_id_fk",
+          "tableFrom": "beans",
+          "tableTo": "users",
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "beans_roaster_fk": {
+          "name": "beans_roaster_fk",
+          "tableFrom": "beans",
+          "tableTo": "roasters",
+          "columnsFrom": [
+            "roaster_id",
+            "user_id"
+          ],
+          "columnsTo": [
+            "id",
+            "user_id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "beans_id_user": {
+          "name": "beans_id_user",
+          "nullsNotDistinct": false,
+          "columns": [
+            "id",
+            "user_id"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "beans_name_nonempty": {
+          "name": "beans_name_nonempty",
+          "value": "length(trim(\"beans\".\"name\")) > 0"
+        },
+        "beans_country": {
+          "name": "beans_country",
+          "value": "\"beans\".\"country\" IS NULL OR \"beans\".\"country\" IN ('BO', 'BR', 'BI', 'CM', 'CN', 'CO', 'CD', 'CR', 'CU', 'DO', 'EC', 'SV', 'ET', 'GT', 'HT', 'HN', 'IN', 'ID', 'JM', 'KE', 'LA', 'MG', 'MW', 'MX', 'MM', 'NP', 'NI', 'PA', 'PG', 'PE', 'PH', 'RW', 'TZ', 'TH', 'TL', 'UG', 'US', 'VE', 'VN', 'YE', 'ZM', 'ZW')"
+        },
+        "beans_process": {
+          "name": "beans_process",
+          "value": "\"beans\".\"process\" IS NULL OR \"beans\".\"process\" IN ('washed', 'natural', 'honey', 'anaerobic', 'carbonic_maceration', 'co_ferment', 'wet_hulled', 'other')"
+        },
+        "beans_roast_level": {
+          "name": "beans_roast_level",
+          "value": "\"beans\".\"roast_level\" IS NULL OR \"beans\".\"roast_level\" IN ('light', 'medium_light', 'medium', 'medium_dark', 'dark')"
+        },
+        "beans_altitude": {
+          "name": "beans_altitude",
+          "value": "(\"beans\".\"altitude_min_m\" IS NULL OR \"beans\".\"altitude_min_m\" BETWEEN 0 AND 4000)\n\t\t\tAND (\"beans\".\"altitude_max_m\" IS NULL OR \"beans\".\"altitude_max_m\" BETWEEN 0 AND 4000)\n\t\t\tAND (\"beans\".\"altitude_min_m\" IS NULL OR \"beans\".\"altitude_max_m\" IS NULL OR \"beans\".\"altitude_min_m\" <= \"beans\".\"altitude_max_m\")"
+        },
+        "beans_bag_weight": {
+          "name": "beans_bag_weight",
+          "value": "\"beans\".\"bag_weight_g\" IS NULL OR (\"beans\".\"bag_weight_g\" > 0 AND \"beans\".\"bag_weight_g\" <= 10000)"
+        },
+        "beans_bag_price": {
+          "name": "beans_bag_price",
+          "value": "\"beans\".\"bag_price\" IS NULL OR (\"beans\".\"bag_price\" >= 0 AND \"beans\".\"bag_price\" <= 100000)"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.brew_plans": {
+      "name": "brew_plans",
+      "schema": "",
+      "columns": {
+        "brew_id": {
+          "name": "brew_id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "water_temp_c": {
+          "name": "water_temp_c",
+          "type": "numeric(4, 1)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "ratio": {
+          "name": "ratio",
+          "type": "numeric(4, 1)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "grind_setting": {
+          "name": "grind_setting",
+          "type": "numeric(6, 2)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "pour_count": {
+          "name": "pour_count",
+          "type": "smallint",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "agitation": {
+          "name": "agitation",
+          "type": "smallint",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "notes": {
+          "name": "notes",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "brew_plans_brew_id_brews_id_fk": {
+          "name": "brew_plans_brew_id_brews_id_fk",
+          "tableFrom": "brew_plans",
+          "tableTo": "brews",
+          "columnsFrom": [
+            "brew_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "brew_plans_temp": {
+          "name": "brew_plans_temp",
+          "value": "\"brew_plans\".\"water_temp_c\" IS NULL OR \"brew_plans\".\"water_temp_c\" BETWEEN 0 AND 100"
+        },
+        "brew_plans_ratio": {
+          "name": "brew_plans_ratio",
+          "value": "\"brew_plans\".\"ratio\" IS NULL OR \"brew_plans\".\"ratio\" BETWEEN 1 AND 50"
+        },
+        "brew_plans_grind": {
+          "name": "brew_plans_grind",
+          "value": "\"brew_plans\".\"grind_setting\" IS NULL OR \"brew_plans\".\"grind_setting\" >= 0"
+        },
+        "brew_plans_pours": {
+          "name": "brew_plans_pours",
+          "value": "\"brew_plans\".\"pour_count\" IS NULL OR \"brew_plans\".\"pour_count\" BETWEEN 1 AND 50"
+        },
+        "brew_plans_agitation": {
+          "name": "brew_plans_agitation",
+          "value": "\"brew_plans\".\"agitation\" IS NULL OR \"brew_plans\".\"agitation\" BETWEEN 0 AND 5"
+        },
+        "brew_plans_nonempty": {
+          "name": "brew_plans_nonempty",
+          "value": "num_nonnulls(\"brew_plans\".\"water_temp_c\", \"brew_plans\".\"ratio\", \"brew_plans\".\"grind_setting\", \"brew_plans\".\"pour_count\", \"brew_plans\".\"agitation\", \"brew_plans\".\"notes\") > 0"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.brew_v60": {
+      "name": "brew_v60",
+      "schema": "",
+      "columns": {
+        "brew_id": {
+          "name": "brew_id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "method": {
+          "name": "method",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'v60'"
+        },
+        "filter_type": {
+          "name": "filter_type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "brew_v60_brew_fk": {
+          "name": "brew_v60_brew_fk",
+          "tableFrom": "brew_v60",
+          "tableTo": "brews",
+          "columnsFrom": [
+            "brew_id",
+            "method"
+          ],
+          "columnsTo": [
+            "id",
+            "method"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "cascade"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "brew_v60_method": {
+          "name": "brew_v60_method",
+          "value": "\"brew_v60\".\"method\" = 'v60'"
+        },
+        "brew_v60_filter": {
+          "name": "brew_v60_filter",
+          "value": "\"brew_v60\".\"filter_type\" IS NULL OR \"brew_v60\".\"filter_type\" IN ('hario_tabbed', 'hario_tabless', 'cafec', 'sibarist', 'other')"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.brews": {
+      "name": "brews",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "user_id": {
+          "name": "user_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "bean_id": {
+          "name": "bean_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "grinder_id": {
+          "name": "grinder_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "dripper_id": {
+          "name": "dripper_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "scale_id": {
+          "name": "scale_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "method": {
+          "name": "method",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "brewed_at": {
+          "name": "brewed_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "timezone": {
+          "name": "timezone",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "grind_setting": {
+          "name": "grind_setting",
+          "type": "numeric(6, 2)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "dose_g": {
+          "name": "dose_g",
+          "type": "numeric(5, 1)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "water_g": {
+          "name": "water_g",
+          "type": "numeric(6, 1)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "water_temp_c": {
+          "name": "water_temp_c",
+          "type": "numeric(4, 1)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "total_time_s": {
+          "name": "total_time_s",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "agitation": {
+          "name": "agitation",
+          "type": "smallint",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "changed": {
+          "name": "changed",
+          "type": "text[]",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'{}'::text[]"
+        },
+        "notes": {
+          "name": "notes",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "brews_user_brewed_idx": {
+          "name": "brews_user_brewed_idx",
+          "columns": [
+            {
+              "expression": "user_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "brewed_at",
+              "isExpression": false,
+              "asc": false,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "brews_bean_idx": {
+          "name": "brews_bean_idx",
+          "columns": [
+            {
+              "expression": "bean_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "brews_user_id_users_id_fk": {
+          "name": "brews_user_id_users_id_fk",
+          "tableFrom": "brews",
+          "tableTo": "users",
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "brews_bean_fk": {
+          "name": "brews_bean_fk",
+          "tableFrom": "brews",
+          "tableTo": "beans",
+          "columnsFrom": [
+            "bean_id",
+            "user_id"
+          ],
+          "columnsTo": [
+            "id",
+            "user_id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        },
+        "brews_grinder_fk": {
+          "name": "brews_grinder_fk",
+          "tableFrom": "brews",
+          "tableTo": "grinders",
+          "columnsFrom": [
+            "grinder_id",
+            "user_id"
+          ],
+          "columnsTo": [
+            "id",
+            "user_id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        },
+        "brews_dripper_fk": {
+          "name": "brews_dripper_fk",
+          "tableFrom": "brews",
+          "tableTo": "drippers",
+          "columnsFrom": [
+            "dripper_id",
+            "user_id"
+          ],
+          "columnsTo": [
+            "id",
+            "user_id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        },
+        "brews_scale_fk": {
+          "name": "brews_scale_fk",
+          "tableFrom": "brews",
+          "tableTo": "scales",
+          "columnsFrom": [
+            "scale_id",
+            "user_id"
+          ],
+          "columnsTo": [
+            "id",
+            "user_id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "brews_id_method": {
+          "name": "brews_id_method",
+          "nullsNotDistinct": false,
+          "columns": [
+            "id",
+            "method"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "brews_method": {
+          "name": "brews_method",
+          "value": "\"brews\".\"method\" IN ('v60')"
+        },
+        "brews_grind": {
+          "name": "brews_grind",
+          "value": "\"brews\".\"grind_setting\" >= 0"
+        },
+        "brews_dose": {
+          "name": "brews_dose",
+          "value": "\"brews\".\"dose_g\" > 0 AND \"brews\".\"dose_g\" <= 200"
+        },
+        "brews_water": {
+          "name": "brews_water",
+          "value": "\"brews\".\"water_g\" > 0 AND \"brews\".\"water_g\" <= 5000"
+        },
+        "brews_temp": {
+          "name": "brews_temp",
+          "value": "\"brews\".\"water_temp_c\" BETWEEN 0 AND 100"
+        },
+        "brews_time": {
+          "name": "brews_time",
+          "value": "\"brews\".\"total_time_s\" > 0 AND \"brews\".\"total_time_s\" <= 3600"
+        },
+        "brews_agitation": {
+          "name": "brews_agitation",
+          "value": "\"brews\".\"agitation\" IS NULL OR \"brews\".\"agitation\" BETWEEN 0 AND 5"
+        },
+        "brews_changed": {
+          "name": "brews_changed",
+          "value": "\"brews\".\"changed\" <@ ARRAY['nothing', 'grind', 'dose', 'water', 'temperature', 'pours', 'bean', 'equipment', 'technique']::text[]"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.drippers": {
+      "name": "drippers",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "user_id": {
+          "name": "user_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "material": {
+          "name": "material",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "archived_at": {
+          "name": "archived_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "drippers_user_name": {
+          "name": "drippers_user_name",
+          "columns": [
+            {
+              "expression": "user_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "lower(\"name\")",
+              "asc": true,
+              "isExpression": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "drippers_user_id_users_id_fk": {
+          "name": "drippers_user_id_users_id_fk",
+          "tableFrom": "drippers",
+          "tableTo": "users",
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "drippers_id_user": {
+          "name": "drippers_id_user",
+          "nullsNotDistinct": false,
+          "columns": [
+            "id",
+            "user_id"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "drippers_name_nonempty": {
+          "name": "drippers_name_nonempty",
+          "value": "length(trim(\"drippers\".\"name\")) > 0"
+        },
+        "drippers_material": {
+          "name": "drippers_material",
+          "value": "\"drippers\".\"material\" IS NULL OR \"drippers\".\"material\" IN ('plastic', 'ceramic', 'glass', 'metal')"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.flavors": {
+      "name": "flavors",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "parent_id": {
+          "name": "parent_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "tier": {
+          "name": "tier",
+          "type": "smallint",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "flavors_parent_id_flavors_id_fk": {
+          "name": "flavors_parent_id_flavors_id_fk",
+          "tableFrom": "flavors",
+          "tableTo": "flavors",
+          "columnsFrom": [
+            "parent_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "flavors_tier": {
+          "name": "flavors_tier",
+          "value": "\"flavors\".\"tier\" BETWEEN 1 AND 3"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.grinders": {
+      "name": "grinders",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "user_id": {
+          "name": "user_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "setting_unit": {
+          "name": "setting_unit",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "archived_at": {
+          "name": "archived_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "grinders_user_name": {
+          "name": "grinders_user_name",
+          "columns": [
+            {
+              "expression": "user_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "lower(\"name\")",
+              "asc": true,
+              "isExpression": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "grinders_user_id_users_id_fk": {
+          "name": "grinders_user_id_users_id_fk",
+          "tableFrom": "grinders",
+          "tableTo": "users",
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "grinders_id_user": {
+          "name": "grinders_id_user",
+          "nullsNotDistinct": false,
+          "columns": [
+            "id",
+            "user_id"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "grinders_name_nonempty": {
+          "name": "grinders_name_nonempty",
+          "value": "length(trim(\"grinders\".\"name\")) > 0"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.pours": {
+      "name": "pours",
+      "schema": "",
+      "columns": {
+        "brew_id": {
+          "name": "brew_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "idx": {
+          "name": "idx",
+          "type": "smallint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "volume_g": {
+          "name": "volume_g",
+          "type": "numeric(6, 1)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "interval_s": {
+          "name": "interval_s",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "bloom": {
+          "name": "bloom",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "planned_cumulative_g": {
+          "name": "planned_cumulative_g",
+          "type": "numeric(6, 1)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "planned_start_s": {
+          "name": "planned_start_s",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "duration_s": {
+          "name": "duration_s",
+          "type": "numeric(5, 1)",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "pours_brew_id_brews_id_fk": {
+          "name": "pours_brew_id_brews_id_fk",
+          "tableFrom": "pours",
+          "tableTo": "brews",
+          "columnsFrom": [
+            "brew_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "pours_brew_id_idx_pk": {
+          "name": "pours_brew_id_idx_pk",
+          "columns": [
+            "brew_id",
+            "idx"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "pours_idx": {
+          "name": "pours_idx",
+          "value": "\"pours\".\"idx\" BETWEEN 1 AND 50"
+        },
+        "pours_volume": {
+          "name": "pours_volume",
+          "value": "\"pours\".\"volume_g\" > 0"
+        },
+        "pours_planned_g": {
+          "name": "pours_planned_g",
+          "value": "\"pours\".\"planned_cumulative_g\" IS NULL OR \"pours\".\"planned_cumulative_g\" > 0"
+        },
+        "pours_planned_start": {
+          "name": "pours_planned_start",
+          "value": "\"pours\".\"planned_start_s\" IS NULL OR \"pours\".\"planned_start_s\" >= 0"
+        },
+        "pours_duration": {
+          "name": "pours_duration",
+          "value": "\"pours\".\"duration_s\" IS NULL OR \"pours\".\"duration_s\" > 0"
+        },
+        "pours_interval": {
+          "name": "pours_interval",
+          "value": "(\"pours\".\"idx\" = 1 AND \"pours\".\"interval_s\" = 0) OR (\"pours\".\"idx\" > 1 AND \"pours\".\"interval_s\" > 0)"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.rating_perceived_notes": {
+      "name": "rating_perceived_notes",
+      "schema": "",
+      "columns": {
+        "brew_id": {
+          "name": "brew_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "flavor_id": {
+          "name": "flavor_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "rating_perceived_notes_brew_id_ratings_brew_id_fk": {
+          "name": "rating_perceived_notes_brew_id_ratings_brew_id_fk",
+          "tableFrom": "rating_perceived_notes",
+          "tableTo": "ratings",
+          "columnsFrom": [
+            "brew_id"
+          ],
+          "columnsTo": [
+            "brew_id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "rating_perceived_notes_flavor_id_flavors_id_fk": {
+          "name": "rating_perceived_notes_flavor_id_flavors_id_fk",
+          "tableFrom": "rating_perceived_notes",
+          "tableTo": "flavors",
+          "columnsFrom": [
+            "flavor_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "rating_perceived_notes_brew_id_flavor_id_pk": {
+          "name": "rating_perceived_notes_brew_id_flavor_id_pk",
+          "columns": [
+            "brew_id",
+            "flavor_id"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.ratings": {
+      "name": "ratings",
+      "schema": "",
+      "columns": {
+        "brew_id": {
+          "name": "brew_id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "overall": {
+          "name": "overall",
+          "type": "numeric(3, 2)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "acidity": {
+          "name": "acidity",
+          "type": "numeric(3, 2)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "sweetness": {
+          "name": "sweetness",
+          "type": "numeric(3, 2)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "body": {
+          "name": "body",
+          "type": "numeric(3, 2)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "bitterness": {
+          "name": "bitterness",
+          "type": "numeric(3, 2)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "astringency": {
+          "name": "astringency",
+          "type": "numeric(3, 2)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "clarity": {
+          "name": "clarity",
+          "type": "numeric(3, 2)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "aftertaste": {
+          "name": "aftertaste",
+          "type": "numeric(3, 2)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "comment": {
+          "name": "comment",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "ratings_brew_id_brews_id_fk": {
+          "name": "ratings_brew_id_brews_id_fk",
+          "tableFrom": "ratings",
+          "tableTo": "brews",
+          "columnsFrom": [
+            "brew_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "ratings_overall": {
+          "name": "ratings_overall",
+          "value": "\"ratings\".\"overall\" BETWEEN 0.25 AND 5 AND mod(\"ratings\".\"overall\", 0.25) = 0"
+        },
+        "ratings_acidity": {
+          "name": "ratings_acidity",
+          "value": "\"ratings\".\"acidity\" IS NULL OR (\"ratings\".\"acidity\" BETWEEN 0.25 AND 5 AND mod(\"ratings\".\"acidity\", 0.25) = 0)"
+        },
+        "ratings_sweetness": {
+          "name": "ratings_sweetness",
+          "value": "\"ratings\".\"sweetness\" IS NULL OR (\"ratings\".\"sweetness\" BETWEEN 0.25 AND 5 AND mod(\"ratings\".\"sweetness\", 0.25) = 0)"
+        },
+        "ratings_body": {
+          "name": "ratings_body",
+          "value": "\"ratings\".\"body\" IS NULL OR (\"ratings\".\"body\" BETWEEN 0.25 AND 5 AND mod(\"ratings\".\"body\", 0.25) = 0)"
+        },
+        "ratings_bitterness": {
+          "name": "ratings_bitterness",
+          "value": "\"ratings\".\"bitterness\" IS NULL OR (\"ratings\".\"bitterness\" BETWEEN 0.25 AND 5 AND mod(\"ratings\".\"bitterness\", 0.25) = 0)"
+        },
+        "ratings_astringency": {
+          "name": "ratings_astringency",
+          "value": "\"ratings\".\"astringency\" IS NULL OR (\"ratings\".\"astringency\" BETWEEN 0.25 AND 5 AND mod(\"ratings\".\"astringency\", 0.25) = 0)"
+        },
+        "ratings_clarity": {
+          "name": "ratings_clarity",
+          "value": "\"ratings\".\"clarity\" IS NULL OR (\"ratings\".\"clarity\" BETWEEN 0.25 AND 5 AND mod(\"ratings\".\"clarity\", 0.25) = 0)"
+        },
+        "ratings_aftertaste": {
+          "name": "ratings_aftertaste",
+          "value": "\"ratings\".\"aftertaste\" IS NULL OR (\"ratings\".\"aftertaste\" BETWEEN 0.25 AND 5 AND mod(\"ratings\".\"aftertaste\", 0.25) = 0)"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.roasters": {
+      "name": "roasters",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "user_id": {
+          "name": "user_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "website": {
+          "name": "website",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "archived_at": {
+          "name": "archived_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "roasters_user_name": {
+          "name": "roasters_user_name",
+          "columns": [
+            {
+              "expression": "user_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "lower(\"name\")",
+              "asc": true,
+              "isExpression": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "roasters_user_id_users_id_fk": {
+          "name": "roasters_user_id_users_id_fk",
+          "tableFrom": "roasters",
+          "tableTo": "users",
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "roasters_id_user": {
+          "name": "roasters_id_user",
+          "nullsNotDistinct": false,
+          "columns": [
+            "id",
+            "user_id"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "roasters_name_nonempty": {
+          "name": "roasters_name_nonempty",
+          "value": "length(trim(\"roasters\".\"name\")) > 0"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.scales": {
+      "name": "scales",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "user_id": {
+          "name": "user_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "archived_at": {
+          "name": "archived_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "scales_user_name": {
+          "name": "scales_user_name",
+          "columns": [
+            {
+              "expression": "user_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "lower(\"name\")",
+              "asc": true,
+              "isExpression": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "scales_user_id_users_id_fk": {
+          "name": "scales_user_id_users_id_fk",
+          "tableFrom": "scales",
+          "tableTo": "users",
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "scales_id_user": {
+          "name": "scales_id_user",
+          "nullsNotDistinct": false,
+          "columns": [
+            "id",
+            "user_id"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "scales_name_nonempty": {
+          "name": "scales_name_nonempty",
+          "value": "length(trim(\"scales\".\"name\")) > 0"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.sessions": {
+      "name": "sessions",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "user_id": {
+          "name": "user_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "expires_at": {
+          "name": "expires_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {
+        "sessions_user_idx": {
+          "name": "sessions_user_idx",
+          "columns": [
+            {
+              "expression": "user_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "sessions_user_id_users_id_fk": {
+          "name": "sessions_user_id_users_id_fk",
+          "tableFrom": "sessions",
+          "tableTo": "users",
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.users": {
+      "name": "users",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "email": {
+          "name": "email",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "password_hash": {
+          "name": "password_hash",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "timezone": {
+          "name": "timezone",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'UTC'"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "users_email_unique": {
+          "name": "users_email_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "email"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "users_email_lowercase": {
+          "name": "users_email_lowercase",
+          "value": "\"users\".\"email\" = lower(\"users\".\"email\")"
+        }
+      },
+      "isRLSEnabled": false
+    }
+  },
+  "enums": {},
+  "schemas": {},
+  "sequences": {},
+  "roles": {},
+  "policies": {},
+  "views": {},
+  "_meta": {
+    "columns": {},
+    "schemas": {},
+    "tables": {}
+  }
+}

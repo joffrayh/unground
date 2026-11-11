@@ -36,6 +36,13 @@
       "when": 1794241959921,
       "tag": "0004_pour_measurements",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1794406823297,
+      "tag": "0005_rating_scale_quarters",
+      "breakpoints": true
     }
   ]
 }
