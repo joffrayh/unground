@@ -314,6 +314,22 @@
 		scaleId = id;
 	}
 
+	let scaleOpen = $state(false);
+	let tapping = $state(false);
+	/** Total time before tap to pour's Stop filled it in, and what it wrote, for its Undo. */
+	let totalTap: { before: string; written: string } | null = null;
+
+	function tapTotal(s: number | null) {
+		if (s === null) {
+			// A total retyped since Stop is the brewer's: leave it.
+			if (totalTap && totalTime === totalTap.written) totalTime = totalTap.before;
+			totalTap = null;
+			return;
+		}
+		totalTap = { before: totalTime, written: formatDuration(s) };
+		totalTime = totalTap.written;
+	}
+
 	function normalizeTotalTime() {
 		const s = parseDuration(totalTime);
 		if (s !== null) totalTime = formatDuration(s);
@@ -590,10 +606,14 @@
 		suggestion={suggestions}
 		bind:stats={pourStats}
 		bind:targets
+		tappable={!!scales}
+		locked={scaleOpen}
+		bind:tapping
+		ontotal={tapTotal}
 	/>
 
-	{#if scales}
-		<ScaleCard {scales} {targets} onfinish={recordMeasured} />
+	{#if scales && (scaleOpen || !tapping)}
+		<ScaleCard {scales} {targets} bind:open={scaleOpen} onfinish={recordMeasured} />
 	{/if}
 
 	<fieldset class="section">

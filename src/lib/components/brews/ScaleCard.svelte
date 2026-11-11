@@ -18,10 +18,13 @@
 	let {
 		scales,
 		targets,
+		open = $bindable(false),
 		onfinish
 	}: {
 		scales: readonly ScaleOption[];
 		targets: readonly PourTarget[];
+		/** Guiding a brew. */
+		open?: boolean;
 		/** The brew has finished, with what was measured and the scale that measured it. */
 		onfinish: (brew: GuideState, scaleId: string) => void;
 	} = $props();
@@ -31,7 +34,6 @@
 	const name = $derived(scales.find((s) => s.id === scaleLink.pairing?.scaleId)?.name ?? null);
 	const connected = $derived(scaleLink.status === 'connected');
 
-	let open = $state(false);
 	let tareFailed = $state(false);
 	let card = $state<HTMLElement>();
 	let guide: ReturnType<typeof createBrewGuide> | null = null;

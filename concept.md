@@ -96,8 +96,9 @@ A **Brew** is a single brewing event. It references one **Bean**, one **Grinder*
   - **volume** (g) poured in that pour,
   - **interval** — seconds since the previous pour _started_. The first pour starts the brew, so its interval is **0** by definition.
   - **bloom** — a tick box per pour (D27). Pours are named from 0 ("Pour 0", "Pour 1", …); any of them can be a bloom, e.g. a double bloom. The bloom wait is the time to the first pour that isn't a bloom.
-  - **measured** _(scale only, D51)_ — the running total and start the pour was planned for, and how long the water ran.
+  - **measured** _(scale or tap to pour, D51, D53)_ — the running total and start the pour was planned for, and (scale only) how long the water ran.
   - **Entry UX:** the user types what they see — the **timer reading** when each pour starts and the **scale reading** (running total) after it. The app converts these into per-pour volume and interval.
+  - **Tap to pour** _(D53)_ — or taps when each pour starts and the times fill in.
 - **Total brew time** (drawdown complete), stored on the common block since every method has one.
 - Number of pours is derived (count of pours).
 - _(extensible: water profile, etc.)_
@@ -187,7 +188,7 @@ BrewV60  (1:1 with a v60 brew)
 
 Pour
   brew_id, idx (1..n), volume_g, interval_s, bloom   # idx 1 ⇔ interval 0; shown as "Pour idx-1"
-  planned_cumulative_g?, planned_start_s?, duration_s?   # set when a scale measured it (D51)
+  planned_cumulative_g?, planned_start_s?, duration_s?   # set when a scale measured it (D51); planned_* also by tap to pour (D53)
 
 Rating  (1:1 with brew)
   brew_id, overall (1-10), acidity?, sweetness?, body?, bitterness?, astringency?, clarity? (1-10 intensity),
@@ -290,6 +291,7 @@ The substance of each decision lives in the section noted under _Where_; this ta
 | D50 | **Pour timing comes from the weight and starts at the first water.** A pour's stop time is when the weight levels off, confirmed by flow staying under 0.5 g/s. The clock follows the scale's timer while it's moving, else the time between readings. | Flow lags weight by about 0.5 s and never holds at exactly zero. The scale's timer can start early on a bump, or not at all in some modes. | [§4.2](#42-brew) |
 | D51 | **A measured brew saves what happened and keeps the plan beside it.** When a guided brew finishes, the scale's readings replace the pour rows and Total time, and each pour stores the running total and start it was planned for and how long the water ran. The next brew's placeholders and reshaped suggestions come from the plan. The adjustments use the measured ratio. Leaving with Exit discards the measurements. | Stage 2 needs what really went in the cup. Repeating measured pours would drift the recipe by a gram or a second each brew, so "same as last time" (D15) has to mean the plan. | [§4.2](#42-brew) |
 | D52 | **A new rating starts from the previous one's taste profile** (on a new brew: the template's; on an unrated brew: the latest rated brew before it). Overall starts blank, the previous overall a grey tap-to-use button. Without an overall, a profile left as carried over (posted as `<dimension>Default`) saves no rating. Tasting notes and comment start blank. Narrows D45's "scores start unset". | Adjusting a familiar profile is quicker than rebuilding it every cup. A blank overall keeps the quality target deliberate and "rate later" working. | [§4.3](#43-rating--tasting-the-target-variable) |
+| D53 | **Tap to pour.** A new brew's Pours start with a Start button, with no switch between typing and tapping: Start at the first water, a big blue button as each later pour starts, Stop at the end of the drawdown. Each tap writes that pour's start time into its row (adding rows) and Stop fills Total time; Undo takes back the last tap, unless that field has been retyped since. Rows can't be removed, nor the plan accepted, while it times. It shows the clock, the pour's target and the countdown to the next planned pour (the row's time typed beforehand, or the previous brew's; not an estimate): a beep at each of the last 3 seconds, then a higher beep, a vibration and a pulsing "now" button until it's tapped. Scale readings are still typed. Each tapped pour keeps the start and running total it was planned for (D51's fields; duration stays empty), so the next brew starts from the plan. It steps aside while a scale guides the brew, and the scale card while it runs. JavaScript only. | Without a scale, timing is the part that's hard to type at the kettle; tapping is one thumb. Times are what the brewer would have typed, so they save as typed; keeping the plan stops them drifting the recipe, as with the scale. The cue is sound as well as sight because eyes are on the kettle; the tap on Start is what lets the browser play it. A switch only hid the Start button, and Undo back past Start already returns to typing. | [§4.2](#42-brew) |
 
 ## 9. Open questions / decisions to revisit
 
