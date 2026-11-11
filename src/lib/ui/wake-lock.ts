@@ -10,7 +10,8 @@ export function createWakeLock() {
 		if (!wanted || lock || document.visibilityState !== 'visible') return;
 		try {
 			const taken = await navigator.wakeLock.request('screen');
-			if (!wanted) {
+			// Released meanwhile, or another request got there first.
+			if (!wanted || lock) {
 				await taken.release();
 				return;
 			}
