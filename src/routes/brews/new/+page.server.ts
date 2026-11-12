@@ -4,8 +4,10 @@ import {
 	chooseId,
 	dripperOptions,
 	grinderOptions,
+	brewTemplates,
 	newBrewValues,
 	ratingFrom,
+	templateFor,
 	type RatingFrom
 } from '#lib/components/brews/brew-values.ts';
 import { utcToZonedLocal } from '#lib/domain/derive.ts';
@@ -17,6 +19,7 @@ import {
 	createBrew,
 	getBrew,
 	getLatestBrew,
+	getLatestBrewsByBean,
 	getLatestRatingsByBean,
 	type Brew
 } from '#lib/server/services/brews.ts';
@@ -66,26 +69,25 @@ export const load: PageServerLoad = async (event) => {
 	}
 
 	const values = newBrewValues(template, brewedAt);
-	// Each bean's last rating, shown beside the new one while that bean is picked (D53, D58).
-	const ratings = await getLatestRatingsByBean(
-		db,
-		user.id,
-		beans.map((b) => b.id)
-	);
+	// Each bean's last brew and rating, which the form follows as the bean is picked (D53, D58, D60).
+	const beanIds = beans.map((b) => b.id);
+	const [ratings, latest] = await Promise.all([
+		getLatestRatingsByBean(db, user.id, beanIds),
+		getLatestBrewsByBean(db, user.id, beanIds)
+	]);
+	Object.assign(values, brewTemplates(template, latest));
 	values.lastRatings = Object.fromEntries(
 		[...ratings].map(([beanId, r]) => [beanId, ratingFrom(r) as RatingFrom])
 	);
 	// The catalogue pages come back with ?bean= / ?grinder=; an archived template bean falls back too.
 	values.beanId = prefer(searchParams.get('bean'), values.beanId, beans);
+	values.pours = templateFor(values, values.beanId)?.pours ?? values.pours;
 	values.grinderId = prefer(searchParams.get('grinder'), values.grinderId, grinders);
 	// The dripper is optional: an archived or unknown one falls back to "not recorded". A first brew
 	// starts on the first dripper, as it does on the first grinder.
 	const wantedDripper =
 		searchParams.get('dripper') ?? (template ? values.dripperId : (drippers[0]?.id ?? ''));
 	values.dripperId = drippers.some((d) => d.id === wantedDripper) ? wantedDripper : '';
-	// A grind setting only means something on its own grinder (D2): the form only offers the
-	// template's grind as a placeholder (and suggestion) while that grinder is picked.
-	const grinderReset = !!template && values.grinderId !== template.grinderId;
 
 	return {
 		setup: null,
@@ -97,13 +99,9 @@ export const load: PageServerLoad = async (event) => {
 		copiedFrom: template
 			? {
 					id: template.id,
-					brewedAt: template.brewedAt,
-					timezone: template.timezone,
 					beanName: template.beanName,
 					explicit: !!from,
-					beanReset: values.beanId !== template.beanId && !searchParams.has('bean'),
-					grinderReset,
-					grinderName: template.grinderName
+					beanReset: values.beanId !== template.beanId && !searchParams.has('bean')
 				}
 			: null
 	};

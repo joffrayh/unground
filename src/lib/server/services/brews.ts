@@ -189,19 +189,37 @@ export async function countBrews(db: Db, userId: string): Promise<number> {
 
 export async function getBrew(db: Db, userId: string, id: string): Promise<Brew> {
 	assertId(id, 'Brew');
-	const [row] = await baseQuery(db).where(and(eq(brews.id, id), eq(brews.userId, userId)));
-	if (!row) throw new NotFoundError('Brew');
+	const [brew] = await getBrews(db, userId, [id]);
+	if (!brew) throw new NotFoundError('Brew');
+	return brew;
+}
+
+/** The user's brews with these ids, in no particular order; ids that aren't theirs are left out. */
+async function getBrews(db: Db, userId: string, ids: readonly string[]): Promise<Brew[]> {
+	if (ids.length === 0) return [];
+	const rows = await baseQuery(db).where(
+		and(inArray(brews.id, [...ids]), eq(brews.userId, userId))
+	);
+	const found = rows.map((r) => r.id);
+	const methods = [...new Set(rows.map((r) => r.method))];
 	const [details, rating, plan] = await Promise.all([
-		METHODS[row.method].load(db, [id]),
-		loadRatings(db, [id]),
-		loadPlans(db, [id])
+		Promise.all(
+			methods.map((m) =>
+				METHODS[m].load(
+					db,
+					rows.filter((r) => r.method === m).map((r) => r.id)
+				)
+			)
+		),
+		loadRatings(db, found),
+		loadPlans(db, found)
 	]);
-	return {
+	return rows.map((row) => ({
 		...row,
-		details: details.get(id) ?? { filterType: null, pours: [] },
-		rating: rating.get(id) ?? null,
-		plan: plan.get(id) ?? null
-	};
+		details: details.map((d) => d.get(row.id)).find(Boolean) ?? { filterType: null, pours: [] },
+		rating: rating.get(row.id) ?? null,
+		plan: plan.get(row.id) ?? null
+	}));
 }
 
 /** The user's most recent brew, used to pre-fill the next one (D15). */
@@ -242,6 +260,28 @@ export async function getPreviousRating(
 		.limit(1);
 	if (!row) return null;
 	return (await loadRatings(db, [row.id])).get(row.id) ?? null;
+}
+
+/**
+ * Each bean's latest brew, which a new brew of that bean starts from: its recipe as placeholders and
+ * its plan as suggestions (D25, D58, D60). Beans never brewed are left out.
+ */
+export async function getLatestBrewsByBean(
+	db: Db,
+	userId: string,
+	beanIds: readonly string[]
+): Promise<Brew[]> {
+	if (beanIds.length === 0) return [];
+	const latest = await db
+		.selectDistinctOn([brews.beanId], { id: brews.id })
+		.from(brews)
+		.where(and(eq(brews.userId, userId), inArray(brews.beanId, [...beanIds])))
+		.orderBy(brews.beanId, desc(brews.brewedAt), desc(brews.id));
+	return getBrews(
+		db,
+		userId,
+		latest.map((r) => r.id)
+	);
 }
 
 /** Each bean's latest rating, by bean id, shown beside a new brew's rating (D53, D58). */

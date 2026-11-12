@@ -2,6 +2,7 @@
 	import { onMount } from 'svelte';
 	import { page } from '$app/state';
 	import BrewForm from '#lib/components/brews/BrewForm.svelte';
+	import { templateFor } from '#lib/components/brews/brew-values.ts';
 	import {
 		clearBrewDraft,
 		readBrewDraft,
@@ -30,6 +31,12 @@
 	});
 	const values = $derived(draft?.values ?? data.values);
 	const copiedFrom = $derived(draft ? draft.copiedFrom : data.copiedFrom);
+
+	// The note follows the bean and grinder picked, as the placeholders do (D60).
+	let picked = $state<{ beanId: string; grinderId: string } | null>(null);
+	const beanId = $derived(picked?.beanId ?? values.beanId);
+	const grinderId = $derived(picked?.grinderId ?? values.grinderId);
+	const shown = $derived(data.setup ? null : templateFor(values, beanId));
 
 	const keeper = {
 		save: (fields: DraftFields) => writeBrewDraft(owner, { fields, values, copiedFrom }),
@@ -68,16 +75,17 @@
 		</ul>
 	</div>
 {:else}
-	{#if copiedFrom}
+	{#if shown}
+		{@const explicit = copiedFrom?.explicit && copiedFrom.id === shown.from.id}
 		<p class="small muted copied">
-			Copied from your {copiedFrom.explicit ? '' : 'last '}brew on
-			<a href="/brews/{copiedFrom.id}">{formatDateTime(copiedFrom.brewedAt, copiedFrom.timezone)}</a
+			Copied from your {explicit ? '' : 'last '}{shown.from.beanName} brew on
+			<a href="/brews/{shown.from.id}">{formatDateTime(shown.from.brewedAt, shown.from.timezone)}</a
 			>.
-			{#if copiedFrom.beanReset}
+			{#if copiedFrom?.beanReset && copiedFrom.id === shown.from.id}
 				Its bean ({copiedFrom.beanName}) is archived: pick one.
 			{/if}
-			{#if copiedFrom.grinderReset}
-				It used a different grinder ({copiedFrom.grinderName}): enter the grind.
+			{#if grinderId !== shown.defaults.grindSettingFor}
+				It used a different grinder ({shown.from.grinderName}): enter the grind.
 			{/if}
 		</p>
 	{/if}
@@ -94,6 +102,7 @@
 			catalogueLinks
 			liveBrewedAtIn={data.user?.timezone}
 			draft={keeper}
+			onpick={(p) => (picked = p)}
 		/>
 	{/key}
 {/if}

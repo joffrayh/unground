@@ -13,7 +13,9 @@
 	 *
 	 * When the previous brew planned a new ratio or pour count (D25), the reshaped pours are suggested:
 	 * a green "› x" button inside each scale box (tap to use it) and on the total, pours to drop in red,
-	 * pours to add in green, and Accept makes the suggestion the new placeholders.
+	 * pours to add in green, and Accept makes the suggestion the new placeholders. A pour added or
+	 * removed by hand, to a count the plan didn't ask for, takes over: the placeholders are
+	 * redistributed over the new count at their own ratio, the same way (D61).
 	 *
 	 * On a new brew, tap to pour (D57) can time the pours: each tap writes the pour's start into its row,
 	 * adding rows as needed, and Undo puts back what was there.
@@ -23,7 +25,13 @@
 	import { suggestPours } from '#lib/domain/plan.ts';
 	import TapPanel from './TapPanel.svelte';
 	import type { TapPhase } from './tap-log.ts';
-	import { formatDuration, parseDuration, poursToEntries } from '#lib/domain/pours.ts';
+	import {
+		formatDuration,
+		parseDuration,
+		poursToEntries,
+		roundTenth,
+		type Pour
+	} from '#lib/domain/pours.ts';
 	import type { MeasuredPour } from '#lib/scale/brew-guide.ts';
 	import { ratioText } from '#lib/ui/format.ts';
 	import type { BrewSuggestions } from './brew-values.ts';
@@ -36,7 +44,9 @@
 		errorRowIndex,
 		isBlank,
 		parseGrams,
+		placeholderPours,
 		pourTargets,
+		retemplateRows,
 		rowLabel,
 		summarizePours,
 		trimSpareRows,
@@ -49,18 +59,22 @@
 	let {
 		initial,
 		dose,
+		baseDose = '',
 		error,
 		suggestion = null,
 		stats = $bindable(),
 		targets = $bindable(),
 		tappable = false,
 		locked = false,
+		scaleReady = false,
 		tapping = $bindable(false),
 		ontotal
 	}: {
 		initial: readonly PourRow[];
 		/** The dose that counts (typed, else its placeholder), for the ratio. */
 		dose: string;
+		/** The dose placeholder, which the pour placeholders' ratio is to. */
+		baseDose?: string;
 		error?: string;
 		/** The previous brew's plan; only its ratio, pour count and pours are used here. */
 		suggestion?: BrewSuggestions | null;
@@ -72,6 +86,8 @@
 		tappable?: boolean;
 		/** A scale is guiding the brew, so tap to pour steps aside. */
 		locked?: boolean;
+		/** A scale is connected: tap to pour isn't offered, though one already started carries on. */
+		scaleReady?: boolean;
 		/** Tap to pour is timing a brew. */
 		tapping?: boolean;
 		/** Tap to pour's total time, or null when its end was taken back. */
@@ -99,6 +115,18 @@
 		return rows.map((r) => r.defaultTime);
 	}
 
+	/**
+	 * Another bean's placeholders (D60): typed readings stay, and what was suggested or redistributed
+	 * starts again from the new ones.
+	 */
+	export function useTemplate(placeholders: readonly PourRow[]) {
+		rows = retemplateRows(rows, placeholders).map(keyed);
+		base = placeholderPours(placeholders, baseDose);
+		manual = false;
+		redistributed = null;
+		acceptedKey = null;
+	}
+
 	/** Writes in what a scale measured, keeping the plan each row followed (D51). */
 	export function applyMeasured(measured: readonly MeasuredPour[]) {
 		rows = applyMeasuredPours(rows, measured);
@@ -117,9 +145,30 @@
 		targets = pourTargets(summary);
 	});
 
-	// --- the plan's suggestion ------------------------------------------------------------------
+	// --- suggestions: the plan's, or a redistribution after adding or removing a pour (D61) -------
+
+	/** Rows that are pours; before JavaScript runs the trailing spare rows don't count. */
+	const shownRows = $derived(hydrated ? rows.length : trimSpareRows(rows).length);
+	/** The pours the placeholders came from, and their ratio: the template's, or what was accepted. */
+	// svelte-ignore state_referenced_locally
+	let base = $state.raw<{ pours: Pour[]; ratio: number | null }>(
+		placeholderPours(initial, baseDose)
+	);
+	/** A pour was added or removed by hand since the placeholders were set. */
+	let manual = $state(false);
+	/** What the last accepted redistribution did, for its note. */
+	let redistributed = $state<string | null>(null);
+	/** The brewer's own pour count takes over from the plan's. */
+	const ownTurn = $derived(manual && shownRows !== (suggestion?.pourCount?.to ?? null));
 
 	const proposal = $derived.by(() => {
+		if (ownTurn) {
+			if (shownRows === base.pours.length || base.ratio === null) return null;
+			return suggestPours(base.pours, parseGrams(dose), {
+				ratio: base.ratio,
+				pourCount: shownRows
+			});
+		}
 		if (!suggestion || (!suggestion.ratio && !suggestion.pourCount)) return null;
 		return suggestPours(suggestion.pours, parseGrams(dose), {
 			ratio: suggestion.ratio?.to ?? null,
@@ -149,12 +198,10 @@
 	const showProposal = $derived(proposal != null && !matches && !accepted);
 	/** Planned ratio, also shown when the pours can't be reshaped to it. */
 	const ratioTarget = $derived(
-		suggestion?.ratio && !matches && summary.ratio !== suggestion.ratio.to
+		!ownTurn && suggestion?.ratio && !matches && summary.ratio !== suggestion.ratio.to
 			? suggestion.ratio.to
 			: null
 	);
-	/** Rows that are pours; before JavaScript runs the trailing spare rows don't count. */
-	const shownRows = $derived(hydrated ? rows.length : trimSpareRows(rows).length);
 	const ghosts = $derived(showProposal ? proposed.slice(shownRows) : []);
 
 	function suggestedScale(i: number): number | null {
@@ -174,12 +221,30 @@
 		return parts.join(', ');
 	});
 
+	/** The redistribution on offer, as its note says it. */
+	const ownText = $derived(
+		`${proposed.length} pours at ${ratioText(base.ratio === null ? null : roundTenth(base.ratio))}`
+	);
+
 	/**
 	 * Makes the suggested pours the new placeholders, so typing what you see still replaces them.
 	 * Readings already typed stay; pours beyond the suggestion go.
 	 */
 	async function accept() {
-		rows = proposed.map((e, i) => {
+		const chosen = proposal;
+		if (!chosen) return;
+		// Taken first: they derive from `base` and the rows, which accepting replaces.
+		const own = ownTurn;
+		const entries = proposed;
+		const key = proposalKey;
+		const text = ownText;
+		const doseG = parseGrams(dose);
+		base = {
+			pours: chosen.pours,
+			ratio: doseG !== null && doseG > 0 ? chosen.totalG / doseG : base.ratio
+		};
+		if (own) redistributed = text;
+		rows = entries.map((e, i) => {
 			const typed = rows[i] ?? null;
 			return keyed({
 				...blankRow(e.bloom),
@@ -189,7 +254,10 @@
 				defaultScale: String(e.cumulativeG)
 			});
 		});
-		acceptedKey = proposalKey;
+		if (!own) {
+			acceptedKey = key;
+			manual = false;
+		}
 		// The button is gone: keep focus on the note that says what happened (no keyboard pop-up).
 		await tick();
 		planBox?.focus();
@@ -204,7 +272,7 @@
 	/** Pour 0's plan before Start. */
 	let startPlan: Plan = {};
 
-	const tapOn = $derived(hydrated && tappable && !locked);
+	const tapOn = $derived(hydrated && tappable && !locked && (!scaleReady || tapPhase !== 'idle'));
 	/** Rows stay put while taps are landing in them: no removing or reshaping. */
 	const rowsFixed = $derived(tapOn && tapPhase === 'running');
 	$effect(() => {
@@ -281,6 +349,8 @@
 	}
 
 	async function add() {
+		manual = true;
+		redistributed = null;
 		const last = rows.length - 1;
 		if (last < 1 || !isBlank(rows[last], last)) rows.push(keyed(blankRow()));
 		await tick();
@@ -288,6 +358,8 @@
 	}
 
 	function remove(index: number) {
+		manual = true;
+		redistributed = null;
 		rows.splice(index, 1);
 		addButton?.focus();
 	}
@@ -325,9 +397,18 @@
 <fieldset class="pours" aria-describedby={error ? errorId : undefined}>
 	<legend>Pours</legend>
 
-	{#if planText && (showProposal || ratioTarget != null || accepted)}
+	{#if ownTurn ? showProposal || redistributed : planText && (showProposal || ratioTarget != null || accepted)}
 		<div class="plan" role="status" tabindex="-1" bind:this={planBox}>
-			{#if accepted}
+			{#if ownTurn}
+				{#if showProposal}
+					<span>Redistribute: {ownText}</span>
+					{#if hydrated && !rowsFixed}
+						<button type="button" class="btn btn-sm accept" onclick={accept}>Accept</button>
+					{/if}
+				{:else}
+					<span>✓ Redistributed: {redistributed}</span>
+				{/if}
+			{:else if accepted}
 				<span>✓ Plan applied: {planText}</span>
 			{:else}
 				<span>Planned last time: {planText}</span>

@@ -3,22 +3,27 @@
  * shape of a failed submit's `values`, so the form restores from them the same way. It also keeps what
  * the form started from: the nav's Add Brew link carries no `?from=`, so the page alone can't rebuild it.
  */
-import type { BeanOption, BrewFormValues, DripperOption, GrinderOption } from './brew-values.ts';
+import type {
+	BeanOption,
+	BrewFormValues,
+	BrewTemplate,
+	DripperOption,
+	GrinderOption
+} from './brew-values.ts';
 
 /** Bump when BrewDraft or BrewFormValues change shape; older drafts are then ignored. */
 const VERSION = 3;
 
 export type DraftFields = Record<string, string | string[]>;
 
+/** The brew the page copied (its template, D15); the form follows each bean's own (D60). */
 export interface DraftCopiedFrom {
 	id: string;
-	brewedAt: Date;
-	timezone: string;
 	beanName: string;
+	/** Asked for with `?from=`. */
 	explicit: boolean;
+	/** Its bean is archived, so another was picked. */
 	beanReset: boolean;
-	grinderReset: boolean;
-	grinderName: string;
 }
 
 export interface BrewDraft {
@@ -42,10 +47,20 @@ export function readBrewDraft(owner: string): BrewDraft | null {
 		const stored = JSON.parse(localStorage.getItem(storageKey(owner)) ?? 'null');
 		if (stored?.version !== VERSION) return null;
 		const { fields, values, copiedFrom } = stored as BrewDraft;
+		const dated = (t: BrewTemplate): BrewTemplate => ({
+			...t,
+			from: { ...t.from, brewedAt: new Date(t.from.brewedAt) }
+		});
 		return {
 			fields,
-			values,
-			copiedFrom: copiedFrom && { ...copiedFrom, brewedAt: new Date(copiedFrom.brewedAt) }
+			values: {
+				...values,
+				templates: Object.fromEntries(
+					Object.entries(values.templates ?? {}).map(([bean, t]) => [bean, dated(t)])
+				),
+				fallbackTemplate: values.fallbackTemplate ? dated(values.fallbackTemplate) : null
+			},
+			copiedFrom
 		};
 	} catch {
 		return null;
@@ -101,12 +116,24 @@ export function resumeBrewDraft(
 	return {
 		...draft,
 		fields,
-		// Ratings logged since the draft was kept count too (D58).
-		values: { ...draft.values, lastRatings: context.values.lastRatings },
+		// Brews and ratings logged since the draft was kept count too (D58, D60); a brew asked for with
+		// `?from=` still speaks for its bean.
+		values: {
+			...draft.values,
+			lastRatings: context.values.lastRatings,
+			templates: { ...context.values.templates, ...copiedTemplate(draft) },
+			fallbackTemplate: context.values.fallbackTemplate
+		},
 		copiedFrom: draft.copiedFrom && {
 			...draft.copiedFrom,
-			beanReset: draft.copiedFrom.beanReset && !searchParams.has('bean'),
-			grinderReset: fields.grinderId !== draft.values.defaults?.grindSettingFor
+			beanReset: draft.copiedFrom.beanReset && !searchParams.has('bean')
 		}
 	};
+}
+
+/** The draft's template for the brew it was asked to copy, by bean id. */
+function copiedTemplate(draft: BrewDraft): Record<string, BrewTemplate> {
+	const id = draft.copiedFrom?.explicit ? draft.copiedFrom.id : null;
+	const entry = Object.entries(draft.values.templates ?? {}).find(([, t]) => t.from.id === id);
+	return entry ? { [entry[0]]: entry[1] } : {};
 }

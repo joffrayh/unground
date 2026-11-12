@@ -2,11 +2,13 @@
  * The brew form's starting values, as the strings the inputs hold. Pure and client-safe.
  *
  * - Editing shows everything that was saved.
- * - A new brew (D15, D26) shows the template brew's recipe as placeholders: blank inputs whose
- *   placeholder is saved when they are left blank. Choices (bean, grinder, slow feeding, dripper,
- *   filter, agitation, bloom ticks) are pre-selected instead. What was measured or felt on that day (total time, notes,
- *   rating) starts blank, with the chosen bean's last rating shown in grey to compare against (D53,
- *   D58), and the template's next-time plan becomes green suggestions (D25, D30).
+ * - A new brew (D15, D26) pre-selects the template brew's choices (bean, grinder, slow feeding,
+ *   dripper, filter, agitation). Its recipe (grind, dose, temperature, pours) comes from the picked
+ *   bean's last brew, or the template for a bean never brewed (D60), as placeholders: blank inputs
+ *   whose placeholder is saved when they are left blank. What was measured or felt on that day (total
+ *   time, notes, rating) starts blank, with the picked bean's last rating shown in grey to compare
+ *   against (D53, D58), and the next-time plan of its last brew becomes green suggestions (D25, D30,
+ *   D58).
  */
 import { FLAVOR_BY_ID } from '#lib/domain/flavors.ts';
 import { brewRatio } from '#lib/domain/derive.ts';
@@ -79,6 +81,17 @@ export interface BrewSuggestions {
 	pours: Pour[];
 }
 
+/** What a new brew starts from while a bean is picked (D15, D58, D60). */
+export interface BrewTemplate {
+	/** The brew copied, for the "Copied from" note. */
+	from: { id: string; brewedAt: Date; timezone: string; beanName: string; grinderName: string };
+	defaults: BrewDefaults;
+	/** Its pours as placeholder rows. */
+	pours: PourRow[];
+	/** Its next-time plan; only from a brew of the same bean (D58). */
+	suggestions: BrewSuggestions | null;
+}
+
 export interface BrewFormValues {
 	beanId: string;
 	grinderId: string;
@@ -101,10 +114,10 @@ export interface BrewFormValues {
 	/** New brews: each bean's latest rating, by bean id; a bean never rated has none (D58). */
 	lastRatings: Record<string, RatingFrom>;
 	plan: PlanValues;
-	/** New brews only. */
-	defaults: BrewDefaults | null;
-	/** New brews whose template has a plan. */
-	suggestions: BrewSuggestions | null;
+	/** New brews: each brewed bean's template, by bean id (D60). */
+	templates: Record<string, BrewTemplate>;
+	/** New brews: the template for a bean never brewed, without its plan; null on a first brew. */
+	fallbackTemplate: BrewTemplate | null;
 }
 
 /** The parts of a stored rating the form shows (the service's Rating satisfies this). */
@@ -130,6 +143,15 @@ export interface BrewLike {
 	details: { filterType: string | null; pours: Pour[] };
 	rating: RatingLike | null;
 	plan: PlanInput | null;
+}
+
+/** A stored brew a new one can start from (the service's Brew satisfies this). */
+export interface TemplateBrew extends BrewLike {
+	id: string;
+	brewedAt: Date;
+	timezone: string;
+	beanName: string;
+	grinderName: string;
 }
 
 const str = (v: number | string | null | undefined) => (v == null ? '' : String(v));
@@ -208,8 +230,8 @@ export function editValues(brew: BrewLike, brewedAt: string): BrewFormValues {
 		rating: ratingValues(brew.rating),
 		lastRatings: {},
 		plan: planValues(brew.plan),
-		defaults: null,
-		suggestions: null
+		templates: {},
+		fallbackTemplate: null
 	};
 }
 
@@ -244,13 +266,57 @@ export function suggestionsFrom(template: BrewLike): BrewSuggestions | null {
 	};
 }
 
+/** A brew as a template; `ownBean` when it is a brew of the bean picked, which its plan is for. */
+export function templateFrom(brew: TemplateBrew, ownBean: boolean): BrewTemplate {
+	return {
+		from: {
+			id: brew.id,
+			brewedAt: brew.brewedAt,
+			timezone: brew.timezone,
+			beanName: brew.beanName,
+			grinderName: brew.grinderName
+		},
+		defaults: {
+			grindSetting: str(brew.grindSetting),
+			grindSettingFor: brew.grinderId,
+			doseG: str(brew.doseG),
+			waterTempC: str(brew.waterTempC)
+		},
+		pours: placeholderRowsFromEntries(poursToEntries(brew.details.pours)),
+		suggestions: ownBean ? suggestionsFrom(brew) : null
+	};
+}
+
+/**
+ * Each bean's template from its last brew (`latest`), and the page's template (`template`) for a bean
+ * never brewed (D60). The page's template speaks for its own bean, so copying an older brew starts
+ * from that brew, plan included.
+ */
+export function brewTemplates(
+	template: TemplateBrew | null,
+	latest: readonly TemplateBrew[] = []
+): Pick<BrewFormValues, 'templates' | 'fallbackTemplate'> {
+	const templates: Record<string, BrewTemplate> = {};
+	for (const brew of latest) templates[brew.beanId] = templateFrom(brew, true);
+	if (template) templates[template.beanId] = templateFrom(template, true);
+	return { templates, fallbackTemplate: template && templateFrom(template, false) };
+}
+
+/** The template while `beanId` is picked: its own, else the fallback; null when editing or on a first brew. */
+export function templateFor(
+	values: Pick<BrewFormValues, 'templates' | 'fallbackTemplate'>,
+	beanId: string
+): BrewTemplate | null {
+	return values.templates[beanId] ?? values.fallbackTemplate;
+}
+
 /**
  * A new brew's values: the template's recipe as placeholders (grind, dose, temperature, pours) and
  * pre-selected choices (bean, grinder, slow feeding, dripper, filter, agitation, blooms). `overrides` picks a bean,
  * grinder or dripper.
  */
 export function newBrewValues(
-	template: BrewLike | null,
+	template: TemplateBrew | null,
 	brewedAt: string,
 	overrides: { beanId?: string; grinderId?: string; dripperId?: string } = {}
 ): BrewFormValues {
@@ -263,7 +329,7 @@ export function newBrewValues(
 	};
 }
 
-function templateValues(template: BrewLike, brewedAt: string): BrewFormValues {
+function templateValues(template: TemplateBrew, brewedAt: string): BrewFormValues {
 	return {
 		beanId: template.beanId,
 		grinderId: template.grinderId,
@@ -282,13 +348,7 @@ function templateValues(template: BrewLike, brewedAt: string): BrewFormValues {
 		rating: ratingValues(null),
 		lastRatings: {},
 		plan: planValues(null),
-		defaults: {
-			grindSetting: str(template.grindSetting),
-			grindSettingFor: template.grinderId,
-			doseG: str(template.doseG),
-			waterTempC: str(template.waterTempC)
-		},
-		suggestions: suggestionsFrom(template)
+		...brewTemplates(template)
 	};
 }
 
@@ -312,8 +372,8 @@ function blankValues(brewedAt: string): BrewFormValues {
 		rating: ratingValues(null),
 		lastRatings: {},
 		plan: planValues(null),
-		defaults: null,
-		suggestions: null
+		templates: {},
+		fallbackTemplate: null
 	};
 }
 

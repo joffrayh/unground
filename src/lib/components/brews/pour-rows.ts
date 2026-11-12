@@ -10,10 +10,13 @@
  */
 import { brewRatio } from '#lib/domain/derive.ts';
 import {
+	entriesToPours,
 	formatDuration,
 	parseDuration,
 	pourName,
 	roundTenth,
+	totalWater,
+	type Pour,
 	type PourEntry
 } from '#lib/domain/pours.ts';
 import type { MeasuredPour } from '#lib/scale/brew-guide.ts';
@@ -73,6 +76,57 @@ export function placeholderRowsFromEntries(entries: readonly PourEntry[]): PourR
 		defaultTime: formatDuration(e.plannedStartS ?? e.startS),
 		defaultScale: String(e.plannedCumulativeG ?? e.cumulativeG)
 	}));
+}
+
+/**
+ * Another template's placeholders under what was typed (a new bean picked, D60): each row keeps its
+ * typed readings, bloom tick and measurements by position and takes the new placeholders; typed rows
+ * beyond the new ones stay, without placeholders.
+ */
+export function retemplateRows(
+	current: readonly PourRow[],
+	placeholders: readonly PourRow[]
+): PourRow[] {
+	const typed = (r: PourRow | undefined) => !!r && (r.time.trim() !== '' || r.scale.trim() !== '');
+	let lastTyped = -1;
+	current.forEach((r, i) => {
+		if (typed(r)) lastTyped = i;
+	});
+	const n = Math.max(placeholders.length, lastTyped + 1, 1);
+	return Array.from({ length: n }, (_, i) => {
+		const p = placeholders[i] ?? blankRow(i === 0);
+		const c = current[i];
+		if (!typed(c)) return { ...p };
+		return { ...c, defaultTime: p.defaultTime, defaultScale: p.defaultScale };
+	});
+}
+
+/**
+ * The pours the placeholders describe, and their water:dose ratio (unrounded, so the water comes out
+ * the same): what a pour added or removed by hand is redistributed from (D61). No pours when a
+ * placeholder is missing or out of order.
+ */
+export function placeholderPours(
+	rows: readonly PourRow[],
+	dose: string | number | null | undefined
+): { pours: Pour[]; ratio: number | null } {
+	let end = rows.length;
+	while (end > 0 && rows[end - 1].defaultScale === '') end--;
+	const filled = rows.slice(0, end);
+	const entries: PourEntry[] = [];
+	for (const [i, r] of filled.entries()) {
+		const startS = i === 0 ? 0 : parseDuration(r.defaultTime);
+		const cumulativeG = parseGrams(r.defaultScale);
+		if (startS === null || cumulativeG === null) return { pours: [], ratio: null };
+		entries.push({ startS, cumulativeG, bloom: r.bloom });
+	}
+	const result = entriesToPours(entries);
+	if (!result.ok) return { pours: [], ratio: null };
+	const doseG = parseGrams(dose);
+	return {
+		pours: result.pours,
+		ratio: doseG !== null && doseG > 0 ? totalWater(result.pours) / doseG : null
+	};
 }
 
 export interface PostedPours {

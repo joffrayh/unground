@@ -10,10 +10,17 @@ import {
 	newBrewValues,
 	planFormValues,
 	planValues,
-	type BrewLike
+	brewTemplates,
+	templateFor,
+	type TemplateBrew
 } from './brew-values.ts';
 
-const brew: BrewLike = {
+const brew: TemplateBrew = {
+	id: 'brew-1',
+	brewedAt: new Date('2026-11-03T08:15:00Z'),
+	timezone: 'UTC',
+	beanName: 'Kochere',
+	grinderName: 'Comandante',
 	beanId: 'bean-1',
 	grinderId: 'grinder-1',
 	dripperId: 'dripper-1',
@@ -69,8 +76,8 @@ describe('editValues', () => {
 			brewedAt: '2026-11-03T08:15',
 			filterType: 'cafec_abaca',
 			notes: 'stalled drawdown',
-			defaults: null,
-			suggestions: null
+			templates: {},
+			fallbackTemplate: null
 		});
 		expect(v.pours.map((r) => [r.time, r.scale, r.bloom, r.defaultScale])).toEqual([
 			['0:00', '50', true, ''],
@@ -110,15 +117,16 @@ describe('newBrewValues', () => {
 			agitation: '2',
 			totalTime: '',
 			brewedAt: '2026-11-04T07:00',
-			notes: '',
-			defaults: {
-				grindSetting: '24',
-				grindSettingFor: 'grinder-1',
-				doseG: '15.5',
-				waterTempC: '94'
-			},
-			suggestions: null
+			notes: ''
 		});
+		expect(v.templates['bean-1'].defaults).toEqual({
+			grindSetting: '24',
+			grindSettingFor: 'grinder-1',
+			doseG: '15.5',
+			waterTempC: '94'
+		});
+		expect(v.templates['bean-1'].from).toMatchObject({ id: 'brew-1', beanName: 'Kochere' });
+		expect(v.templates['bean-1'].suggestions).toBeNull();
 		expect(v.pours.map((r) => [r.time, r.scale, r.bloom, r.defaultTime, r.defaultScale])).toEqual([
 			['', '', true, '0:00', '50'],
 			['', '', false, '0:45', '150'],
@@ -145,9 +153,10 @@ describe('newBrewValues', () => {
 		expect(newBrewValues({ ...brew, agitation: null }, 'x').agitation).toBe('3');
 	});
 
-	it('turns the template’s plan into suggestions from its values (D25)', () => {
+	it('turns the template’s plan into suggestions for its bean, from its values (D25, D58)', () => {
 		const v = newBrewValues({ ...brew, plan }, 'x');
-		expect(v.suggestions).toEqual({
+		expect(Object.keys(v.templates)).toEqual(['bean-1']);
+		expect(v.templates['bean-1'].suggestions).toEqual({
 			grindSetting: { from: '24', to: '26', grindFor: 'grinder-1' },
 			waterTempC: null,
 			agitation: { from: '2', to: '3' },
@@ -156,7 +165,34 @@ describe('newBrewValues', () => {
 			notes: 'Swirl less',
 			pours: brew.details.pours
 		});
-		expect(v.suggestions?.pours).not.toBe(brew.details.pours);
+		expect(v.templates['bean-1'].suggestions?.pours).not.toBe(brew.details.pours);
+	});
+
+	it('starts each bean from its last brew, a bean never brewed from the template (D58, D60)', () => {
+		const other: TemplateBrew = {
+			...brew,
+			id: 'brew-2',
+			beanId: 'bean-2',
+			doseG: 18,
+			grindSetting: 20,
+			plan: { ...plan, grindSetting: 21 }
+		};
+		const unplanned = { ...brew, id: 'brew-3', beanId: 'bean-3' };
+		const olderSameBean = { ...brew, id: 'brew-0', doseG: 12, plan: { ...plan, grindSetting: 30 } };
+		const t = brewTemplates({ ...brew, plan }, [other, unplanned, olderSameBean]);
+		expect(Object.keys(t.templates).sort()).toEqual(['bean-1', 'bean-2', 'bean-3']);
+		// The page's template speaks for its own bean, so copying an older brew starts from it.
+		expect(t.templates['bean-1'].from.id).toBe('brew-1');
+		expect(t.templates['bean-1'].suggestions?.grindSetting).toMatchObject({ to: '26' });
+		expect(t.templates['bean-2'].defaults).toMatchObject({ doseG: '18', grindSetting: '20' });
+		expect(t.templates['bean-2'].suggestions?.grindSetting).toMatchObject({ from: '20', to: '21' });
+		expect(t.templates['bean-3'].suggestions).toBeNull();
+		// A bean never brewed starts from the template's recipe, but not its plan: that was for its bean.
+		expect(templateFor(t, 'bean-9')?.from.id).toBe('brew-1');
+		expect(templateFor(t, 'bean-9')?.suggestions).toBeNull();
+		expect(templateFor(t, 'bean-2')?.from.id).toBe('brew-2');
+		expect(templateFor(brewTemplates(null), 'bean-1')).toBeNull();
+		expect(templateFor(editValues(brew, 'x'), 'bean-1')).toBeNull();
 	});
 
 	it('lets the bean, grinder and dripper be overridden', () => {
@@ -167,7 +203,7 @@ describe('newBrewValues', () => {
 		});
 		expect(v).toMatchObject({ beanId: 'bean-2', grinderId: 'grinder-2', dripperId: '' });
 		// The grind placeholder still names its own grinder; the form ignores it on grinder-2.
-		expect(v.defaults?.grindSettingFor).toBe('grinder-1');
+		expect(templateFor(v, 'bean-2')?.defaults.grindSettingFor).toBe('grinder-1');
 	});
 
 	it('starts blank without a template, pour 0 ticked as a bloom', () => {
@@ -176,7 +212,7 @@ describe('newBrewValues', () => {
 		expect(v.pours).toEqual([
 			{ time: '', scale: '', bloom: true, defaultTime: '', defaultScale: '' }
 		]);
-		expect(v.defaults).toBeNull();
+		expect(templateFor(v, 'bean-2')).toBeNull();
 	});
 
 	it('does not share arrays with the template', () => {
