@@ -4,10 +4,10 @@
 	 * without JavaScript. Sections follow the order of a brew: set-up, recipe, pours, timing, then the
 	 * after-the-fact bits (notes, optional rating, what to change next time).
 	 *
-	 * On a new brew the previous brew's values are grey placeholders, and a field left blank saves its
-	 * placeholder (D26; posted as `<field>Default`). The next-time plan of the picked bean's last brew
-	 * shows as green "› 17" buttons inside the boxes; tapping one fills the field in (D25, D58). A
-	 * planned agitation level is highlighted.
+	 * On a new brew the picked bean's last brew's values are grey placeholders (the template's for a bean
+	 * never brewed; D60), and a field left blank saves its placeholder (D26; posted as
+	 * `<field>Default`). Its next-time plan shows as green "› 17" buttons inside the boxes; tapping one
+	 * fills the field in (D25, D58). A planned agitation level is highlighted.
 	 */
 	import { onMount, tick } from 'svelte';
 	import { enhance, type SubmitFunction } from '$app/forms';
@@ -33,6 +33,7 @@
 		hasPlanValues,
 		planFormValues,
 		ratingFormValues,
+		templateFor,
 		type BeanOption,
 		type BrewFormValues,
 		type DripperOption,
@@ -63,7 +64,8 @@
 		catalogueLinks = false,
 		timezone,
 		liveBrewedAtIn,
-		draft
+		draft,
+		onpick
 	}: {
 		form: FormState;
 		/** Starting values; a failed submit's values take precedence. */
@@ -87,6 +89,8 @@
 		liveBrewedAtIn?: string;
 		/** New brews: keeps the progress when leaving the form (D43), and adds Cancel brew. */
 		draft?: { save: (fields: DraftFields) => void; clear: () => void };
+		/** The bean and grinder picked, as they change. */
+		onpick?: (picked: { beanId: string; grinderId: string }) => void;
 	} = $props();
 
 	const uid = $props.id();
@@ -122,20 +126,12 @@
 				})
 			: values.pours
 	};
-	// The placeholders the page was rendered with (D26); a failed submit re-sends them.
-	// svelte-ignore state_referenced_locally
-	const defaults = values.defaults
-		? {
-				grindSetting: val(form, 'grindSettingDefault', values.defaults.grindSetting),
-				grindSettingFor: val(form, 'grindSettingDefaultFor', values.defaults.grindSettingFor),
-				doseG: val(form, 'doseGDefault', values.defaults.doseG),
-				waterTempC: val(form, 'waterTempCDefault', values.defaults.waterTempC)
-			}
-		: null;
 
 	let beanId = $state(start.beanId);
-	/** The picked bean's last plan (D58). */
-	const suggestions = $derived(values.suggestionsByBean[beanId] ?? null);
+	/** The picked bean's placeholders and plan (D26, D58, D60). */
+	const template = $derived(templateFor(values, beanId));
+	const defaults = $derived(template?.defaults ?? null);
+	const suggestions = $derived(template?.suggestions ?? null);
 	let grinderId = $state(start.grinderId);
 	let dripperId = $state(start.dripperId);
 	let scaleId = $state(start.scaleId);
@@ -148,7 +144,10 @@
 	let brewedAt = $state(start.brewedAt);
 	// Seeded here too, so the next-time card has its ratio and pour count before (or without) JavaScript.
 	// svelte-ignore state_referenced_locally
-	const startSummary = summarizePours(start.pours, start.doseG.trim() || values.defaults?.doseG);
+	const startSummary = summarizePours(
+		start.pours,
+		start.doseG.trim() || templateFor(values, start.beanId)?.defaults.doseG
+	);
 	let pourStats = $state<PourStats>({
 		count: startSummary.count,
 		totalG: startSummary.totalG,
@@ -258,8 +257,22 @@
 	/** A grind setting only means something on its own grinder (D2). */
 	const onTemplateGrinder = $derived(!!defaults && grinderId === defaults.grindSettingFor);
 	const grindPlaceholder = $derived(onTemplateGrinder ? defaults!.grindSetting : '');
-	const dosePlaceholder = defaults?.doseG ?? '';
-	const tempPlaceholder = defaults?.waterTempC ?? '';
+	const dosePlaceholder = $derived(defaults?.doseG ?? '');
+	const tempPlaceholder = $derived(defaults?.waterTempC ?? '');
+
+	// Another bean, another template: its pours become the placeholders (D60).
+	// svelte-ignore state_referenced_locally
+	let poursFrom = template;
+	$effect(() => {
+		const t = template;
+		if (t === poursFrom) return;
+		poursFrom = t;
+		pourEditor?.useTemplate(t?.pours ?? []);
+	});
+
+	$effect(() => {
+		onpick?.({ beanId, grinderId });
+	});
 	/** What will be saved: typed, else the placeholder. */
 	const effective = (typed: string, placeholder: string) => typed.trim() || placeholder;
 
@@ -616,6 +629,7 @@
 		bind:this={pourEditor}
 		initial={start.pours}
 		dose={effective(doseG, dosePlaceholder)}
+		baseDose={dosePlaceholder}
 		error={errors.pours}
 		suggestion={suggestions}
 		bind:stats={pourStats}

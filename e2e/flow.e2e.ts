@@ -413,7 +413,82 @@ test('brew again survives a new-grinder detour, and never copies grind across gr
 	await expect(page.locator('[name="grindSetting"]')).toHaveValue('');
 	await expect(page.locator('[name="grindSetting"]')).toHaveAttribute('placeholder', '');
 	await expect(page.getByText(/different grinder/)).toBeVisible();
+
+	// (Part of this test so the suite stays under the sign-up rate limit.)
+	await checkPlaceholdersPerBean(page);
 });
+
+/** Placeholders follow the bean picked (D60), and a pour added by hand is redistributed (D61). */
+async function checkPlaceholdersPerBean(page: Page) {
+	// A second bag, never brewed.
+	await page.goto('/beans/new');
+	await page.locator('[name="name"]').fill('E2E Huila');
+	await page.locator('[name="roasterName"]').fill('E2E Roasters');
+	await page.locator('[name="country"]').selectOption('CO');
+	await page.locator('[name="process"]').selectOption('washed');
+	await page.locator('[name="roastLevel"]').selectOption('light');
+	await page.locator('[name="roastDate"]').fill(isoDate(5));
+	await page.locator('[name="bagWeightG"]').fill('250');
+	await page.getByRole('button', { name: 'Save bean' }).click();
+	await expect(page).not.toHaveURL(/\/beans\/new/);
+
+	const bean = page.locator('[name="beanId"]');
+	const dose = page.locator('[name="doseG"]');
+	const scales = page.locator('[name="pourScale"]');
+	const note = page.locator('.copied');
+	const KOCHERE = 'E2E Kochere · E2E Roasters';
+	const HUILA = 'E2E Huila · E2E Roasters';
+
+	// A bean never brewed starts from the last brew of any bean (D60).
+	await page.goto('/brews/new');
+	await bean.selectOption({ label: HUILA });
+	await expect(dose).toHaveAttribute('placeholder', '15');
+	// The detour's draft resumes here, still copying the brew it asked for.
+	await expect(note).toContainText(/Copied from your (last )?E2E Kochere brew/);
+	await dose.fill('18');
+	await page.locator('[name="waterTempC"]').fill('92');
+	await page.locator('[name="grindSetting"]').fill('22');
+	await scales.nth(0).fill('60');
+	await scales.nth(1).fill('180');
+	await scales.nth(2).fill('300');
+	await page.locator('[name="totalTime"]').fill('3:30');
+	await page.getByRole('button', { name: 'Save brew' }).click();
+	await expect(page).toHaveURL(/\/brews\/[0-9a-f-]{36}$/);
+
+	// Each bean starts from its own last brew, and switching keeps what was typed.
+	// (Both brews share a minute, so which one is "last" overall isn't fixed: pick the bean.)
+	await page.goto('/brews/new');
+	await bean.selectOption({ label: HUILA });
+	await expect(dose).toHaveAttribute('placeholder', '18');
+	await expect(scales.nth(2)).toHaveAttribute('placeholder', '300');
+	await page.locator('[name="waterTempC"]').fill('90');
+	await bean.selectOption({ label: KOCHERE });
+	await expect(dose).toHaveAttribute('placeholder', '15');
+	await expect(scales.nth(1)).toHaveAttribute('placeholder', '150');
+	await expect(scales.nth(2)).toHaveAttribute('placeholder', '250');
+	await expect(page.locator('[name="waterTempC"]')).toHaveValue('90');
+	await expect(note).toContainText('Copied from your last E2E Kochere brew');
+
+	// Adding a pour offers the same 250 g over four pours, the bloom kept (D61).
+	await page.getByRole('button', { name: '+ Add pour' }).click();
+	await expect(scales).toHaveCount(4);
+	const banner = page.locator('.plan[role="status"]');
+	await expect(banner).toContainText('Redistribute: 4 pours at 1:16.7');
+	await banner.getByRole('button', { name: 'Accept' }).click();
+	await expect(banner).toContainText('✓ Redistributed: 4 pours at 1:16.7');
+	await expect(scales).toHaveCount(4);
+	for (const [i, g] of ['50', '117', '184', '250'].entries()) {
+		await expect(scales.nth(i)).toHaveAttribute('placeholder', g);
+	}
+
+	// Removing one starts again from the accepted pours.
+	await page.getByRole('button', { name: 'Remove pour 3' }).click();
+	await expect(banner).toContainText('Redistribute: 3 pours at 1:16.7');
+	await banner.getByRole('button', { name: 'Accept' }).click();
+	for (const [i, g] of ['50', '150', '250'].entries()) {
+		await expect(scales.nth(i)).toHaveAttribute('placeholder', g);
+	}
+}
 
 test('a blank pour time saves the time it shows, and the brew page leads back to the list', async ({
 	page
@@ -748,6 +823,11 @@ test('the scale card guides a brew from the first pour to the lift', async ({ pa
 	await expect(page.locator('[name="totalTime"]')).toHaveValue('0:50');
 	await page.locator('[name="doseG"]').fill('15');
 	await expect(page.locator('[name="nextRatio"]')).toHaveAttribute('placeholder', '10.2');
+	// An hour on, so it is this account's latest brew, which tap to pour's test starts from: brews
+	// logged in the same minute are otherwise ordered by their random ids.
+	const brewedAt = page.locator('[name="brewedAt"]');
+	const now = new Date(`${await brewedAt.inputValue()}Z`).getTime();
+	await brewedAt.fill(new Date(now + 3600_000).toISOString().slice(0, 16));
 
 	await page.getByRole('button', { name: 'Save brew' }).click();
 	await expect(page).toHaveURL(/\/brews\/[0-9a-f-]{36}$/);

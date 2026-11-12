@@ -17,7 +17,7 @@ import {
 	deleteBrew,
 	getBrew,
 	getLatestBrew,
-	getLatestPlannedBrews,
+	getLatestBrewsByBean,
 	getLatestRatingsByBean,
 	getPreviousRating,
 	listBrews,
@@ -277,7 +277,7 @@ describe('brews', () => {
 		).toBeNull();
 	});
 
-	it("finds each bean's latest brew when it planned the next one (D25, D58)", async () => {
+	it("finds each bean's latest brew, with its plan (D25, D58, D60)", async () => {
 		const refs = await setupBrewer(db);
 		const { id: replanned } = await createBean(db, refs.userId, beanInput());
 		const { id: unbrewed } = await createBean(db, refs.userId, beanInput());
@@ -293,13 +293,20 @@ describe('brews', () => {
 		});
 		// The first bean planned, then was brewed again without a plan: nothing to suggest.
 		await createBrew(db, refs.userId, at(1, refs.beanId), null, plan(26));
-		await createBrew(db, refs.userId, at(2, refs.beanId));
+		const second = await createBrew(db, refs.userId, at(2, refs.beanId));
 		await createBrew(db, refs.userId, at(3, replanned), null, plan(20));
 		const latest = await createBrew(db, refs.userId, at(4, replanned), null, plan(22));
-		const found = await getLatestPlannedBrews(db, refs.userId, [refs.beanId, replanned, unbrewed]);
-		expect(found.map((b) => [b.id, b.plan?.grindSetting])).toEqual([[latest.id, 22]]);
-		expect(await getLatestPlannedBrews(db, await createTestUser(db), [replanned])).toEqual([]);
-		expect(await getLatestPlannedBrews(db, refs.userId, [])).toEqual([]);
+		const found = await getLatestBrewsByBean(db, refs.userId, [refs.beanId, replanned, unbrewed]);
+		expect(
+			found.map((b) => [b.id, b.plan?.grindSetting ?? null, b.details.pours.length]).sort()
+		).toEqual(
+			[
+				[second.id, null, 3],
+				[latest.id, 22, 3]
+			].sort()
+		);
+		expect(await getLatestBrewsByBean(db, await createTestUser(db), [replanned])).toEqual([]);
+		expect(await getLatestBrewsByBean(db, refs.userId, [])).toEqual([]);
 	});
 
 	it("finds each bean's latest rating, none for a bean never rated (D58)", async () => {

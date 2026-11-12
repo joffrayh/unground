@@ -6,8 +6,10 @@ import {
 	errorRowIndex,
 	isBlank,
 	parseGrams,
+	placeholderPours,
 	pourTargets,
 	placeholderRowsFromEntries,
+	retemplateRows,
 	rowsFromEntries,
 	rowsFromValues,
 	summarizePours,
@@ -421,5 +423,68 @@ describe('errorRowIndex', () => {
 	it('returns null for messages about the whole list', () => {
 		expect(errorRowIndex(rows, 'Total water can’t exceed 5000 g')).toBeNull();
 		expect(errorRowIndex(rows, undefined)).toBeNull();
+	});
+});
+
+describe('retemplateRows (D60)', () => {
+	const ph = (time: string, scale: string, bloom = false): PourRow => ({
+		time: '',
+		scale: '',
+		bloom,
+		defaultTime: time,
+		defaultScale: scale
+	});
+	const old = [ph('0:00', '45', true), ph('0:40', '150'), ph('1:20', '250'), ph('2:00', '300')];
+	const next = [ph('0:00', '50', true), ph('0:45', '160'), ph('1:30', '270')];
+
+	it('swaps the placeholders, dropping rows only the old template had', () => {
+		expect(retemplateRows(old, next)).toEqual(next);
+	});
+
+	it('keeps typed readings and their ticks by position, and typed rows beyond', () => {
+		const typed = old.map((r) => ({ ...r }));
+		typed[1].scale = '155';
+		typed[3].time = '2:10';
+		typed[3].bloom = true;
+		typed[3].plannedG = '300';
+		const out = retemplateRows(typed, next);
+		expect(out.map((r) => [r.time, r.scale, r.bloom, r.defaultTime, r.defaultScale])).toEqual([
+			['', '', true, '0:00', '50'],
+			['', '155', false, '0:45', '160'],
+			['', '', false, '1:30', '270'],
+			['2:10', '', true, '', '']
+		]);
+		expect(out[3].plannedG).toBe('300');
+	});
+
+	it('leaves a blank pour 0, ticked as a bloom, when the new template has none', () => {
+		expect(retemplateRows(old, [])).toEqual([
+			{ time: '', scale: '', bloom: true, defaultTime: '', defaultScale: '' }
+		]);
+	});
+});
+
+describe('placeholderPours (D61)', () => {
+	const rows = placeholderRowsFromEntries([
+		{ startS: 0, cumulativeG: 50, bloom: true },
+		{ startS: 45, cumulativeG: 150, bloom: false },
+		{ startS: 75, cumulativeG: 250, bloom: false }
+	]);
+
+	it('reads the placeholders as pours, with their exact ratio to the dose', () => {
+		const { pours, ratio } = placeholderPours([...rows, ...withSpareRows([], 1)], '15');
+		expect(pours).toEqual([
+			{ volumeG: 50, intervalS: 0, bloom: true },
+			{ volumeG: 100, intervalS: 45, bloom: false },
+			{ volumeG: 100, intervalS: 30, bloom: false }
+		]);
+		expect(ratio! * 15).toBeCloseTo(250);
+	});
+
+	it('has no ratio without a dose, and no pours when a placeholder is missing', () => {
+		expect(placeholderPours(rows, '').ratio).toBeNull();
+		const gap = rows.map((r, i) => (i === 1 ? { ...r, defaultScale: '' } : r));
+		expect(placeholderPours(gap, '15')).toEqual({ pours: [], ratio: null });
+		expect(placeholderPours([], '15')).toEqual({ pours: [], ratio: null });
 	});
 });
