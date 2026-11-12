@@ -127,7 +127,7 @@ describe('newBrewValues', () => {
 		expect(hasPlanValues(v.plan)).toBe(false);
 	});
 
-	it('starts the rating blank, keeping the template’s scores to compare against (D53)', () => {
+	it('starts the rating blank (D53)', () => {
 		const v = newBrewValues(brew, 'x');
 		expect(v.rating).toMatchObject({
 			overall: '',
@@ -136,9 +136,9 @@ describe('newBrewValues', () => {
 			comment: '',
 			perceivedNotes: []
 		});
-		expect(v.ratingFrom).toMatchObject({ overall: '4', acidity: '3', sweetness: '' });
-		expect(newBrewValues({ ...brew, rating: null }, 'x').ratingFrom).toBeNull();
-		expect(editValues(brew, 'x').ratingFrom).toBeNull();
+		// The page adds each bean's last rating (D58).
+		expect(v.lastRatings).toEqual({});
+		expect(editValues(brew, 'x').lastRatings).toEqual({});
 	});
 
 	it('starts agitation at 3 when the template recorded none', () => {

@@ -1,6 +1,6 @@
 <script lang="ts">
 	/**
-	 * Tap to pour (D53): Start at the first water, the big button as each later pour starts, Stop at the
+	 * Tap to pour (D57): Start at the first water, the big button as each later pour starts, Stop at the
 	 * end of the drawdown. Each tap is handed to the pour editor, which writes the time into its row;
 	 * Undo takes back the last one. Shows the clock, the pour under way with its target, and the
 	 * countdown to the next pour when it has a time: beeps for its last three seconds, then a higher

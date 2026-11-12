@@ -97,9 +97,9 @@ A **Brew** is a single brewing event. It references one **Bean**, one **Grinder*
   - **volume** (g) poured in that pour,
   - **interval** — seconds since the previous pour _started_. The first pour starts the brew, so its interval is **0** by definition.
   - **bloom** — a tick box per pour (D27). Pours are named from 0 ("Pour 0", "Pour 1", …); any of them can be a bloom, e.g. a double bloom. The bloom wait is the time to the first pour that isn't a bloom.
-  - **measured** _(scale or tap to pour, D51, D53)_ — the running total and start the pour was planned for, and (scale only) how long the water ran.
+  - **measured** _(scale or tap to pour, D51, D57)_ — the running total and start the pour was planned for, and (scale only) how long the water ran.
   - **Entry UX:** the user types what they see — the **timer reading** when each pour starts and the **scale reading** (running total) after it. The app converts these into per-pour volume and interval.
-  - **Tap to pour** _(D53)_ — or taps when each pour starts and the times fill in.
+  - **Tap to pour** _(D57)_ — or taps when each pour starts and the times fill in.
 - **Total brew time** (drawdown complete), stored on the common block since every method has one.
 - Number of pours is derived (count of pours).
 - _(extensible: water profile, etc.)_
@@ -118,7 +118,7 @@ This is **the most important data point** for Stage 2 — it is what every other
   - Clarity — higher = cleaner, more distinct flavours
   - _(set extensible; aftertaste was collected until D22 and is kept on old ratings)_
 - The sub-scores are entered and shown on a **radar chart** (one axis each); a point at the centre means "not rated". A slider under it moves the axis last touched (D40).
-- A new rating, on a new brew or an unrated one, starts blank with the previous rating in grey to compare against: a faded disc on the overall slider and a dashed shape on the radar. "Last 3.5" and "Last profile" apply them; the grey stays (D53).
+- A new rating, on a new brew or an unrated one, starts blank with the same bean's previous rating in grey to compare against (none for a bean never rated, D58): a faded disc on the overall slider and a dashed shape on the radar. "Last 3.5" and "Last profile" apply them; the grey stays (D53).
 - **Tasting notes** — tags from the tasting-note vocabulary (D5, D29; any tier), picked by search, to compare against the roaster's claimed notes.
 - **Comment** — free text.
 
@@ -189,7 +189,7 @@ BrewV60  (1:1 with a v60 brew)
 
 Pour
   brew_id, idx (1..n), volume_g, interval_s, bloom   # idx 1 ⇔ interval 0; shown as "Pour idx-1"
-  planned_cumulative_g?, planned_start_s?, duration_s?   # set when a scale measured it (D51); planned_* also by tap to pour (D53)
+  planned_cumulative_g?, planned_start_s?, duration_s?   # set when a scale measured it (D51); planned_* also by tap to pour (D57)
 
 Rating  (1:1 with brew)
   brew_id, overall (0.25-5), acidity?, sweetness?, body?, bitterness?, astringency?, clarity? (0.5-5 intensity),
@@ -297,6 +297,7 @@ The substance of each decision lives in the section noted under _Where_; this ta
 | D55 | **Scores run to 5: overall 0.25–5 in quarter steps, the sub-scores 0.5–5 in half steps.** Blank is still "not rated", so 0 is never a score. Stored as `numeric(3,2)` with CHECKs on range and step. Migration 0005 halved every 1–10 score (7 → 3.5), so overalls from before it sit on half points from 0.5 up; 0006 rounded any quarter sub-score up to a half. The radar keeps its lowest score on the inner ring with a ring per whole point; arrow keys move a step, Page Up/Down a point. On every slider the whole numbers are the larger dots and the steps between them are faint, so overall, the axis slider and agitation all read as 0–5. Without JavaScript a score is picked from a list, last time's marked "· last" (narrows D45 and D53). | A 5-point scale reads more naturally. Quarters separate close cups on the quality target, but are finer than intensity can be judged. Halving is exact and can be undone by doubling. Twenty pills don't fit a phone's width. | [§4.3](#43-rating--tasting-the-target-variable) |
 | D56 | **Slow feeding is recorded** as a tick box beside the grinder (Set-up becomes 2 × 2 when there's room), carried over by Brew again like the grinder. Brews from before it was asked read as not slow fed. **Cafec splits into Cafec T90, T92 and Abaca**; migration 0006 moved every Cafec brew to Abaca and removed `cafec`, an exception to "never remove a stored vocabulary id" since no row keeps it. | Slow feeding changes the grind distribution, so Stage 2 needs it beside the grind setting. The Cafec papers flow differently; every Cafec brew so far used Abaca. | [§4.2](#42-brew) |
 | D57 | **Tap to pour.** A new brew's Pours start with a Start button, with no switch between typing and tapping: Start at the first water, a big blue button as each later pour starts, Stop at the end of the drawdown. Each tap writes that pour's start time into its row (adding rows) and Stop fills Total time; Undo takes back the last tap, unless that field has been retyped since. Rows can't be removed, nor the plan accepted, while it times. It shows the clock, the pour's target and the countdown to the next planned pour (the row's time typed beforehand, or the previous brew's; not an estimate): a beep at each of the last 3 seconds, then a higher beep, a vibration and a pulsing "now" button until it's tapped. Scale readings are still typed. Each tapped pour keeps the start and running total it was planned for (D51's fields; duration stays empty), so the next brew starts from the plan. It steps aside while a scale guides the brew, and the scale card while it runs. JavaScript only. | Without a scale, timing is the part that's hard to type at the kettle; tapping is one thumb. Times are what the brewer would have typed, so they save as typed; keeping the plan stops them drifting the recipe, as with the scale. The cue is sound as well as sight because eyes are on the kettle; the tap on Start is what lets the browser play it. A switch only hid the Start button, and Undo back past Start already returns to typing. | [§4.2](#42-brew) |
+| D58 | **The previous rating is the same bean's.** A new brew shows the latest rating of the bean picked, and follows the picker; an unrated brew shows the latest rated brew of its bean before it. A bean never rated shows none. Narrows D53's "the template's". | Scores are only comparable within a bean; another bean's profile is noise. | [§4.3](#43-rating--tasting-the-target-variable) |
 
 ## 9. Open questions / decisions to revisit
 
