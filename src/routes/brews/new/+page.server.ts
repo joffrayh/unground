@@ -4,14 +4,22 @@ import {
 	chooseId,
 	dripperOptions,
 	grinderOptions,
-	newBrewValues
+	newBrewValues,
+	ratingFrom,
+	type RatingFrom
 } from '#lib/components/brews/brew-values.ts';
 import { utcToZonedLocal } from '#lib/domain/derive.ts';
 import { BREW_MULTI, parseBrewForm } from '#lib/domain/schemas.ts';
 import { db } from '#lib/server/db/index.ts';
 import { domainFailure, formValues, notFound, requireUser } from '#lib/server/http.ts';
 import { listBeans } from '#lib/server/services/beans.ts';
-import { createBrew, getBrew, getLatestBrew, type Brew } from '#lib/server/services/brews.ts';
+import {
+	createBrew,
+	getBrew,
+	getLatestBrew,
+	getLatestRatingsByBean,
+	type Brew
+} from '#lib/server/services/brews.ts';
 import { listDrippers } from '#lib/server/services/drippers.ts';
 import { listGrinders } from '#lib/server/services/grinders.ts';
 import { listScales } from '#lib/server/services/scales.ts';
@@ -58,6 +66,15 @@ export const load: PageServerLoad = async (event) => {
 	}
 
 	const values = newBrewValues(template, brewedAt);
+	// Each bean's last rating, shown beside the new one while that bean is picked (D53, D58).
+	const ratings = await getLatestRatingsByBean(
+		db,
+		user.id,
+		beans.map((b) => b.id)
+	);
+	values.lastRatings = Object.fromEntries(
+		[...ratings].map(([beanId, r]) => [beanId, ratingFrom(r) as RatingFrom])
+	);
 	// The catalogue pages come back with ?bean= / ?grinder=; an archived template bean falls back too.
 	values.beanId = prefer(searchParams.get('bean'), values.beanId, beans);
 	values.grinderId = prefer(searchParams.get('grinder'), values.grinderId, grinders);

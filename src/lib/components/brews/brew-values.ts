@@ -5,8 +5,8 @@
  * - A new brew (D15, D26) shows the template brew's recipe as placeholders: blank inputs whose
  *   placeholder is saved when they are left blank. Choices (bean, grinder, slow feeding, dripper,
  *   filter, agitation, bloom ticks) are pre-selected instead. What was measured or felt on that day (total time, notes,
- *   rating) starts blank, with the template's rating shown in grey to compare against (D53), and the
- *   template's next-time plan becomes green suggestions (D25, D30).
+ *   rating) starts blank, with the chosen bean's last rating shown in grey to compare against (D53,
+ *   D58), and the template's next-time plan becomes green suggestions (D25, D30).
  */
 import { FLAVOR_BY_ID } from '#lib/domain/flavors.ts';
 import { brewRatio } from '#lib/domain/derive.ts';
@@ -98,8 +98,8 @@ export interface BrewFormValues {
 	brewedAt: string;
 	notes: string;
 	rating: RatingValues;
-	/** New brews whose template was rated. */
-	ratingFrom: RatingFrom | null;
+	/** New brews: each bean's latest rating, by bean id; a bean never rated has none (D58). */
+	lastRatings: Record<string, RatingFrom>;
 	plan: PlanValues;
 	/** New brews only. */
 	defaults: BrewDefaults | null;
@@ -206,7 +206,7 @@ export function editValues(brew: BrewLike, brewedAt: string): BrewFormValues {
 		brewedAt,
 		notes: brew.notes ?? '',
 		rating: ratingValues(brew.rating),
-		ratingFrom: null,
+		lastRatings: {},
 		plan: planValues(brew.plan),
 		defaults: null,
 		suggestions: null
@@ -280,7 +280,7 @@ function templateValues(template: BrewLike, brewedAt: string): BrewFormValues {
 		brewedAt,
 		notes: '',
 		rating: ratingValues(null),
-		ratingFrom: ratingFrom(template.rating),
+		lastRatings: {},
 		plan: planValues(null),
 		defaults: {
 			grindSetting: str(template.grindSetting),
@@ -310,7 +310,7 @@ function blankValues(brewedAt: string): BrewFormValues {
 		brewedAt,
 		notes: '',
 		rating: ratingValues(null),
-		ratingFrom: null,
+		lastRatings: {},
 		plan: planValues(null),
 		defaults: null,
 		suggestions: null

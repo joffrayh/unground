@@ -15,7 +15,7 @@
 	 * a green "› x" button inside each scale box (tap to use it) and on the total, pours to drop in red,
 	 * pours to add in green, and Accept makes the suggestion the new placeholders.
 	 *
-	 * On a new brew, tap to pour (D53) can time the pours: each tap writes the pour's start into its row,
+	 * On a new brew, tap to pour (D57) can time the pours: each tap writes the pour's start into its row,
 	 * adding rows as needed, and Undo puts back what was there.
 	 */
 	import { onMount, tick } from 'svelte';
@@ -195,7 +195,7 @@
 		planBox?.focus();
 	}
 
-	// --- tap to pour (D53) -------------------------------------------------------------------------
+	// --- tap to pour (D57) -------------------------------------------------------------------------
 
 	let tapPhase = $state<TapPhase>('idle');
 	type Plan = Pick<PourRow, 'plannedG' | 'plannedStart'>;

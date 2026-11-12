@@ -215,11 +215,14 @@ export async function getLatestBrew(db: Db, userId: string): Promise<Brew | null
 	return row ? getBrew(db, userId, row.id) : null;
 }
 
-/** The rating of the user's latest rated brew before `brew`, shown beside an unrated brew's rate form (D53). */
+/**
+ * The rating of the latest rated brew of the same bean before `brew`, shown beside an unrated brew's
+ * rate form (D53, D58).
+ */
 export async function getPreviousRating(
 	db: Db,
 	userId: string,
-	brew: { id: string; brewedAt: Date }
+	brew: { id: string; beanId: string; brewedAt: Date }
 ): Promise<Rating | null> {
 	const [row] = await db
 		.select({ id: brews.id })
@@ -228,6 +231,7 @@ export async function getPreviousRating(
 		.where(
 			and(
 				eq(brews.userId, userId),
+				eq(brews.beanId, brew.beanId),
 				or(
 					lt(brews.brewedAt, brew.brewedAt),
 					and(eq(brews.brewedAt, brew.brewedAt), lt(brews.id, brew.id))
@@ -238,6 +242,31 @@ export async function getPreviousRating(
 		.limit(1);
 	if (!row) return null;
 	return (await loadRatings(db, [row.id])).get(row.id) ?? null;
+}
+
+/** Each bean's latest rating, by bean id, shown beside a new brew's rating (D53, D58). */
+export async function getLatestRatingsByBean(
+	db: Db,
+	userId: string,
+	beanIds: readonly string[]
+): Promise<Map<string, Rating>> {
+	const result = new Map<string, Rating>();
+	if (beanIds.length === 0) return result;
+	const rows = await db
+		.selectDistinctOn([brews.beanId], { id: brews.id, beanId: brews.beanId })
+		.from(brews)
+		.innerJoin(ratings, eq(ratings.brewId, brews.id))
+		.where(and(eq(brews.userId, userId), inArray(brews.beanId, [...beanIds])))
+		.orderBy(brews.beanId, desc(brews.brewedAt), desc(brews.id));
+	const loaded = await loadRatings(
+		db,
+		rows.map((r) => r.id)
+	);
+	for (const r of rows) {
+		const rating = loaded.get(r.id);
+		if (rating) result.set(r.beanId, rating);
+	}
+	return result;
 }
 
 export async function loadRatings(q: Queryable, brewIds: string[]): Promise<Map<string, Rating>> {

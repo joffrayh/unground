@@ -3,12 +3,21 @@ import { eq } from 'drizzle-orm';
 import { brews, ratings } from '../db/schema';
 import type { Db } from '../db/types';
 import { NotFoundError, pgErrorCode } from '../errors';
-import { brewInput, createTestDb, createTestUser, ratingInput, setupBrewer } from '../testing';
+import {
+	beanInput,
+	brewInput,
+	createTestDb,
+	createTestUser,
+	ratingInput,
+	setupBrewer
+} from '../testing';
+import { createBean } from './beans';
 import {
 	createBrew,
 	deleteBrew,
 	getBrew,
 	getLatestBrew,
+	getLatestRatingsByBean,
 	getPreviousRating,
 	listBrews,
 	savePlan,
@@ -241,23 +250,56 @@ describe('brews', () => {
 		expect((await getLatestBrew(db, refs.userId))?.id).toBe(ids[4]);
 	});
 
-	it('finds the latest rating before a brew (D53)', async () => {
+	it('finds the latest rating of the same bean before a brew (D53, D58)', async () => {
 		const refs = await setupBrewer(db);
-		const at = (day: number) =>
-			brewInput(refs, { brewedAt: new Date(`2026-10-0${day}T08:00:00Z`) });
+		const { id: otherBean } = await createBean(db, refs.userId, beanInput());
+		const at = (day: number, beanId = refs.beanId) =>
+			brewInput({ ...refs, beanId }, { brewedAt: new Date(`2026-10-0${day}T08:00:00Z`) });
 		const one = await createBrew(db, refs.userId, at(1), ratingInput({ overall: 2.5 }));
 		const two = await createBrew(db, refs.userId, at(2), ratingInput({ overall: 3 }));
-		await createBrew(db, refs.userId, at(3));
+		await createBrew(db, refs.userId, at(3, otherBean), ratingInput({ overall: 1 }));
 		const four = await createBrew(db, refs.userId, at(4));
-		await createBrew(db, refs.userId, at(5), ratingInput({ overall: 4.5 }));
+		const five = await createBrew(db, refs.userId, at(5, otherBean));
+		await createBrew(db, refs.userId, at(6), ratingInput({ overall: 4.5 }));
 		const prev = (id: string) =>
 			getBrew(db, refs.userId, id).then((b) => getPreviousRating(db, refs.userId, b));
 		expect(await prev(four.id)).toMatchObject({ overall: 3 });
 		expect(await prev(two.id)).toMatchObject({ overall: 2.5 });
+		expect(await prev(five.id)).toMatchObject({ overall: 1 });
 		expect(await prev(one.id)).toBeNull();
 		expect(
-			await getPreviousRating(db, await createTestUser(db), { id: four.id, brewedAt: new Date() })
+			await getPreviousRating(db, await createTestUser(db), {
+				id: four.id,
+				beanId: refs.beanId,
+				brewedAt: new Date()
+			})
 		).toBeNull();
+	});
+
+	it("finds each bean's latest rating, none for a bean never rated (D58)", async () => {
+		const refs = await setupBrewer(db);
+		const { id: rated } = await createBean(db, refs.userId, beanInput());
+		const { id: unrated } = await createBean(db, refs.userId, beanInput());
+		const { id: unbrewed } = await createBean(db, refs.userId, beanInput());
+		const at = (day: number, beanId: string) =>
+			brewInput({ ...refs, beanId }, { brewedAt: new Date(`2026-10-0${day}T08:00:00Z`) });
+		await createBrew(db, refs.userId, at(1, refs.beanId), ratingInput({ overall: 2.5 }));
+		await createBrew(db, refs.userId, at(2, refs.beanId), ratingInput({ overall: 3 }));
+		await createBrew(db, refs.userId, at(3, refs.beanId));
+		await createBrew(db, refs.userId, at(4, rated), ratingInput({ overall: 4 }));
+		await createBrew(db, refs.userId, at(5, unrated));
+		const latest = await getLatestRatingsByBean(db, refs.userId, [
+			refs.beanId,
+			rated,
+			unrated,
+			unbrewed
+		]);
+		expect(latest.get(refs.beanId)).toMatchObject({ overall: 3 });
+		expect(latest.get(rated)).toMatchObject({ overall: 4 });
+		expect(latest.has(unrated)).toBe(false);
+		expect(latest.has(unbrewed)).toBe(false);
+		expect((await getLatestRatingsByBean(db, await createTestUser(db), [rated])).size).toBe(0);
+		expect((await getLatestRatingsByBean(db, refs.userId, [])).size).toBe(0);
 	});
 
 	it('has no latest brew for a new user', async () => {
