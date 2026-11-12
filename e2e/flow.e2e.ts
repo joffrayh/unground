@@ -614,6 +614,8 @@ test('the scale card shows the live reading against pour 0', async ({ page }) =>
 	await expect(card).toContainText('Brew scale');
 	const enter = card.getByRole('button', { name: 'Enter' });
 	await expect(enter).toHaveCSS('background-color', 'rgb(86, 171, 250)');
+	// The connected scale times the brew, so tap to pour isn't offered (D59).
+	await expect(page.getByRole('region', { name: 'Tap to pour' })).toHaveCount(0);
 
 	const scales = page.locator('[name="pourScale"]');
 	await scales.first().fill('45');

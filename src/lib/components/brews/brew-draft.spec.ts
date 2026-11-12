@@ -51,6 +51,21 @@ describe('resumeBrewDraft', () => {
 		expect(resumed?.values.defaults?.doseG).toBe('15');
 	});
 
+	it('takes the page’s latest ratings and plans by bean (D58)', () => {
+		const fresh: DraftContext = {
+			...context,
+			values: {
+				...context.values,
+				lastRatings: { b1: { overall: '4' } as never },
+				suggestionsByBean: { b2: { notes: 'Finer' } as never }
+			}
+		};
+		const resumed = resumeBrewDraft(draft(), url(), fresh);
+		expect(resumed?.values.lastRatings).toEqual({ b1: { overall: '4' } });
+		expect(resumed?.values.suggestionsByBean).toEqual({ b2: { notes: 'Finer' } });
+		expect(resumed?.values.defaults?.doseG).toBe('15');
+	});
+
 	it('is not shown over a request to copy a different brew', () => {
 		expect(resumeBrewDraft(draft(), url('?from=brew-x'), context)).not.toBeNull();
 		expect(resumeBrewDraft(draft(), url('?from=brew-y'), context)).toBeNull();

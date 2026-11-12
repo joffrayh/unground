@@ -6,6 +6,7 @@ import {
 	grinderOptions,
 	newBrewValues,
 	ratingFrom,
+	suggestionsByBean,
 	type RatingFrom
 } from '#lib/components/brews/brew-values.ts';
 import { utcToZonedLocal } from '#lib/domain/derive.ts';
@@ -17,6 +18,7 @@ import {
 	createBrew,
 	getBrew,
 	getLatestBrew,
+	getLatestPlannedBrews,
 	getLatestRatingsByBean,
 	type Brew
 } from '#lib/server/services/brews.ts';
@@ -66,12 +68,13 @@ export const load: PageServerLoad = async (event) => {
 	}
 
 	const values = newBrewValues(template, brewedAt);
-	// Each bean's last rating, shown beside the new one while that bean is picked (D53, D58).
-	const ratings = await getLatestRatingsByBean(
-		db,
-		user.id,
-		beans.map((b) => b.id)
-	);
+	// Each bean's last rating and plan, shown while that bean is picked (D25, D53, D58).
+	const beanIds = beans.map((b) => b.id);
+	const [ratings, planned] = await Promise.all([
+		getLatestRatingsByBean(db, user.id, beanIds),
+		getLatestPlannedBrews(db, user.id, beanIds)
+	]);
+	values.suggestionsByBean = suggestionsByBean(template, planned);
 	values.lastRatings = Object.fromEntries(
 		[...ratings].map(([beanId, r]) => [beanId, ratingFrom(r) as RatingFrom])
 	);

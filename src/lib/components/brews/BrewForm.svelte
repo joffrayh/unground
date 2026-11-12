@@ -5,8 +5,9 @@
 	 * after-the-fact bits (notes, optional rating, what to change next time).
 	 *
 	 * On a new brew the previous brew's values are grey placeholders, and a field left blank saves its
-	 * placeholder (D26; posted as `<field>Default`). Its next-time plan shows as green "› 17" buttons
-	 * inside the boxes; tapping one fills the field in (D25). A planned agitation level is highlighted.
+	 * placeholder (D26; posted as `<field>Default`). The next-time plan of the picked bean's last brew
+	 * shows as green "› 17" buttons inside the boxes; tapping one fills the field in (D25, D58). A
+	 * planned agitation level is highlighted.
 	 */
 	import { onMount, tick } from 'svelte';
 	import { enhance, type SubmitFunction } from '$app/forms';
@@ -48,7 +49,7 @@
 	} from './pour-rows.ts';
 	import ScaleCard from './ScaleCard.svelte';
 	import type { GuideState } from '#lib/scale/brew-guide.ts';
-	import type { ScaleOption } from '#lib/scale/scale-link.svelte.ts';
+	import { getScaleLink, type ScaleOption } from '#lib/scale/scale-link.svelte.ts';
 
 	let {
 		form,
@@ -131,10 +132,10 @@
 				waterTempC: val(form, 'waterTempCDefault', values.defaults.waterTempC)
 			}
 		: null;
-	// svelte-ignore state_referenced_locally
-	const suggestions = values.suggestions;
 
 	let beanId = $state(start.beanId);
+	/** The picked bean's last plan (D58). */
+	const suggestions = $derived(values.suggestionsByBean[beanId] ?? null);
 	let grinderId = $state(start.grinderId);
 	let dripperId = $state(start.dripperId);
 	let scaleId = $state(start.scaleId);
@@ -317,6 +318,11 @@
 
 	let scaleOpen = $state(false);
 	let tapping = $state(false);
+	const scaleLink = getScaleLink();
+	/** The paired scale is connected, so its card guides the brew instead of tap to pour. */
+	const scaleReady = $derived(
+		scaleLink.status === 'connected' && !!scales?.some((s) => s.id === scaleLink.pairing?.scaleId)
+	);
 	/** Total time before tap to pour's Stop filled it in, and what it wrote, for its Undo. */
 	let totalTap: { before: string; written: string } | null = null;
 
@@ -616,6 +622,7 @@
 		bind:targets
 		tappable={!!scales}
 		locked={scaleOpen}
+		{scaleReady}
 		bind:tapping
 		ontotal={tapTotal}
 	/>

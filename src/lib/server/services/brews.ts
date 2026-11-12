@@ -244,6 +244,28 @@ export async function getPreviousRating(
 	return (await loadRatings(db, [row.id])).get(row.id) ?? null;
 }
 
+/**
+ * Each bean's latest brew, kept only when it planned the next one: its plan becomes a new brew's
+ * suggestions while that bean is picked (D25, D58).
+ */
+export async function getLatestPlannedBrews(
+	db: Db,
+	userId: string,
+	beanIds: readonly string[]
+): Promise<Brew[]> {
+	if (beanIds.length === 0) return [];
+	const latest = await db
+		.selectDistinctOn([brews.beanId], { id: brews.id })
+		.from(brews)
+		.where(and(eq(brews.userId, userId), inArray(brews.beanId, [...beanIds])))
+		.orderBy(brews.beanId, desc(brews.brewedAt), desc(brews.id));
+	const plans = await loadPlans(
+		db,
+		latest.map((r) => r.id)
+	);
+	return Promise.all([...plans.keys()].map((id) => getBrew(db, userId, id)));
+}
+
 /** Each bean's latest rating, by bean id, shown beside a new brew's rating (D53, D58). */
 export async function getLatestRatingsByBean(
 	db: Db,

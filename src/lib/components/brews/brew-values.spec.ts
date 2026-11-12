@@ -10,6 +10,7 @@ import {
 	newBrewValues,
 	planFormValues,
 	planValues,
+	suggestionsByBean,
 	type BrewLike
 } from './brew-values.ts';
 
@@ -70,7 +71,7 @@ describe('editValues', () => {
 			filterType: 'cafec_abaca',
 			notes: 'stalled drawdown',
 			defaults: null,
-			suggestions: null
+			suggestionsByBean: {}
 		});
 		expect(v.pours.map((r) => [r.time, r.scale, r.bloom, r.defaultScale])).toEqual([
 			['0:00', '50', true, ''],
@@ -117,7 +118,7 @@ describe('newBrewValues', () => {
 				doseG: '15.5',
 				waterTempC: '94'
 			},
-			suggestions: null
+			suggestionsByBean: {}
 		});
 		expect(v.pours.map((r) => [r.time, r.scale, r.bloom, r.defaultTime, r.defaultScale])).toEqual([
 			['', '', true, '0:00', '50'],
@@ -145,9 +146,10 @@ describe('newBrewValues', () => {
 		expect(newBrewValues({ ...brew, agitation: null }, 'x').agitation).toBe('3');
 	});
 
-	it('turns the template’s plan into suggestions from its values (D25)', () => {
+	it('turns the template’s plan into suggestions for its bean, from its values (D25, D58)', () => {
 		const v = newBrewValues({ ...brew, plan }, 'x');
-		expect(v.suggestions).toEqual({
+		expect(Object.keys(v.suggestionsByBean)).toEqual(['bean-1']);
+		expect(v.suggestionsByBean['bean-1']).toEqual({
 			grindSetting: { from: '24', to: '26', grindFor: 'grinder-1' },
 			waterTempC: null,
 			agitation: { from: '2', to: '3' },
@@ -156,7 +158,25 @@ describe('newBrewValues', () => {
 			notes: 'Swirl less',
 			pours: brew.details.pours
 		});
-		expect(v.suggestions?.pours).not.toBe(brew.details.pours);
+		expect(v.suggestionsByBean['bean-1'].pours).not.toBe(brew.details.pours);
+	});
+
+	it('suggests each bean’s last plan, the template speaking for its own bean (D58)', () => {
+		const other = {
+			...brew,
+			beanId: 'bean-2',
+			grindSetting: 20,
+			plan: { ...plan, grindSetting: 21 }
+		};
+		const unplanned = { ...brew, beanId: 'bean-3' };
+		const olderSameBean = { ...brew, plan: { ...plan, grindSetting: 30 } };
+		const byBean = suggestionsByBean({ ...brew, plan }, [other, unplanned, olderSameBean]);
+		expect(Object.keys(byBean).sort()).toEqual(['bean-1', 'bean-2']);
+		expect(byBean['bean-1'].grindSetting).toMatchObject({ from: '24', to: '26' });
+		expect(byBean['bean-2'].grindSetting).toMatchObject({ from: '20', to: '21' });
+		// A template without a plan suggests nothing for its bean, whatever that bean planned before.
+		expect(suggestionsByBean(brew, [olderSameBean, other])).not.toHaveProperty('bean-1');
+		expect(suggestionsByBean(null, [other])).toHaveProperty('bean-2');
 	});
 
 	it('lets the bean, grinder and dripper be overridden', () => {

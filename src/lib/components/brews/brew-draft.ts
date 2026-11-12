@@ -101,8 +101,12 @@ export function resumeBrewDraft(
 	return {
 		...draft,
 		fields,
-		// Ratings logged since the draft was kept count too (D58).
-		values: { ...draft.values, lastRatings: context.values.lastRatings },
+		// Ratings and plans logged since the draft was kept count too (D58).
+		values: {
+			...draft.values,
+			lastRatings: context.values.lastRatings,
+			suggestionsByBean: context.values.suggestionsByBean
+		},
 		copiedFrom: draft.copiedFrom && {
 			...draft.copiedFrom,
 			beanReset: draft.copiedFrom.beanReset && !searchParams.has('bean'),

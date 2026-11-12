@@ -6,7 +6,8 @@
  *   placeholder is saved when they are left blank. Choices (bean, grinder, slow feeding, dripper,
  *   filter, agitation, bloom ticks) are pre-selected instead. What was measured or felt on that day (total time, notes,
  *   rating) starts blank, with the chosen bean's last rating shown in grey to compare against (D53,
- *   D58), and the template's next-time plan becomes green suggestions (D25, D30).
+ *   D58), and the next-time plan of the chosen bean's last brew becomes green suggestions (D25, D30,
+ *   D58).
  */
 import { FLAVOR_BY_ID } from '#lib/domain/flavors.ts';
 import { brewRatio } from '#lib/domain/derive.ts';
@@ -103,8 +104,8 @@ export interface BrewFormValues {
 	plan: PlanValues;
 	/** New brews only. */
 	defaults: BrewDefaults | null;
-	/** New brews whose template has a plan. */
-	suggestions: BrewSuggestions | null;
+	/** New brews: the plan of each bean's last brew, by bean id; a bean with none has no entry (D58). */
+	suggestionsByBean: Record<string, BrewSuggestions>;
 }
 
 /** The parts of a stored rating the form shows (the service's Rating satisfies this). */
@@ -209,7 +210,7 @@ export function editValues(brew: BrewLike, brewedAt: string): BrewFormValues {
 		lastRatings: {},
 		plan: planValues(brew.plan),
 		defaults: null,
-		suggestions: null
+		suggestionsByBean: {}
 	};
 }
 
@@ -242,6 +243,24 @@ export function suggestionsFrom(template: BrewLike): BrewSuggestions | null {
 		notes: plan.notes,
 		pours: plannedPours(template.details.pours)
 	};
+}
+
+/**
+ * Suggestions by bean id from the plan of each bean's last brew (`latest`). The template speaks for its
+ * own bean, so copying an older brew suggests that brew's plan, or none.
+ */
+export function suggestionsByBean(
+	template: BrewLike | null,
+	latest: readonly BrewLike[] = []
+): Record<string, BrewSuggestions> {
+	const out: Record<string, BrewSuggestions> = {};
+	for (const brew of latest) {
+		const s = suggestionsFrom(brew);
+		if (s && brew.beanId !== template?.beanId) out[brew.beanId] = s;
+	}
+	const own = template && suggestionsFrom(template);
+	if (own) out[template.beanId] = own;
+	return out;
 }
 
 /**
@@ -288,7 +307,7 @@ function templateValues(template: BrewLike, brewedAt: string): BrewFormValues {
 			doseG: str(template.doseG),
 			waterTempC: str(template.waterTempC)
 		},
-		suggestions: suggestionsFrom(template)
+		suggestionsByBean: suggestionsByBean(template)
 	};
 }
 
@@ -313,7 +332,7 @@ function blankValues(brewedAt: string): BrewFormValues {
 		lastRatings: {},
 		plan: planValues(null),
 		defaults: null,
-		suggestions: null
+		suggestionsByBean: {}
 	};
 }
 

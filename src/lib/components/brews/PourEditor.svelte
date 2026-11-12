@@ -55,6 +55,7 @@
 		targets = $bindable(),
 		tappable = false,
 		locked = false,
+		scaleReady = false,
 		tapping = $bindable(false),
 		ontotal
 	}: {
@@ -72,6 +73,8 @@
 		tappable?: boolean;
 		/** A scale is guiding the brew, so tap to pour steps aside. */
 		locked?: boolean;
+		/** A scale is connected: tap to pour isn't offered, though one already started carries on. */
+		scaleReady?: boolean;
 		/** Tap to pour is timing a brew. */
 		tapping?: boolean;
 		/** Tap to pour's total time, or null when its end was taken back. */
@@ -204,7 +207,7 @@
 	/** Pour 0's plan before Start. */
 	let startPlan: Plan = {};
 
-	const tapOn = $derived(hydrated && tappable && !locked);
+	const tapOn = $derived(hydrated && tappable && !locked && (!scaleReady || tapPhase !== 'idle'));
 	/** Rows stay put while taps are landing in them: no removing or reshaping. */
 	const rowsFixed = $derived(tapOn && tapPhase === 'running');
 	$effect(() => {
