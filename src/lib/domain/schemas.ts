@@ -350,6 +350,8 @@ export interface BrewInput {
 	/** 0–5, null = not recorded (D24). */
 	agitation: number | null;
 	totalTimeS: number;
+	/** When the drawdown ended (D64); null when the form didn't stamp it. */
+	drawdownEndAt?: Date | null;
 	notes: string | null;
 	/** Method-specific block (D8). Becomes a union keyed by `method` when more methods exist. */
 	details: V60Details;
@@ -368,6 +370,7 @@ const brewCommonSchema = z.object({
 	waterTempC: reqNumber(0, 100, { decimals: 1 }),
 	agitation: optNumber(AGITATION_MIN, AGITATION_MAX, { int: true }),
 	totalTime: reqText(10),
+	drawdownEndAt: optText(40),
 	notes: optText(2000),
 	filterType: optEnum(FILTER_TYPES)
 });
@@ -572,6 +575,14 @@ export function parseBrewForm(fd: FormData, timeZone: string): ParseResult<BrewF
 		return { ok: false, errors };
 	}
 	const c = common.data;
+	// Only the form's script writes it: an unreadable or impossible stamp is dropped, not an error.
+	const drawdownEnd = c.drawdownEndAt === null ? null : new Date(c.drawdownEndAt);
+	const drawdownEndAt =
+		drawdownEnd &&
+		drawdownEnd.getTime() >= Date.UTC(2000, 0, 1) &&
+		drawdownEnd.getTime() <= Date.now() + 24 * 3600_000
+			? drawdownEnd
+			: null;
 	return {
 		ok: true,
 		data: {
@@ -589,6 +600,7 @@ export function parseBrewForm(fd: FormData, timeZone: string): ParseResult<BrewF
 				waterTempC: c.waterTempC,
 				agitation: c.agitation,
 				totalTimeS: totalTimeS!,
+				drawdownEndAt,
 				notes: c.notes,
 				details: { filterType: c.filterType, pours: pours.data }
 			},

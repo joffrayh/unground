@@ -1,0 +1,1 @@
+ALTER TABLE "brews" ADD COLUMN "drawdown_end_at" timestamp with time zone;

@@ -57,6 +57,13 @@
       "when": 1794903254937,
       "tag": "0007_rating_cooldown",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1794908883343,
+      "tag": "0008_brew_drawdown_end",
+      "breakpoints": true
     }
   ]
 }

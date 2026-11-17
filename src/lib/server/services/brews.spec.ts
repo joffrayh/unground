@@ -157,6 +157,15 @@ describe('brews', () => {
 		expect((await getBrew(db, refs.userId, id)).slowFed).toBe(false);
 	});
 
+	it('stores when the drawdown ended (D64)', async () => {
+		const refs = await setupBrewer(db);
+		const end = new Date('2026-11-03T08:03:15Z');
+		const { id } = await createBrew(db, refs.userId, brewInput(refs, { drawdownEndAt: end }));
+		expect((await getBrew(db, refs.userId, id)).drawdownEndAt).toEqual(end);
+		await updateBrew(db, refs.userId, id, brewInput(refs), null, null);
+		expect((await getBrew(db, refs.userId, id)).drawdownEndAt).toBeNull();
+	});
+
 	it('never overwrites a legacy aftertaste score when a rating is saved', async () => {
 		const refs = await setupBrewer(db);
 		const { id } = await createBrew(db, refs.userId, brewInput(refs), ratingInput());

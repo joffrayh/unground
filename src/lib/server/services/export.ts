@@ -34,6 +34,8 @@ const methodColumns = [...new Set(Object.values(METHODS).flatMap((m) => m.export
 export const BREW_COLUMNS = [
 	'brew_id',
 	'brewed_at_utc',
+	// When the drawdown ended (D64); blank when the form didn't stamp it.
+	'drawdown_end_utc',
 	'brewed_local_date',
 	'timezone',
 	'method',
@@ -141,6 +143,7 @@ async function buildBrewsCsv(db: Tx, userId: string): Promise<string> {
 		return {
 			brew_id: brew.id,
 			brewed_at_utc: brew.brewedAt.toISOString(),
+			drawdown_end_utc: brew.drawdownEndAt?.toISOString() ?? null,
 			brewed_local_date: localDate(brew.brewedAt, brew.timezone),
 			timezone: brew.timezone,
 			method: brew.method,

@@ -352,7 +352,11 @@
 						use:enhance
 					>
 						<FormError form={rateForm} />
-						<RatingFields values={formRating} errors={rateForm?.errors ?? {}} />
+						<RatingFields
+							values={formRating}
+							errors={rateForm?.errors ?? {}}
+							drawdownEndAt={brew.drawdownEndAt}
+						/>
 						<button class="btn btn-primary btn-block">Save rating</button>
 					</form>
 					<form
@@ -376,7 +380,12 @@
 					use:enhance
 				>
 					<FormError form={rateForm} />
-					<RatingFields values={formRating} from={lastRating} errors={rateForm?.errors ?? {}} />
+					<RatingFields
+						values={formRating}
+						from={lastRating}
+						errors={rateForm?.errors ?? {}}
+						drawdownEndAt={brew.drawdownEndAt}
+					/>
 					<button class="btn btn-primary btn-block">Save rating</button>
 				</form>
 			{/if}

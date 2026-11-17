@@ -7,7 +7,8 @@
 	 * them. Nothing is pre-set, so a rating left blank is still "rate later".
 	 *
 	 * Cool-down (D63) is how long after the brew, or how cool, the cup was when tasted: one box with a
-	 * min / °C switch, starting on the unit the previous rating used.
+	 * min / °C switch, starting on the unit the previous rating used. The first touch of the rating fills
+	 * in the minutes since the drawdown ended, if it ended at most 30 minutes ago (D64).
 	 */
 	import { onMount } from 'svelte';
 	import FieldError from '#lib/components/FieldError.svelte';
@@ -27,13 +28,20 @@
 		type RatingDimension,
 		type ScoreScale
 	} from '#lib/domain/vocab.ts';
-	import type { RatingFrom, RatingValues } from './brew-values.ts';
+	import { autoCooldownMin, type RatingFrom, type RatingValues } from './brew-values.ts';
 
 	let {
 		values,
 		from = null,
-		errors = {}
-	}: { values: RatingValues; from?: RatingFrom | null; errors?: Record<string, string> } = $props();
+		errors = {},
+		drawdownEndAt = null
+	}: {
+		values: RatingValues;
+		from?: RatingFrom | null;
+		errors?: Record<string, string>;
+		/** When the brew's drawdown ended (D64), for the cool-down. */
+		drawdownEndAt?: Date | null;
+	} = $props();
 
 	const uid = $props.id();
 
@@ -81,11 +89,41 @@
 				: (from?.cooldownUnit ?? 'min'))
 	);
 	const UNIT_LABELS: Record<CooldownUnit, string> = { min: 'min', c: '°C' };
+	// svelte-ignore state_referenced_locally
+	let cooldown = $state(values.cooldown);
+
+	/**
+	 * The first touch of the rating is taken as the first sip (D64): a blank cool-down gets the minutes
+	 * since the drawdown, in min. Touching the cool-down first means it is being entered by hand.
+	 */
+	let started = false;
+	function begin(target: Element | null) {
+		if (started) return;
+		started = true;
+		if (target?.closest('.cooldown') || cooldown.trim() !== '') return;
+		const min = autoCooldownMin(drawdownEndAt, new Date());
+		if (min === null) return;
+		cooldown = String(min);
+		pickedUnit = 'min';
+	}
 
 	// Without JavaScript the radio rows post the scores; once it runs, the sliders and radar replace them.
 	let hydrated = $state(false);
+	let root = $state<HTMLElement>();
 	onMount(() => {
 		hydrated = true;
+		// Taps on controls and edits count; a scroll through the section or focus moved by Enter don't.
+		const onClick = (e: Event) => {
+			const target = e.target as Element;
+			if (target.closest('button, input, textarea, select, label')) begin(target);
+		};
+		const onInput = (e: Event) => begin(e.target as Element);
+		root?.addEventListener('click', onClick);
+		root?.addEventListener('input', onInput);
+		return () => {
+			root?.removeEventListener('click', onClick);
+			root?.removeEventListener('input', onInput);
+		};
 	});
 
 	function clearAll() {
@@ -97,7 +135,7 @@
 	}
 </script>
 
-<div class="rating-fields">
+<div class="rating-fields" bind:this={root}>
 	<div class="overall">
 		{#if hydrated}
 			<Slider
@@ -147,8 +185,14 @@
 				ghost={lastProfile}
 				editable
 				selected={active}
-				onchange={(d, v) => (scores[d] = v)}
-				onselect={(d) => (active = d)}
+				onchange={(d, v) => {
+					begin(null);
+					scores[d] = v;
+				}}
+				onselect={(d) => {
+					begin(null);
+					active = d;
+				}}
 			/>
 			{#each RATING_DIMENSIONS as d (d)}
 				<input type="hidden" name={d} value={scores[d] ?? ''} />
@@ -221,7 +265,7 @@
 				autocomplete="off"
 				enterkeyhint="next"
 				class="num"
-				value={values.cooldown}
+				bind:value={cooldown}
 				aria-invalid={errors.cooldown ? 'true' : undefined}
 				aria-describedby={errors.cooldown ? `${uid}-cooldown-err` : undefined}
 			/>

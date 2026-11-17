@@ -60,6 +60,8 @@ export interface Brew extends BrewSummary {
 	/** The beans were fed into the grinder slowly (D56). */
 	slowFed: boolean;
 	agitation: number | null;
+	/** When the drawdown ended (D64); null when not stamped. */
+	drawdownEndAt: Date | null;
 	storedFrozen: boolean;
 	/** Legacy (D25): what the user said they changed, on brews logged before the plan replaced it. */
 	changed: ChangedVariable[];
@@ -100,6 +102,7 @@ function baseQuery(q: Queryable) {
 			scaleId: brews.scaleId,
 			slowFed: brews.slowFed,
 			agitation: brews.agitation,
+			drawdownEndAt: brews.drawdownEndAt,
 			storedFrozen: beans.storedFrozen,
 			changed: sql<ChangedVariable[]>`${brews.changed}`,
 			notes: brews.notes
@@ -401,6 +404,7 @@ function brewColumns(input: BrewInput) {
 		waterTempC: input.waterTempC,
 		agitation: input.agitation,
 		totalTimeS: input.totalTimeS,
+		drawdownEndAt: input.drawdownEndAt ?? null,
 		// `changed` is legacy (D25): never written, so edits keep what old brews recorded.
 		notes: input.notes
 	};

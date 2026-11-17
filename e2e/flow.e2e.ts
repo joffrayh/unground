@@ -557,6 +557,35 @@ test('the cool-down saves in °C, and the next rating starts on °C (D63)', asyn
 	await expect(unit.getByRole('radio', { name: '°C' })).toBeChecked();
 });
 
+test('the first touch of the rating fills the minutes since the drawdown (D64)', async ({
+	page
+}) => {
+	// After the test above, so the previous rating's unit is °C.
+	await logIn(page, DETOUR_EMAIL);
+	await page.goto('/brews/new');
+	await page.locator('[name="grindSetting"]').fill('24');
+	await page.locator('[name="doseG"]').fill('15');
+	await page.locator('[name="waterTempC"]').fill('94');
+	await fillPours(page, [
+		['0:00', '50'],
+		['0:45', '250']
+	]);
+	const cooldown = page.getByLabel('Cool-down', { exact: true });
+	const unit = page.getByRole('radiogroup', { name: 'Cool-down unit' });
+	await expect(unit.getByRole('radio', { name: '°C' })).toBeChecked();
+	await page.locator('[name="totalTime"]').fill('3:00');
+	await page.getByRole('slider', { name: 'Overall', exact: true }).fill('4');
+	await expect(cooldown).toHaveValue('0');
+	await expect(unit.getByRole('radio', { name: 'min' })).toBeChecked();
+	// Only the first touch: a value typed over it stays.
+	await cooldown.fill('6');
+	await page.getByRole('slider', { name: 'Overall', exact: true }).fill('4.5');
+	await expect(cooldown).toHaveValue('6');
+	await page.getByRole('button', { name: 'Save brew' }).click();
+	await expect(page).toHaveURL(/\/brews\/[0-9a-f-]{36}$/);
+	await expect(page.getByText('6 min')).toBeVisible();
+});
+
 test('a brew in progress survives leaving the form, until it is cancelled', async ({ page }) => {
 	await logIn(page, THEME_EMAIL);
 	const nav = page.getByRole('navigation', { name: 'Main' });

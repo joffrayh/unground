@@ -121,7 +121,7 @@ This is **the most important data point** for Stage 2 — it is what every other
 - The sub-scores are entered and shown on a **radar chart** (one axis each); a point at the centre means "not rated". A slider under it moves the axis last touched (D40).
 - A new rating, on a new brew or an unrated one, starts blank with the same bean's previous rating in grey to compare against (none for a bean never rated, D58): a faded disc on the overall slider and a dashed shape on the radar. "Last 3.5" and "Last profile" apply them; the grey stays (D53).
 - **Tasting notes** — tags from the tasting-note vocabulary (D5, D29; any tier), picked by search, to compare against the roaster's claimed notes.
-- **Cool-down** _(D63)_ — how long after the brew (whole minutes) or how cool (°C) the cup was when tasted; one box with a min / °C switch.
+- **Cool-down** _(D63)_ — how long after the brew (whole minutes) or how cool (°C) the cup was when tasted; one box with a min / °C switch. The first touch of the rating fills in the minutes since the drawdown ended, within 30 minutes of it (D64).
 - **Comment** — free text.
 
 ## 5. Data model overview
@@ -182,6 +182,7 @@ Brew
   brewed_at           # timestamptz
   timezone            # IANA zone it was logged in; local date & roast age use it (D20)
   grind_setting, slow_fed, dose_g, water_g, water_temp_c, total_time_s
+  drawdown_end_at?    # when the drawdown ended, stamped by the form (D64)
   agitation?          # 0–5
   changed[]           # legacy: what the user deliberately changed (no longer asked, D25)
   notes?
@@ -305,6 +306,7 @@ The substance of each decision lives in the section noted under _Where_; this ta
 | D61 | **Adding or removing a pour by hand suggests a redistribution**: the placeholders' pours reshaped to the new count at the placeholders' own ratio (blooms keep their amount, the rest share the water), offered like a plan (D25) with Accept. A count the plan asked for gets the plan's suggestion instead; any other count takes over from an unaccepted plan. After accepting, the new pours are what the next add or remove starts from. JavaScript only. | Changing the pour count at the kettle shouldn't change the ratio; working out new running totals by hand is the hard part. | [§4.2](#42-brew) |
 | D62 | **The pour timer replaces tap to pour** (issue #20): the pours are the plan in the rows (typed, else their placeholders), and Start at the first water runs a clock against them. Each pour is cued at its time as D57's were (three beeps, a higher beep, a buzz and a pulsing "now") and the pour under way and its target follow the clock; nothing is tapped per pour and nothing is written into the rows. Times edited mid-brew move their cues, and rows can still be added, removed or accepted. Stop fills Total time, Undo takes it back and the clock runs on, Reset goes back to before Start. Pours save as planned, so the planned_* fields stay empty. JavaScript only. | The brewer already knows when the next pour is due; a tap per pour was an extra step with a full kettle. The cue is still sound as well as sight because eyes are on the kettle. | [§4.2](#42-brew) |
 | D63 | **The rating records the cool-down before tasting** (issue #21): whole minutes after the brew (0–240) or the cup's temperature (0–100 °C, one decimal), never both, in one box with a min / °C switch. The switch starts on the unit of the previous rating shown (D53, D58); the box starts blank. Optional, but like the other rating fields it needs an overall. Exported as `rating_cooldown_min` and `rating_cooldown_temp_c`. | Flavour changes as a cup cools, so the score depends on when it was tasted. Brewers measure it differently, with a timer or a thermometer; two columns keep each a number for Stage 2. | [§4.3](#43-rating--tasting-the-target-variable) |
+| D64 | **The cool-down fills itself from the drawdown's end**: a new brew stamps `drawdown_end_at` when Total time is filled (by the scale or the pour timer's Stop as the brew ends, else when first typed; Undo takes it back). The first touch of the rating (a tap on a control, or an edit) fills a blank cool-down with the whole minutes since then and switches it to min, in the brew form and on the brew page alike. Not when that is over 30 minutes (rated later, not while drinking), nor when the cool-down itself was touched first. Edits keep the stamp. Exported as `drawdown_end_utc`. JavaScript only. | Nobody times the wait before the first sip; the end of the drawdown and the first touch of the rating are close enough to it, and exact with a scale. | [§4.3](#43-rating--tasting-the-target-variable) |
 
 ## 9. Open questions / decisions to revisit
 

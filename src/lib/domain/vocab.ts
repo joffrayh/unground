@@ -113,6 +113,8 @@ export const AGITATION_DEFAULT = 3;
 export const COOLDOWN_UNITS = ['min', 'c'] as const;
 export type CooldownUnit = (typeof COOLDOWN_UNITS)[number];
 export const COOLDOWN_MAX_MIN = 240;
+/** A rating started later than this after the drawdown gets no cool-down filled in (D64). */
+export const AUTO_COOLDOWN_MAX_MIN = 30;
 
 export const LABELS: Record<string, string> = {
 	v60: 'V60',

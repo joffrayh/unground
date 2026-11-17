@@ -149,6 +149,19 @@ describe('parseBrewForm', () => {
 		});
 	});
 
+	it('keeps the drawdown stamp, and drops one that is unreadable or impossible (D64)', () => {
+		const stamp = (drawdownEndAt: string) => {
+			const result = parseBrewForm(brewForm({ drawdownEndAt }), 'UTC');
+			if (!result.ok) throw new Error('should parse');
+			return result.data.brew.drawdownEndAt?.toISOString() ?? null;
+		};
+		expect(stamp('2026-11-03T08:18:15.000Z')).toBe('2026-11-03T08:18:15.000Z');
+		expect(stamp('')).toBeNull();
+		expect(stamp('soon')).toBeNull();
+		expect(stamp('1999-12-31T23:00:00Z')).toBeNull();
+		expect(stamp('2999-01-01T00:00:00Z')).toBeNull();
+	});
+
 	it('reads the slow-fed tick box (D56)', () => {
 		const result = parseBrewForm(brewForm({ slowFed: 'on' }), 'UTC');
 		expect(result.ok && result.data.brew.slowFed).toBe(true);
