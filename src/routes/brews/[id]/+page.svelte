@@ -136,8 +136,8 @@
 		}
 	}
 
-	/** Enter moves to the next box instead of saving the plan half-way. */
-	function onPlanKeydown(e: KeyboardEvent) {
+	/** Enter moves to the next box instead of saving the form half-way. */
+	function onEnterKeydown(e: KeyboardEvent) {
 		if (e.key !== 'Enter' || e.defaultPrevented || !isTextLike(e.target)) return;
 		e.preventDefault();
 		focusNextField(e.target);
@@ -323,6 +323,17 @@
 					{/if}
 				</div>
 
+				{#if rating.cooldownMin != null || rating.cooldownTempC != null}
+					<div>
+						<div class="label">Cool-down</div>
+						<p class="num">
+							{rating.cooldownTempC != null
+								? `${rating.cooldownTempC} °C`
+								: `${rating.cooldownMin} min`}
+						</p>
+					</div>
+				{/if}
+
 				{#if rating.comment}
 					<div>
 						<div class="label">Comment</div>
@@ -332,7 +343,14 @@
 
 				<details class="corner" open={!!rateForm?.errors}>
 					<summary class="btn-toggle edit" aria-label="Edit rating">Edit</summary>
-					<form method="POST" action="?/rate" class="rate-form" use:enhance>
+					<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+					<form
+						method="POST"
+						action="?/rate"
+						class="rate-form"
+						onkeydown={onEnterKeydown}
+						use:enhance
+					>
 						<FormError form={rateForm} />
 						<RatingFields values={formRating} errors={rateForm?.errors ?? {}} />
 						<button class="btn btn-primary btn-block">Save rating</button>
@@ -349,7 +367,14 @@
 				</details>
 			{:else}
 				<p class="muted">Not rated yet.</p>
-				<form method="POST" action="?/rate" class="rate-form" use:enhance>
+				<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+				<form
+					method="POST"
+					action="?/rate"
+					class="rate-form"
+					onkeydown={onEnterKeydown}
+					use:enhance
+				>
 					<FormError form={rateForm} />
 					<RatingFields values={formRating} from={lastRating} errors={rateForm?.errors ?? {}} />
 					<button class="btn btn-primary btn-block">Save rating</button>
@@ -380,9 +405,15 @@
 				<summary class="btn-toggle" class:edit={!!plan} aria-label={plan ? 'Edit plan' : undefined}
 					>{plan ? 'Edit' : 'Plan the next brew'}</summary
 				>
-				<!-- The keydown listener only catches Enter bubbling up from the inputs (onPlanKeydown). -->
+				<!-- The keydown listener only catches Enter bubbling up from the inputs (onEnterKeydown). -->
 				<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
-				<form method="POST" action="?/plan" class="plan-form" onkeydown={onPlanKeydown} use:enhance>
+				<form
+					method="POST"
+					action="?/plan"
+					class="plan-form"
+					onkeydown={onEnterKeydown}
+					use:enhance
+				>
 					<FormError form={planForm} />
 					<PlanFields
 						values={formPlan}

@@ -22,6 +22,8 @@ import {
 import {
 	AGITATION_MAX,
 	AGITATION_MIN,
+	COOLDOWN_MAX_MIN,
+	COOLDOWN_UNITS,
 	COUNTRY_CODES,
 	DRIPPER_MATERIALS,
 	FILTER_TYPES,
@@ -30,6 +32,7 @@ import {
 	PROFILE_SCALE,
 	RATING_DIMENSIONS,
 	ROAST_LEVELS,
+	type CooldownUnit,
 	type FilterType,
 	type ScoreScale,
 	type RatingDimension
@@ -210,17 +213,36 @@ const dimensionScores = Object.fromEntries(
 	RATING_DIMENSIONS.map((d) => [d, profileScore])
 ) as Record<RatingDimension, typeof profileScore>;
 
+/** Cool-down (D63): whole minutes after the brew, or the cup's temperature. */
+const COOLDOWN_RANGE: Record<CooldownUnit, z.ZodType<number>> = {
+	min: number(0, COOLDOWN_MAX_MIN, { int: true }),
+	c: number(0, 100, { decimals: 1 })
+};
+
 export const ratingSchema = z
 	.object({
 		overall: score(OVERALL_SCALE),
 		...dimensionScores,
 		comment: optText(2000),
-		perceivedNotes: flavorIds
+		perceivedNotes: flavorIds,
+		cooldown: optNumber(0, Number.MAX_SAFE_INTEGER),
+		cooldownUnit: z.preprocess((v) => blankToNull(v) ?? 'min', z.enum(COOLDOWN_UNITS))
 	})
 	.superRefine((r, ctx) => {
+		if (r.cooldown != null) {
+			const range = COOLDOWN_RANGE[r.cooldownUnit].safeParse(r.cooldown);
+			if (!range.success) {
+				ctx.addIssue({
+					code: 'custom',
+					path: ['cooldown'],
+					message: range.error.issues[0].message
+				});
+			}
+		}
 		const anythingElse =
 			RATING_DIMENSIONS.some((d) => r[d] != null) ||
 			r.comment != null ||
+			r.cooldown != null ||
 			r.perceivedNotes.length > 0;
 		if (r.overall == null && anythingElse) {
 			ctx.addIssue({
@@ -234,6 +256,9 @@ export const ratingSchema = z
 export type RatingInput = {
 	overall: number;
 	comment: string | null;
+	/** Cool-down before tasting (D63); at most one is set. */
+	cooldownMin: number | null;
+	cooldownTempC: number | null;
 	perceivedNotes: string[];
 } & Record<RatingDimension, number | null>;
 
@@ -246,6 +271,8 @@ export function parseRatingFields(obj: Record<string, unknown>): ParseResult<Rat
 	const data = {
 		overall: r.overall,
 		comment: r.comment,
+		cooldownMin: r.cooldownUnit === 'min' ? r.cooldown : null,
+		cooldownTempC: r.cooldownUnit === 'c' ? r.cooldown : null,
 		perceivedNotes: r.perceivedNotes
 	} as RatingInput;
 	for (const d of RATING_DIMENSIONS) data[d] = r[d] as number | null;

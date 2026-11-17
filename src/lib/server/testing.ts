@@ -89,6 +89,8 @@ export function ratingInput(overrides: Partial<RatingInput> = {}): RatingInput {
 		astringency: 1.5,
 		clarity: 3.5,
 		comment: 'Lovely',
+		cooldownMin: 5,
+		cooldownTempC: null,
 		perceivedNotes: ['fruity.berry.blueberry'],
 		...overrides
 	};

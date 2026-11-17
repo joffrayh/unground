@@ -50,6 +50,13 @@
       "when": 1794407787660,
       "tag": "0006_profile_halves_slow_fed_cafec",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1794903254937,
+      "tag": "0007_rating_cooldown",
+      "breakpoints": true
     }
   ]
 }

@@ -20,7 +20,12 @@ import {
 	totalWater,
 	type Pour
 } from '#lib/domain/pours.ts';
-import { AGITATION_DEFAULT, RATING_DIMENSIONS, type RatingDimension } from '#lib/domain/vocab.ts';
+import {
+	AGITATION_DEFAULT,
+	RATING_DIMENSIONS,
+	type CooldownUnit,
+	type RatingDimension
+} from '#lib/domain/vocab.ts';
 import { val, vals, type FormState } from '#lib/ui/forms.ts';
 import {
 	blankRow,
@@ -32,12 +37,19 @@ import {
 export type RatingValues = {
 	overall: string;
 	comment: string;
+	/** Cool-down before tasting (D63), in `cooldownUnit`. */
+	cooldown: string;
+	cooldownUnit: CooldownUnit;
 	perceivedNotes: string[];
 } & Record<RatingDimension, string>;
 
 /**
  * The previous rating's scores, shown in grey beside a new rating's and applied with a tap (D53). */
-export type RatingFrom = { overall: string } & Record<RatingDimension, string>;
+export type RatingFrom = {
+	overall: string;
+	/** The unit last used, so a new rating's cool-down starts on it (D63). */
+	cooldownUnit: CooldownUnit | null;
+} & Record<RatingDimension, string>;
 
 /** The next-time fields as the inputs hold them (D25); '' means "keep it as it was". */
 export interface PlanValues {
@@ -124,6 +136,8 @@ export interface BrewFormValues {
 export type RatingLike = {
 	overall: number;
 	comment: string | null;
+	cooldownMin?: number | null;
+	cooldownTempC?: number | null;
 	perceivedNotes: readonly string[];
 } & Record<RatingDimension, number | null>;
 
@@ -156,10 +170,18 @@ export interface TemplateBrew extends BrewLike {
 
 const str = (v: number | string | null | undefined) => (v == null ? '' : String(v));
 
+/** The cool-down unit a rating used, or null when it has none. */
+function cooldownUnit(rating: RatingLike | null): CooldownUnit | null {
+	if (rating?.cooldownTempC != null) return 'c';
+	return rating?.cooldownMin != null ? 'min' : null;
+}
+
 export function ratingValues(rating: RatingLike | null): RatingValues {
 	const out = {
 		overall: str(rating?.overall),
 		comment: rating?.comment ?? '',
+		cooldown: str(rating?.cooldownTempC ?? rating?.cooldownMin),
+		cooldownUnit: cooldownUnit(rating) ?? 'min',
 		perceivedNotes: [...(rating?.perceivedNotes ?? [])]
 	} as RatingValues;
 	for (const d of RATING_DIMENSIONS) out[d] = str(rating?.[d]);
@@ -168,7 +190,7 @@ export function ratingValues(rating: RatingLike | null): RatingValues {
 
 export function ratingFrom(rating: RatingLike | null): RatingFrom | null {
 	if (!rating) return null;
-	const out = { overall: str(rating.overall) } as RatingFrom;
+	const out = { overall: str(rating.overall), cooldownUnit: cooldownUnit(rating) } as RatingFrom;
 	for (const d of RATING_DIMENSIONS) out[d] = str(rating[d]);
 	return out;
 }
@@ -179,6 +201,8 @@ export function ratingFormValues(form: FormState, fallback: RatingValues): Ratin
 	const out = {
 		overall: val(form, 'overall'),
 		comment: val(form, 'comment'),
+		cooldown: val(form, 'cooldown'),
+		cooldownUnit: val(form, 'cooldownUnit') === 'c' ? 'c' : 'min',
 		perceivedNotes: vals(form, 'perceivedNotes')
 	} as RatingValues;
 	for (const d of RATING_DIMENSIONS) out[d] = val(form, d);

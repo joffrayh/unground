@@ -176,6 +176,35 @@ describe('parseBrewForm', () => {
 		expect(result).toMatchObject({ ok: false, errors: { overall: expect.any(String) } });
 	});
 
+	it('takes the cool-down in whole minutes or in °C, and needs an overall with it (D63)', () => {
+		const parse = (cooldown: string, cooldownUnit = '', overall = '4') =>
+			parseBrewForm(brewForm({ overall, cooldown, cooldownUnit }), 'UTC');
+		expect(parse('10')).toMatchObject({
+			ok: true,
+			data: { rating: { cooldownMin: 10, cooldownTempC: null } }
+		});
+		expect(parse('62,5', 'c')).toMatchObject({
+			ok: true,
+			data: { rating: { cooldownMin: null, cooldownTempC: 62.5 } }
+		});
+		expect(parse('', 'c')).toMatchObject({
+			ok: true,
+			data: { rating: { cooldownMin: null, cooldownTempC: null } }
+		});
+		expect(parse('2.5', 'min')).toMatchObject({
+			ok: false,
+			errors: { cooldown: 'Must be a whole number' }
+		});
+		expect(parse('241')).toMatchObject({ ok: false, errors: { cooldown: 'Max 240' } });
+		expect(parse('101', 'c')).toMatchObject({ ok: false, errors: { cooldown: 'Max 100' } });
+		expect(parse('-1', 'c')).toMatchObject({ ok: false, errors: { cooldown: 'Min 0' } });
+		expect(parse('10', 'kelvin')).toMatchObject({ ok: false });
+		expect(parse('10', 'min', '')).toMatchObject({
+			ok: false,
+			errors: { overall: expect.any(String) }
+		});
+	});
+
 	it('takes overall from 0.25 to 5 in quarters and the profile in halves (D55)', () => {
 		const parse = (overall: string, acidity = '') =>
 			parseBrewForm(brewForm({ overall, acidity }), 'UTC');
