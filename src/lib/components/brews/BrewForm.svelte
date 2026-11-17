@@ -332,11 +332,11 @@
 	let scaleOpen = $state(false);
 	let tapping = $state(false);
 	const scaleLink = getScaleLink();
-	/** The paired scale is connected, so its card guides the brew instead of tap to pour. */
+	/** The paired scale is connected, so its card guides the brew instead of the pour timer. */
 	const scaleReady = $derived(
 		scaleLink.status === 'connected' && !!scales?.some((s) => s.id === scaleLink.pairing?.scaleId)
 	);
-	/** Total time before tap to pour's Stop filled it in, and what it wrote, for its Undo. */
+	/** Total time before the pour timer's Stop filled it in, and what it wrote, for its Undo. */
 	let totalTap: { before: string; written: string } | null = null;
 
 	function tapTotal(s: number | null) {

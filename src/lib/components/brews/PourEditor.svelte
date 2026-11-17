@@ -17,14 +17,13 @@
 	 * removed by hand, to a count the plan didn't ask for, takes over: the placeholders are
 	 * redistributed over the new count at their own ratio, the same way (D61).
 	 *
-	 * On a new brew, tap to pour (D57) can time the pours: each tap writes the pour's start into its row,
-	 * adding rows as needed, and Undo puts back what was there.
+	 * On a new brew, the pour timer (D62) runs a clock against the rows' times and cues each pour.
 	 */
 	import { onMount, tick } from 'svelte';
 	import FieldError from '#lib/components/FieldError.svelte';
 	import { suggestPours } from '#lib/domain/plan.ts';
-	import TapPanel from './TapPanel.svelte';
-	import type { TapPhase } from './tap-log.ts';
+	import PourTimer from './PourTimer.svelte';
+	import type { TimerPhase } from './pour-timer.ts';
 	import {
 		formatDuration,
 		parseDuration,
@@ -40,7 +39,6 @@
 		FIRST_POUR_TIME,
 		applyMeasuredPours,
 		blankRow,
-		effectiveScale,
 		errorRowIndex,
 		isBlank,
 		parseGrams,
@@ -82,15 +80,15 @@
 		stats?: PourStats;
 		/** Live pour targets, for the scale card. */
 		targets?: PourTarget[];
-		/** Offer tap to pour (new brews). */
+		/** Offer the pour timer (new brews). */
 		tappable?: boolean;
-		/** A scale is guiding the brew, so tap to pour steps aside. */
+		/** A scale is guiding the brew, so the pour timer steps aside. */
 		locked?: boolean;
-		/** A scale is connected: tap to pour isn't offered, though one already started carries on. */
+		/** A scale is connected: the pour timer isn't offered, though one already started carries on. */
 		scaleReady?: boolean;
-		/** Tap to pour is timing a brew. */
+		/** The pour timer is running. */
 		tapping?: boolean;
-		/** Tap to pour's total time, or null when its end was taken back. */
+		/** The pour timer's total time, or null when its Stop was taken back. */
 		ontotal?: (totalS: number | null) => void;
 	} = $props();
 
@@ -263,82 +261,19 @@
 		planBox?.focus();
 	}
 
-	// --- tap to pour (D57) -------------------------------------------------------------------------
+	// --- pour timer (D62) -----------------------------------------------------------------------
 
-	let tapPhase = $state<TapPhase>('idle');
-	type Plan = Pick<PourRow, 'plannedG' | 'plannedStart'>;
-	/** What each tap replaced and wrote, so Undo can put it back. */
-	let tapped: { key: number; previous: string; written: string; added: boolean; plan: Plan }[] = [];
-	/** Pour 0's plan before Start. */
-	let startPlan: Plan = {};
-
-	const tapOn = $derived(hydrated && tappable && !locked && (!scaleReady || tapPhase !== 'idle'));
-	/** Rows stay put while taps are landing in them: no removing or reshaping. */
-	const rowsFixed = $derived(tapOn && tapPhase === 'running');
+	let timerPhase = $state<TimerPhase>('idle');
+	const timerOn = $derived(
+		hydrated && tappable && !locked && (!scaleReady || timerPhase !== 'idle')
+	);
 	$effect(() => {
-		tapping = rowsFixed;
+		tapping = timerOn && timerPhase === 'running';
 	});
 
-	/**
-	 * Keeps what the row planned beside what happens (D51), so the next brew starts from the plan and
-	 * the recipe doesn't drift by a second or a gram each brew. Planned means typed beforehand or the
-	 * previous brew's reading, not an estimate. Returns what was there, for Undo.
-	 */
-	function keepPlan(row: Row, i: number): Plan {
-		const before = { plannedG: row.plannedG, plannedStart: row.plannedStart };
-		const g = parseGrams(effectiveScale(row));
-		const s = i === 0 ? 0 : parseDuration(row.time.trim() || row.defaultTime);
-		if (row.plannedG === undefined && g !== null && g > 0) row.plannedG = String(g);
-		if (row.plannedStart === undefined && s !== null) row.plannedStart = String(s);
-		return before;
-	}
-
-	function restorePlan(row: Row, plan: Plan) {
-		row.plannedG = plan.plannedG;
-		row.plannedStart = plan.plannedStart;
-	}
-
-	function onTapStart() {
-		tapped = [];
-		startPlan = keepPlan(rows[0], 0);
-	}
-
-	function onTapUnstart() {
-		restorePlan(rows[0], startPlan);
-	}
-
-	function onTapPour(index: number, startS: number) {
-		// Rows can't be removed mid-brew, so the tapped pour is at most one row past the end.
-		const added = rows.length <= index;
-		if (added) rows.push(keyed(blankRow()));
-		const i = Math.min(index, rows.length - 1);
-		const row = rows[i];
-		const plan = keepPlan(row, i);
-		const written = formatDuration(startS);
-		tapped.push({ key: row.key, previous: row.time, written, added, plan });
-		row.time = written;
-	}
-
-	function onTapUndo() {
-		const last = tapped.pop();
-		if (!last) return;
-		const i = rows.findIndex((r) => r.key === last.key);
-		if (i < 0) return;
-		const row = rows[i];
-		// A time retyped since the tap is the brewer's: leave it.
-		if (row.time !== last.written) return;
-		restorePlan(row, last.plan);
-		if (last.added && row.scale.trim() === '' && !row.bloom && i === rows.length - 1) {
-			rows.splice(i, 1);
-		} else {
-			row.time = last.previous;
-		}
-	}
-
-	const tapTargets = $derived(summary.rows.map((r) => r.scaleG));
-	const tapStarts = $derived(
-		rows.map((r, i) => (i === 0 ? 0 : parseDuration(r.time.trim() || r.defaultTime)))
-	);
+	const timerTargets = $derived(summary.rows.map((r) => r.scaleG));
+	/** What each row will save as its start: typed, else its placeholder. Blank rows aren't pours. */
+	const timerStarts = $derived(summary.rows.map((r, i) => (i === 0 ? 0 : r.startS)));
 
 	// --- rows -----------------------------------------------------------------------------------
 
@@ -402,7 +337,7 @@
 			{#if ownTurn}
 				{#if showProposal}
 					<span>Redistribute: {ownText}</span>
-					{#if hydrated && !rowsFixed}
+					{#if hydrated}
 						<button type="button" class="btn btn-sm accept" onclick={accept}>Accept</button>
 					{/if}
 				{:else}
@@ -412,22 +347,18 @@
 				<span>✓ Plan applied: {planText}</span>
 			{:else}
 				<span>Planned last time: {planText}</span>
-				{#if hydrated && showProposal && !rowsFixed}
+				{#if hydrated && showProposal}
 					<button type="button" class="btn btn-sm accept" onclick={accept}>Accept</button>
 				{/if}
 			{/if}
 		</div>
 	{/if}
 
-	{#if tapOn}
-		<TapPanel
-			targets={tapTargets}
-			plannedStarts={tapStarts}
-			onphase={(p) => (tapPhase = p)}
-			onstart={onTapStart}
-			onunstart={onTapUnstart}
-			onpour={onTapPour}
-			onunpour={onTapUndo}
+	{#if timerOn}
+		<PourTimer
+			targets={timerTargets}
+			starts={timerStarts}
+			onphase={(p) => (timerPhase = p)}
 			onend={(s) => ontotal?.(s)}
 		/>
 	{/if}
@@ -528,7 +459,7 @@
 					<span class="visually-hidden">{info.label} is a bloom</span>
 				</label>
 
-				{#if hydrated && i > 0 && !rowsFixed}
+				{#if hydrated && i > 0}
 					<button
 						type="button"
 						class="remove"

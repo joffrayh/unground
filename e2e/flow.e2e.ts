@@ -689,8 +689,8 @@ test('the scale card shows the live reading against pour 0', async ({ page }) =>
 	await expect(card).toContainText('Brew scale');
 	const enter = card.getByRole('button', { name: 'Enter' });
 	await expect(enter).toHaveCSS('background-color', 'rgb(86, 171, 250)');
-	// The connected scale times the brew, so tap to pour isn't offered (D59).
-	await expect(page.getByRole('region', { name: 'Tap to pour' })).toHaveCount(0);
+	// The connected scale times the brew, so the pour timer isn't offered (D59).
+	await expect(page.getByRole('region', { name: 'Pour timer' })).toHaveCount(0);
 
 	const scales = page.locator('[name="pourScale"]');
 	await scales.first().fill('45');
@@ -823,7 +823,7 @@ test('the scale card guides a brew from the first pour to the lift', async ({ pa
 	await expect(page.locator('[name="totalTime"]')).toHaveValue('0:50');
 	await page.locator('[name="doseG"]').fill('15');
 	await expect(page.locator('[name="nextRatio"]')).toHaveAttribute('placeholder', '10.2');
-	// An hour on, so it is this account's latest brew, which tap to pour's test starts from: brews
+	// An hour on, so it is this account's latest brew, which the pour timer's test starts from: brews
 	// logged in the same minute are otherwise ordered by their random ids.
 	const brewedAt = page.locator('[name="brewedAt"]');
 	const now = new Date(`${await brewedAt.inputValue()}Z`).getTime();
@@ -880,81 +880,68 @@ test('stopping short waits for a top-up, and leaving a brew asks first', async (
 	await expect(card.getByRole('button', { name: 'Enter' })).toBeVisible();
 });
 
-test('tap to pour times the pours and the drawdown', async ({ page }) => {
+test('the pour timer cues the planned pours and times the drawdown', async ({ page }) => {
 	await page.clock.install();
 	await logIn(page, THEME_EMAIL);
 	await page.goto('/brews/new');
 	const times = page.locator('[name="pourTime"]');
 	const scales = page.locator('[name="pourScale"]');
 	const totalTime = page.locator('[name="totalTime"]');
-	const tap = page.getByRole('region', { name: 'Tap to pour' });
+	const timer = page.getByRole('region', { name: 'Pour timer' });
+	const next = timer.locator('.next');
 
-	// Time moves only when the test says, so each tap lands on the second it's meant to.
+	// Time moves only when the test says.
 	await page.clock.pauseAt(Date.now() + 1000);
 
-	// The previous brew planned pour 1 at 0:45: the button counts down to it, then cues it.
-	await tap.getByRole('button', { name: 'Start' }).click();
-	const pour1 = tap.getByRole('button', { name: /^Pour 1/ });
+	// The plan goes in first: pour 1 at 0:45 from the previous brew, pour 2 typed.
+	if ((await times.count()) < 3) await page.getByRole('button', { name: '+ Add pour' }).click();
+	await times.nth(2).fill('1:15');
+	await scales.nth(2).fill('250');
+
+	await timer.getByRole('button', { name: 'Start' }).click();
 	await page.clock.runFor(44_500);
-	await expect(pour1).toContainText('0:01');
+	await expect(next).toHaveText(/Pour 1\s+0:01/);
 	await page.clock.runFor(700);
-	await expect(pour1).toContainText('now');
-	await expect(pour1).toHaveClass(/\bnow\b/);
+	await expect(next).toHaveText(/Pour 1\s+now/);
+	await expect(next).toHaveClass(/\bnow\b/);
+	await expect(timer.locator('.label')).toContainText('Pour 1');
+	// Nothing to tap: the times stay as planned.
+	await expect(times.nth(1)).toHaveValue('');
 
-	// Tapped late: the time is what happened, the plan is kept beside it.
-	await page.clock.runFor(1_800);
-	await pour1.click();
-	await expect(times.nth(1)).toHaveValue('0:47');
-	await expect(page.locator('[name="pourPlannedStart"]').nth(1)).toHaveValue('45');
-	// Rows stay put while taps land in them.
-	await expect(page.getByRole('button', { name: /^remove pour/i })).toHaveCount(0);
-
-	// A stray tap is taken back, rows it added go again.
+	// A time changed mid-brew moves its cue.
 	await page.clock.runFor(10_000);
-	const before = await times.count();
-	await tap.getByRole('button', { name: /^Pour 2/ }).click();
-	await expect(times).toHaveCount(Math.max(before, 3));
-	await tap.getByRole('button', { name: 'Undo' }).click();
-	await expect(times).toHaveCount(before);
-
-	await page.clock.runFor(20_000);
-	await tap.getByRole('button', { name: /^Pour 2/ }).click();
-	await expect(times.nth(2)).toHaveValue('1:17');
+	await expect(next).toHaveText(/Pour 2\s+0:20/);
+	await times.nth(2).fill('1:05');
+	await expect(next).toHaveText(/Pour 2\s+0:10/);
+	await page.clock.runFor(10_000);
+	await expect(next).toHaveText(/Pour 2\s+now/);
 	await page.clock.runFor(120_000);
-	await tap.getByRole('button', { name: 'Stop' }).click();
-	await expect(totalTime).toHaveValue('3:17');
-	await expect(tap.getByRole('timer')).toHaveText('3:17');
+	await expect(next).toHaveCount(0);
 
-	// Undoing the end keeps the clock running and puts the total back.
-	await tap.getByRole('button', { name: 'Undo' }).click();
+	await timer.getByRole('button', { name: 'Stop' }).click();
+	await expect(totalTime).toHaveValue('3:05');
+	await expect(timer.getByRole('timer')).toHaveText('3:05');
+
+	// Undoing Stop keeps the clock running and puts the total back.
+	await timer.getByRole('button', { name: 'Undo' }).click();
 	await expect(totalTime).toHaveValue('');
 	await page.clock.runFor(5_000);
-	await tap.getByRole('button', { name: 'Stop' }).click();
-	await expect(totalTime).toHaveValue('3:22');
+	await timer.getByRole('button', { name: 'Stop' }).click();
+	await expect(totalTime).toHaveValue('3:10');
 
-	// The scale readings are still typed.
 	await scales.nth(0).fill('50');
 	await scales.nth(1).fill('152');
-	await scales.nth(2).fill('250');
 	await page.getByRole('button', { name: 'Save brew' }).click();
 	await expect(page).toHaveURL(/\/brews\/[0-9a-f-]{36}$/);
-	await expect(page.getByRole('cell', { name: '0:47' })).toBeVisible();
-	await expect(page.getByRole('cell', { name: '1:17' })).toBeVisible();
+	await expect(page.getByRole('cell', { name: '0:45' })).toBeVisible();
+	await expect(page.getByRole('cell', { name: '1:05' })).toBeVisible();
 
-	// The next brew starts from the plan; a pour that had none stands as it went.
-	await page.goto(`/brews/new?from=${page.url().split('/').pop()}`);
-	await expect(times.nth(1)).toHaveAttribute('placeholder', '0:45');
-	await expect(scales.nth(0)).toHaveAttribute('placeholder', '45');
-	await expect(scales.nth(1)).toHaveAttribute('placeholder', '150');
-	await expect(times.nth(2)).toHaveAttribute('placeholder', '1:17');
-	await expect(scales.nth(2)).toHaveAttribute('placeholder', '250');
-
-	// Undoing the start goes back to typing.
+	// Reset goes back to before Start.
 	await page.goto('/brews/new');
-	await tap.getByRole('button', { name: 'Start' }).click();
-	await tap.getByRole('button', { name: 'Undo' }).click();
-	await expect(tap.getByRole('button', { name: 'Start' })).toBeVisible();
-	await expect(tap.getByRole('timer')).toHaveCount(0);
+	await timer.getByRole('button', { name: 'Start' }).click();
+	await timer.getByRole('button', { name: 'Reset' }).click();
+	await expect(timer.getByRole('button', { name: 'Start' })).toBeVisible();
+	await expect(timer.getByRole('timer')).toHaveCount(0);
 });
 
 test.describe('without JavaScript', () => {
