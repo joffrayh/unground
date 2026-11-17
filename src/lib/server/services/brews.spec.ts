@@ -170,6 +170,23 @@ describe('brews', () => {
 		});
 	});
 
+	it('stores the cool-down in minutes or °C, never both (D63)', async () => {
+		const refs = await setupBrewer(db);
+		const { id } = await createBrew(db, refs.userId, brewInput(refs), ratingInput());
+		expect((await getBrew(db, refs.userId, id)).rating).toMatchObject({
+			cooldownMin: 5,
+			cooldownTempC: null
+		});
+		await saveRating(db, refs.userId, id, ratingInput({ cooldownMin: null, cooldownTempC: 58.5 }));
+		expect((await getBrew(db, refs.userId, id)).rating).toMatchObject({
+			cooldownMin: null,
+			cooldownTempC: 58.5
+		});
+		await expect(
+			db.update(ratings).set({ cooldownMin: 5 }).where(eq(ratings.brewId, id))
+		).rejects.toThrow();
+	});
+
 	it('stores only the deliberate changes of a plan, and replaces or removes it', async () => {
 		const refs = await setupBrewer(db);
 		const plan = {

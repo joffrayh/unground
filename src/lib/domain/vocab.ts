@@ -109,6 +109,11 @@ export const AGITATION_MIN = 0;
 export const AGITATION_MAX = 5;
 export const AGITATION_DEFAULT = 3;
 
+/** Cool-down before tasting (D63): minutes after the brew, or the cup's temperature in °C. */
+export const COOLDOWN_UNITS = ['min', 'c'] as const;
+export type CooldownUnit = (typeof COOLDOWN_UNITS)[number];
+export const COOLDOWN_MAX_MIN = 240;
+
 export const LABELS: Record<string, string> = {
 	v60: 'V60',
 	washed: 'Washed',

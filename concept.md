@@ -121,6 +121,7 @@ This is **the most important data point** for Stage 2 — it is what every other
 - The sub-scores are entered and shown on a **radar chart** (one axis each); a point at the centre means "not rated". A slider under it moves the axis last touched (D40).
 - A new rating, on a new brew or an unrated one, starts blank with the same bean's previous rating in grey to compare against (none for a bean never rated, D58): a faded disc on the overall slider and a dashed shape on the radar. "Last 3.5" and "Last profile" apply them; the grey stays (D53).
 - **Tasting notes** — tags from the tasting-note vocabulary (D5, D29; any tier), picked by search, to compare against the roaster's claimed notes.
+- **Cool-down** _(D63)_ — how long after the brew (whole minutes) or how cool (°C) the cup was when tasted; one box with a min / °C switch.
 - **Comment** — free text.
 
 ## 5. Data model overview
@@ -194,7 +195,7 @@ Pour
 
 Rating  (1:1 with brew)
   brew_id, overall (0.25-5), acidity?, sweetness?, body?, bitterness?, astringency?, clarity? (0.5-5 intensity),
-  aftertaste? (legacy), comment?
+  aftertaste? (legacy), comment?, cooldown_min? | cooldown_temp_c?   # at most one (D63)
 
 BrewPlan  (1:1 with brew, only while something is planned)
   brew_id, water_temp_c?, ratio?, grind_setting?, pour_count?, agitation?, notes?   # null = keep as it was
@@ -303,6 +304,7 @@ The substance of each decision lives in the section noted under _Where_; this ta
 | D60 | **The placeholders are the picked bean's last brew's** (grind, dose, temperature, pours), and follow the picker; typed values stay. A bean never brewed takes the page's template (the last brew of any bean, or the brew copied with `?from=`), without its plan. The copied brew speaks for its own bean. Choices (grinder, dripper, filter, slow feeding, agitation) are still pre-selected from the template. The "Copied from" note names the brew in use. Narrows D15 and D26. | A bean's own recipe is the right starting point; a new bag still starts better from the last brew than from nothing. | [§4.2](#42-brew) |
 | D61 | **Adding or removing a pour by hand suggests a redistribution**: the placeholders' pours reshaped to the new count at the placeholders' own ratio (blooms keep their amount, the rest share the water), offered like a plan (D25) with Accept. A count the plan asked for gets the plan's suggestion instead; any other count takes over from an unaccepted plan. After accepting, the new pours are what the next add or remove starts from. JavaScript only. | Changing the pour count at the kettle shouldn't change the ratio; working out new running totals by hand is the hard part. | [§4.2](#42-brew) |
 | D62 | **The pour timer replaces tap to pour** (issue #20): the pours are the plan in the rows (typed, else their placeholders), and Start at the first water runs a clock against them. Each pour is cued at its time as D57's were (three beeps, a higher beep, a buzz and a pulsing "now") and the pour under way and its target follow the clock; nothing is tapped per pour and nothing is written into the rows. Times edited mid-brew move their cues, and rows can still be added, removed or accepted. Stop fills Total time, Undo takes it back and the clock runs on, Reset goes back to before Start. Pours save as planned, so the planned_* fields stay empty. JavaScript only. | The brewer already knows when the next pour is due; a tap per pour was an extra step with a full kettle. The cue is still sound as well as sight because eyes are on the kettle. | [§4.2](#42-brew) |
+| D63 | **The rating records the cool-down before tasting** (issue #21): whole minutes after the brew (0–240) or the cup's temperature (0–100 °C, one decimal), never both, in one box with a min / °C switch. The switch starts on the unit of the previous rating shown (D53, D58); the box starts blank. Optional, but like the other rating fields it needs an overall. Exported as `rating_cooldown_min` and `rating_cooldown_temp_c`. | Flavour changes as a cup cools, so the score depends on when it was tasted. Brewers measure it differently, with a timer or a thermometer; two columns keep each a number for Stage 2. | [§4.3](#43-rating--tasting-the-target-variable) |
 
 ## 9. Open questions / decisions to revisit
 

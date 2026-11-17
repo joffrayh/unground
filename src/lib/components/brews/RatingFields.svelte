@@ -5,6 +5,9 @@
 	 *
 	 * `from` is the previous rating (D53): its scores stay in grey to compare against, and a tap applies
 	 * them. Nothing is pre-set, so a rating left blank is still "rate later".
+	 *
+	 * Cool-down (D63) is how long after the brew, or how cool, the cup was when tasted: one box with a
+	 * min / °C switch, starting on the unit the previous rating used.
 	 */
 	import { onMount } from 'svelte';
 	import FieldError from '#lib/components/FieldError.svelte';
@@ -13,12 +16,14 @@
 	import Slider from '#lib/components/Slider.svelte';
 	import TagPicker from '#lib/components/TagPicker.svelte';
 	import {
+		COOLDOWN_UNITS,
 		DIMENSION_HINTS,
 		RATING_DIMENSIONS,
 		OVERALL_SCALE,
 		PROFILE_SCALE,
 		isScore,
 		label,
+		type CooldownUnit,
 		type RatingDimension,
 		type ScoreScale
 	} from '#lib/domain/vocab.ts';
@@ -66,6 +71,16 @@
 	const dimensionErrors = $derived(
 		RATING_DIMENSIONS.filter((d) => errors[d]).map((d) => ({ d, message: errors[d] }))
 	);
+
+	/** The unit picked here; until then, the rating's own, else the previous rating's. */
+	let pickedUnit = $state<CooldownUnit | null>(null);
+	const cooldownUnit = $derived(
+		pickedUnit ??
+			(values.cooldown.trim() !== '' || values.cooldownUnit !== 'min'
+				? values.cooldownUnit
+				: (from?.cooldownUnit ?? 'min'))
+	);
+	const UNIT_LABELS: Record<CooldownUnit, string> = { min: 'min', c: '°C' };
 
 	// Without JavaScript the radio rows post the scores; once it runs, the sliders and radar replace them.
 	let hydrated = $state(false);
@@ -196,6 +211,39 @@
 	</div>
 
 	<div class="field">
+		<label for="{uid}-cooldown">Cool-down</label>
+		<div class="cooldown">
+			<input
+				id="{uid}-cooldown"
+				name="cooldown"
+				type="text"
+				inputmode={cooldownUnit === 'c' ? 'decimal' : 'numeric'}
+				autocomplete="off"
+				enterkeyhint="next"
+				class="num"
+				value={values.cooldown}
+				aria-invalid={errors.cooldown ? 'true' : undefined}
+				aria-describedby={errors.cooldown ? `${uid}-cooldown-err` : undefined}
+			/>
+			<div class="units" role="radiogroup" aria-label="Cool-down unit">
+				{#each COOLDOWN_UNITS as u (u)}
+					<label class="pill">
+						<input
+							type="radio"
+							name="cooldownUnit"
+							value={u}
+							checked={cooldownUnit === u}
+							onchange={() => (pickedUnit = u)}
+						/>
+						<span>{UNIT_LABELS[u]}</span>
+					</label>
+				{/each}
+			</div>
+		</div>
+		<FieldError id="{uid}-cooldown-err" message={errors.cooldown} />
+	</div>
+
+	<div class="field">
 		<label for="{uid}-comment">Tasting comment</label>
 		<textarea
 			id="{uid}-comment"
@@ -294,6 +342,23 @@
 	.legend dd {
 		margin: 0;
 		color: var(--muted);
+	}
+	.cooldown {
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
+	}
+	.cooldown > input {
+		flex: 1 1 auto;
+		min-width: 0;
+	}
+	.units {
+		display: flex;
+		flex: none;
+		gap: 0.25rem;
+	}
+	.units .pill span {
+		min-height: 44px;
 	}
 	.intro {
 		display: flex;

@@ -78,6 +78,9 @@ export const BREW_COLUMNS = [
 	'roaster_notes',
 	'roaster_notes_raw',
 	'rating_comment',
+	// Cool-down before tasting (D63): one or the other.
+	'rating_cooldown_min',
+	'rating_cooldown_temp_c',
 	// What the brewer meant to change next time (D25); blank = keep as it was.
 	'next_water_temp_c',
 	'next_ratio',
@@ -181,6 +184,8 @@ async function buildBrewsCsv(db: Tx, userId: string): Promise<string> {
 			roaster_notes: (notesMap.get(bean.id) ?? []).join(';'),
 			roaster_notes_raw: bean.roasterNotesRaw,
 			rating_comment: rating?.comment ?? null,
+			rating_cooldown_min: rating?.cooldownMin ?? null,
+			rating_cooldown_temp_c: rating?.cooldownTempC ?? null,
 			next_water_temp_c: plan?.waterTempC ?? null,
 			next_ratio: plan?.ratio ?? null,
 			next_grind_setting: plan?.grindSetting ?? null,

@@ -30,6 +30,7 @@ import {
 	AGITATION_MIN,
 	BREW_METHODS,
 	CHANGED_VARIABLES,
+	COOLDOWN_MAX_MIN,
 	COUNTRY_CODES,
 	DRIPPER_MATERIALS,
 	FILTER_TYPES,
@@ -428,10 +429,19 @@ export const ratings = pgTable(
 		/** Legacy (D22): no longer collected; old ratings keep their value. */
 		aftertaste: score('aftertaste'),
 		comment: text('comment'),
+		// Cool-down before tasting (D63): minutes after the brew, or the cup's temperature. At most one.
+		cooldownMin: smallint('cooldown_min'),
+		cooldownTempC: numeric('cooldown_temp_c', { precision: 4, scale: 1, mode: 'number' }),
 		...timestamps
 	},
 	(t) => [
 		check('ratings_overall', isScore(t.overall, OVERALL_SCALE)),
+		check(
+			'ratings_cooldown_min',
+			sql`${t.cooldownMin} BETWEEN 0 AND ${sql.raw(String(COOLDOWN_MAX_MIN))}`
+		),
+		check('ratings_cooldown_temp', sql`${t.cooldownTempC} BETWEEN 0 AND 100`),
+		check('ratings_cooldown_one', sql`num_nonnulls(${t.cooldownMin}, ${t.cooldownTempC}) <= 1`),
 		check('ratings_acidity', profileScore(t.acidity)),
 		check('ratings_sweetness', profileScore(t.sweetness)),
 		check('ratings_body', profileScore(t.body)),

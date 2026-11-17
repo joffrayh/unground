@@ -123,6 +123,8 @@ describe('csv export', () => {
 			rating_astringency: '1.5',
 			rating_clarity: '3.5',
 			rating_aftertaste: '',
+			rating_cooldown_min: '5',
+			rating_cooldown_temp_c: '',
 			perceived_notes: 'fruity.berry.blueberry;sweet.brown_sugar.honey',
 			roaster_notes: 'floral.floral.jasmine;fruity.other_fruit.peach',
 			next_water_temp_c: '92',

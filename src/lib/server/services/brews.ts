@@ -317,6 +317,8 @@ export async function loadRatings(q: Queryable, brewIds: string[]): Promise<Map<
 		const rating = {
 			overall: r.overall,
 			comment: r.comment,
+			cooldownMin: r.cooldownMin,
+			cooldownTempC: r.cooldownTempC,
 			perceivedNotes: [],
 			aftertaste: r.aftertaste,
 			updatedAt: r.updatedAt
@@ -526,7 +528,14 @@ async function writeRating(tx: Tx, brewId: string, rating: RatingInput): Promise
 	const values: Partial<Record<RatingDimension, number | null>> & {
 		overall: number;
 		comment: string | null;
-	} = { overall: rating.overall, comment: rating.comment };
+		cooldownMin: number | null;
+		cooldownTempC: number | null;
+	} = {
+		overall: rating.overall,
+		comment: rating.comment,
+		cooldownMin: rating.cooldownMin,
+		cooldownTempC: rating.cooldownTempC
+	};
 	for (const d of RATING_DIMENSIONS) values[d] = rating[d];
 	await tx
 		.insert(ratings)

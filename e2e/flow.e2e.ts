@@ -32,6 +32,8 @@ function csvRows(text: string): Record<string, string>[] {
 
 /** Sign-ups are rate limited and the journeys use them all, so the theme tests reuse an account. */
 const THEME_EMAIL = uniqueEmail('theme');
+/** Signed up by the detour test; the cool-down test logs its brew there too. */
+const DETOUR_EMAIL = uniqueEmail('detour');
 const LIGHT_BG = 'rgb(250, 245, 236)';
 const DARK_BG = 'rgb(16, 17, 24)';
 
@@ -388,7 +390,7 @@ test('log, rate, plan, repeat and export a brew', async ({ page }) => {
 test('brew again survives a new-grinder detour, and never copies grind across grinders', async ({
 	page
 }) => {
-	await signUp(page, uniqueEmail('detour'));
+	await signUp(page, DETOUR_EMAIL);
 	await setUpGrinderAndBean(page);
 	await logBrew(page);
 	await page.getByRole('link', { name: 'Brew again' }).click();
@@ -525,6 +527,34 @@ test('a blank pour time saves the time it shows, and the brew page leads back to
 	expect(editBox!.x).toBeGreaterThan(name!.x + name!.width);
 	await edit.click();
 	await expect(row.getByLabel('Setting unit')).toBeVisible();
+});
+
+test('the cool-down saves in °C, and the next rating starts on °C (D63)', async ({ page }) => {
+	await logIn(page, DETOUR_EMAIL);
+	await page.goto('/brews/new');
+	await page.locator('[name="grindSetting"]').fill('24');
+	await page.locator('[name="doseG"]').fill('15');
+	await page.locator('[name="waterTempC"]').fill('94');
+	await fillPours(page, [
+		['0:00', '50'],
+		['0:45', '250']
+	]);
+	await page.locator('[name="totalTime"]').fill('3:00');
+	await page.getByRole('slider', { name: 'Overall', exact: true }).fill('4');
+	const unit = page.getByRole('radiogroup', { name: 'Cool-down unit' });
+	await expect(unit.getByRole('radio', { name: 'min' })).toBeChecked();
+	await unit.getByRole('radio', { name: '°C' }).check();
+	await page.getByLabel('Cool-down', { exact: true }).fill('101');
+	await page.getByRole('button', { name: 'Save brew' }).click();
+	await expect(page.getByText('Max 100')).toBeVisible();
+	await page.getByLabel('Cool-down', { exact: true }).fill('62');
+	await page.getByRole('button', { name: 'Save brew' }).click();
+	await expect(page).toHaveURL(/\/brews\/[0-9a-f-]{36}$/);
+	await expect(page.getByText('62 °C')).toBeVisible();
+
+	await page.goto('/brews/new');
+	await expect(page.getByLabel('Cool-down', { exact: true })).toHaveValue('');
+	await expect(unit.getByRole('radio', { name: '°C' })).toBeChecked();
 });
 
 test('a brew in progress survives leaving the form, until it is cancelled', async ({ page }) => {
@@ -966,9 +996,11 @@ test.describe('without JavaScript', () => {
 		await page.locator('[name="totalTime"]').fill('3:00');
 		// Without JavaScript a score is picked from a list (D55).
 		await page.locator('select[name="overall"]').selectOption('3.75');
+		await page.getByLabel('Cool-down', { exact: true }).fill('8');
 		await page.getByRole('button', { name: 'Save brew' }).click();
 		await expect(page).toHaveURL(/\/brews\/[0-9a-f-]{36}$/);
 		await expect(page.getByLabel('Overall 3.75 of 5')).toBeVisible();
+		await expect(page.getByText('8 min')).toBeVisible();
 		await expect(page.getByRole('cell', { name: '0:45' })).toBeVisible();
 		await expect(page.getByRole('cell', { name: '1:30' })).toBeVisible();
 	});
