@@ -299,6 +299,8 @@ export const brews = pgTable(
 		waterG: numeric('water_g', { precision: 6, scale: 1, mode: 'number' }).notNull(),
 		waterTempC: numeric('water_temp_c', { precision: 4, scale: 1, mode: 'number' }).notNull(),
 		totalTimeS: integer('total_time_s').notNull(),
+		/** When the drawdown ended, stamped by the form as the total time was filled (D64). */
+		drawdownEndAt: timestamp('drawdown_end_at', { withTimezone: true }),
 		/** Swirl / stir, unitless 0–5 (D24). Null = not recorded. */
 		agitation: smallint('agitation'),
 		/** Legacy (D25): no longer asked in the form; kept for brews that recorded it. */

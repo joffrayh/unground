@@ -22,6 +22,7 @@ import {
 } from '#lib/domain/pours.ts';
 import {
 	AGITATION_DEFAULT,
+	AUTO_COOLDOWN_MAX_MIN,
 	RATING_DIMENSIONS,
 	type CooldownUnit,
 	type RatingDimension
@@ -120,6 +121,8 @@ export interface BrewFormValues {
 	agitation: string;
 	pours: PourRow[];
 	totalTime: string;
+	/** When the drawdown ended, as an ISO time; '' when not stamped (D64). */
+	drawdownEndAt: string;
 	brewedAt: string;
 	notes: string;
 	rating: RatingValues;
@@ -153,6 +156,7 @@ export interface BrewLike {
 	waterTempC: number;
 	agitation: number | null;
 	totalTimeS: number;
+	drawdownEndAt?: Date | null;
 	notes: string | null;
 	details: { filterType: string | null; pours: Pour[] };
 	rating: RatingLike | null;
@@ -174,6 +178,18 @@ const str = (v: number | string | null | undefined) => (v == null ? '' : String(
 function cooldownUnit(rating: RatingLike | null): CooldownUnit | null {
 	if (rating?.cooldownTempC != null) return 'c';
 	return rating?.cooldownMin != null ? 'min' : null;
+}
+
+/**
+ * The cool-down to fill in when a rating is started at `now` (D64): whole minutes since the drawdown
+ * ended, or null when it wasn't stamped or the rating comes too late to be the first sip.
+ */
+export function autoCooldownMin(drawdownEndAt: Date | null, now: Date): number | null {
+	if (!drawdownEndAt || Number.isNaN(drawdownEndAt.getTime())) return null;
+	const min = Math.round((now.getTime() - drawdownEndAt.getTime()) / 60_000);
+	// A minute early is another device's clock, not a rating before the brew.
+	if (min < -1 || min > AUTO_COOLDOWN_MAX_MIN) return null;
+	return Math.max(0, min);
 }
 
 export function ratingValues(rating: RatingLike | null): RatingValues {
@@ -249,6 +265,7 @@ export function editValues(brew: BrewLike, brewedAt: string): BrewFormValues {
 		agitation: str(brew.agitation),
 		pours: rowsFromEntries(poursToEntries(brew.details.pours)),
 		totalTime: formatDuration(brew.totalTimeS),
+		drawdownEndAt: brew.drawdownEndAt?.toISOString() ?? '',
 		brewedAt,
 		notes: brew.notes ?? '',
 		rating: ratingValues(brew.rating),
@@ -367,6 +384,7 @@ function templateValues(template: TemplateBrew, brewedAt: string): BrewFormValue
 		agitation: String(template.agitation ?? AGITATION_DEFAULT),
 		pours: placeholderRowsFromEntries(poursToEntries(template.details.pours)),
 		totalTime: '',
+		drawdownEndAt: '',
 		brewedAt,
 		notes: '',
 		rating: ratingValues(null),
@@ -391,6 +409,7 @@ function blankValues(brewedAt: string): BrewFormValues {
 		// The first ever brew starts with pour 0 ticked as a bloom, the usual recipe.
 		pours: [blankRow(true)],
 		totalTime: '',
+		drawdownEndAt: '',
 		brewedAt,
 		notes: '',
 		rating: ratingValues(null),

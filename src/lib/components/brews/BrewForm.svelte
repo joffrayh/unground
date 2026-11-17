@@ -141,6 +141,8 @@
 	let waterTempC = $state(start.waterTempC);
 	let agitation = $state(start.agitation);
 	let totalTime = $state(start.totalTime);
+	// svelte-ignore state_referenced_locally
+	let drawdownEndAt = $state(val(form, 'drawdownEndAt', values.drawdownEndAt));
 	let brewedAt = $state(start.brewedAt);
 	// Seeded here too, so the next-time card has its ratio and pour count before (or without) JavaScript.
 	// svelte-ignore state_referenced_locally
@@ -322,11 +324,26 @@
 		};
 	}
 
+	// --- the drawdown's end (D64), for the cool-down -------------------------------------------
+	// Stamped on a new brew as the total time is filled: by the scale or the pour timer as the brew
+	// ends, else when the brewer first types it. An edited brew keeps what it was stamped with.
+
+	const drawdownEnd = $derived(drawdownEndAt ? new Date(drawdownEndAt) : null);
+
+	function stampDrawdownEnd() {
+		if (liveBrewedAtIn) drawdownEndAt = new Date().toISOString();
+	}
+
+	function onTotalTimeInput() {
+		if (!drawdownEndAt && totalTime.trim() !== '') stampDrawdownEnd();
+	}
+
 	/** A guided brew has finished: its measurements replace what was planned (D51). */
 	function recordMeasured(brew: GuideState, id: string) {
 		pourEditor?.applyMeasured(brew.pours);
 		totalTime = formatDuration(measuredTotalS(brew.pours, brew.elapsedMs));
 		scaleId = id;
+		stampDrawdownEnd();
 	}
 
 	let scaleOpen = $state(false);
@@ -336,18 +353,22 @@
 	const scaleReady = $derived(
 		scaleLink.status === 'connected' && !!scales?.some((s) => s.id === scaleLink.pairing?.scaleId)
 	);
-	/** Total time before the pour timer's Stop filled it in, and what it wrote, for its Undo. */
-	let totalTap: { before: string; written: string } | null = null;
+	/** Total time and drawdown stamp before the pour timer's Stop filled them, and what it wrote, for its Undo. */
+	let totalTap: { before: string; written: string; endBefore: string } | null = null;
 
 	function tapTotal(s: number | null) {
 		if (s === null) {
 			// A total retyped since Stop is the brewer's: leave it.
-			if (totalTap && totalTime === totalTap.written) totalTime = totalTap.before;
+			if (totalTap && totalTime === totalTap.written) {
+				totalTime = totalTap.before;
+				drawdownEndAt = totalTap.endBefore;
+			}
 			totalTap = null;
 			return;
 		}
-		totalTap = { before: totalTime, written: formatDuration(s) };
+		totalTap = { before: totalTime, written: formatDuration(s), endBefore: drawdownEndAt };
 		totalTime = totalTap.written;
+		stampDrawdownEnd();
 	}
 
 	function normalizeTotalTime() {
@@ -660,11 +681,13 @@
 					class="num"
 					enterkeyhint="next"
 					bind:value={totalTime}
+					oninput={onTotalTimeInput}
 					onblur={normalizeTotalTime}
 					{...describe('totalTime', true)}
 				/>
 				<span class="hint" id="{uid}-totalTime-hint">End of drawdown</span>
 				<FieldError id="{uid}-totalTime-err" message={errors.totalTime} />
+				<input type="hidden" name="drawdownEndAt" value={drawdownEndAt} />
 			</div>
 			<div class="field">
 				<label for="{uid}-brewedAt">Brewed at</label>
@@ -699,7 +722,12 @@
 	<details class="section" open>
 		<summary>Rating</summary>
 		<div class="details-body">
-			<RatingFields values={rating} from={values.lastRatings[beanId] ?? null} {errors} />
+			<RatingFields
+				values={rating}
+				from={values.lastRatings[beanId] ?? null}
+				{errors}
+				drawdownEndAt={drawdownEnd}
+			/>
 		</div>
 	</details>
 

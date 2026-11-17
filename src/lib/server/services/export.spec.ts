@@ -66,6 +66,7 @@ describe('csv export', () => {
 			brewInput(refs, {
 				dripperId: refs.dripperId,
 				slowFed: true,
+				drawdownEndAt: new Date('2026-11-03T08:03:15Z'),
 				notes: 'Fast drawdown, "choked" a bit'
 			}),
 			ratingInput({ perceivedNotes: ['fruity.berry.blueberry', 'sweet.brown_sugar.honey'] }),
@@ -89,6 +90,7 @@ describe('csv export', () => {
 		expect(row).toMatchObject({
 			brew_id: id,
 			brewed_at_utc: '2026-11-03T08:00:00.000Z',
+			drawdown_end_utc: '2026-11-03T08:03:15.000Z',
 			brewed_local_date: '2026-11-03',
 			timezone: 'Europe/London',
 			method: 'v60',

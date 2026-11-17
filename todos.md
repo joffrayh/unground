@@ -1,0 +1,6 @@
+ - add a checkbox for 'Slow fed' on the brew page next to grinder in Set-up. this makes 4 elements in the card so force a 2x2 grid for wide instead of the 1x3. this goes into the data collection, add a migration to add false to all prior db entries
+ - change 'Cafec' filter to multiple entries:
+   - Cafec T90
+   - Cafec T92
+   - Cafec Abaca
+ - it's only me using cafecs in the deployed database so you can safetly migrate all entries to Cafec Abaca

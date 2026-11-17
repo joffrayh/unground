@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
 	agreeingNotes,
+	autoCooldownMin,
 	beanOptions,
 	chooseId,
 	dripperOptions,
@@ -99,6 +100,31 @@ describe('editValues', () => {
 			nextAgitation: '3',
 			nextNotes: 'Swirl less'
 		});
+	});
+
+	it('keeps the drawdown stamp, and a new brew starts without one (D64)', () => {
+		const end = new Date('2026-11-03T08:18:15Z');
+		expect(editValues({ ...brew, drawdownEndAt: end }, '').drawdownEndAt).toBe(
+			'2026-11-03T08:18:15.000Z'
+		);
+		expect(editValues(brew, '').drawdownEndAt).toBe('');
+		expect(newBrewValues({ ...brew, drawdownEndAt: end }, '').drawdownEndAt).toBe('');
+	});
+});
+
+describe('autoCooldownMin', () => {
+	const end = new Date('2026-11-03T08:00:00Z');
+	const at = (m: number) => new Date(end.getTime() + m * 60_000);
+
+	it('is the whole minutes since the drawdown, up to 30 (D64)', () => {
+		expect(autoCooldownMin(end, at(0.2))).toBe(0);
+		expect(autoCooldownMin(end, at(7.6))).toBe(8);
+		expect(autoCooldownMin(end, at(30))).toBe(30);
+		expect(autoCooldownMin(end, at(31))).toBeNull();
+		expect(autoCooldownMin(end, at(-0.9))).toBe(0);
+		expect(autoCooldownMin(end, at(-5))).toBeNull();
+		expect(autoCooldownMin(null, at(5))).toBeNull();
+		expect(autoCooldownMin(new Date('nope'), at(5))).toBeNull();
 	});
 });
 
